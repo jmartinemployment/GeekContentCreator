@@ -79,15 +79,16 @@ export default function ContentResults({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">5. Generate Content</h2>
       <p className="mt-1 text-sm text-muted">
-        Content Writer v2 steps. Start with the pillar plan and body, then blog / social / email /
-        tools / image prompts. Tool pages need a Tools section in the pillar body.
+        Content Writer v2 steps. Pillar is optional — generate a standalone blog from crawl +
+        research, or run pillar plan/body first for the companion-blog path. Tool pages from the
+        pillar Tools section still need a pillar body; AI Tools from names live in the panel below.
       </p>
 
       <div className="mt-5 space-y-3">
         <StepRow
           step={1}
-          title="Pillar plan (Technical Article)"
-          description="Title, meta, keywords, and declarative H2 outline (PAA goes in a final FAQ section only)."
+          title="Pillar plan (Technical Article) — optional"
+          description="Title, meta, keywords, and declarative H2 outline (PAA goes in a final FAQ section only). Skip if you only need a blog."
           done={hasPillarPlan}
           disabled={!canGenerate || isGenerating}
           isRunning={generatingStep === "pillar-plan"}
@@ -97,14 +98,14 @@ export default function ContentResults({
 
         <StepRow
           step={2}
-          title="Pillar body"
+          title="Pillar body — optional"
           description={`${CONTENT_LENGTH_TARGETS.pillar.definition} Target ${CONTENT_LENGTH_TARGETS.pillar.label} words — one outline section per LLM call.`}
           done={hasPillarBody}
           disabled={!hasPillarPlan || isGenerating}
           isRunning={generatingStep === "pillar-body"}
           buttonLabel={hasPillarBody ? "Regenerate body" : "Write body"}
           onClick={() => runStep("pillar-body", () => generatePillarBodyContent(projectId))}
-          lockedMessage={!hasPillarPlan ? "Complete Step 1 first." : undefined}
+          lockedMessage={!hasPillarPlan ? "Complete Step 1 first (or skip to Blog)." : undefined}
         />
         {result?.articleNoResearchWarning && (
           <p className="pl-8 text-xs text-amber-600">{result.articleNoResearchWarning}</p>
@@ -118,13 +119,16 @@ export default function ContentResults({
         <StepRow
           step={3}
           title="Blog content"
-          description={`${CONTENT_LENGTH_TARGETS.blog.definition} Target ${CONTENT_LENGTH_TARGETS.blog.label} words — one section per LLM call, cross-linked to the pillar.`}
+          description={
+            hasPillarBody
+              ? `${CONTENT_LENGTH_TARGETS.blog.definition} Target ${CONTENT_LENGTH_TARGETS.blog.label} words — companion to the pillar.`
+              : `${CONTENT_LENGTH_TARGETS.blog.definition} Target ${CONTENT_LENGTH_TARGETS.blog.label} words — standalone from crawl + research (no pillar required).`
+          }
           done={hasBlog}
-          disabled={!hasPillarBody || isGenerating}
+          disabled={!canGenerate || isGenerating}
           isRunning={generatingStep === "blog"}
           buttonLabel={hasBlog ? "Regenerate blog" : "Generate blog"}
           onClick={() => runStep("blog", () => generateBlogContent(projectId))}
-          lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
         />
 
         <StepRow
@@ -136,7 +140,7 @@ export default function ContentResults({
           isRunning={generatingStep === "social"}
           buttonLabel={hasSocial ? "Regenerate social" : "Generate social"}
           onClick={() => runStep("social", () => generateSocialContent(projectId))}
-          lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
+          lockedMessage={!hasPillarBody ? "Needs a pillar body (or use Mix after approving a blog)." : undefined}
         />
 
         <StepRow
@@ -148,13 +152,13 @@ export default function ContentResults({
           isRunning={generatingStep === "cold-outreach"}
           buttonLabel={result?.coldOutreachEmail ? "Regenerate email" : "Generate email"}
           onClick={() => runStep("cold-outreach", () => generateColdOutreachContent(projectId))}
-          lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
+          lockedMessage={!hasPillarBody ? "Needs a pillar body." : undefined}
         />
 
         <StepRow
           step={6}
-          title="Tool documents"
-          description={`${CONTENT_LENGTH_TARGETS.tools.definition} Target ${CONTENT_LENGTH_TARGETS.tools.label} words — up to 5 pages from the pillar Tools section, each with SoftwareApplication JSON+LD. Needs a pillar body with a Tools section first.`}
+          title="Tool documents (from pillar Tools section)"
+          description={`${CONTENT_LENGTH_TARGETS.tools.definition} Target ${CONTENT_LENGTH_TARGETS.tools.label} words — up to 5 pages from the pillar Tools section. Prefer AI Tools (names + brief) below when you have no Tools section.`}
           done={hasTools}
           disabled={!hasPillarBody || isGenerating}
           isRunning={generatingStep === "tools"}
@@ -162,7 +166,7 @@ export default function ContentResults({
           onClick={() => runStep("tools", () => generateToolsContent(projectId))}
           lockedMessage={
             !hasPillarBody
-              ? "Write the pillar body first (Step 2), then generate tools from its Tools section."
+              ? "Write the pillar body first, or use AI Tools (names + brief) below."
               : undefined
           }
         />
@@ -170,13 +174,17 @@ export default function ContentResults({
         <StepRow
           step={7}
           title="Image prompts"
-          description="One image-generation prompt per H2 in the pillar and blog — copy each into your image generator for section figures."
+          description={
+            hasPillarBody
+              ? "One image-generation prompt per H2 in the pillar and blog."
+              : "Image prompts for blog H2s (standalone blog path). Or use Standalone image prompt on the dashboard."
+          }
           done={hasImagePrompts}
           disabled={!hasBlog || isGenerating}
           isRunning={generatingStep === "image-prompts"}
           buttonLabel={hasImagePrompts ? "Regenerate prompts" : "Generate prompts"}
           onClick={() => runStep("image-prompts", () => generateImagePromptsContent(projectId))}
-          lockedMessage={!hasBlog ? "Complete Step 3 (blog) first." : undefined}
+          lockedMessage={!hasBlog ? "Generate a blog first." : undefined}
         />
       </div>
 
@@ -234,11 +242,12 @@ export default function ContentResults({
         </p>
       )}
 
-      {result?.article && (
+      {result && (result.article || result.blog) && (
         <div className="mt-6">
           <div className="flex gap-1 border-b border-border">
             {TABS.map((tab) => {
               const unavailable =
+                (tab.id === "article" && !result.article) ||
                 (tab.id === "blog" && !result.blog) ||
                 ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
                 (tab.id === "cold-outreach" && !result.coldOutreachEmail) ||

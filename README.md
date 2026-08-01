@@ -1,7 +1,7 @@
 # Geek Content Creator
 
 **Base:** Content Writer v2 (clients → projects → crawl → generate).  
-**Additions:** Site Analyzer, revise/SEO/polish/approve/Mix (in progress).
+**Additions:** Site Analyzer, standalone blog (pillar optional), AI Tools from names, revise / SEO / polish / content approval / Mix, standalone image prompts.
 
 **Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
 **Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).
@@ -11,6 +11,7 @@
 - Next.js 16 App Router + TypeScript + Tailwind
 - GeekOAuth client: `geek-content-creator`
 - Content Writer v2 via GeekAPI: `/api/clients`, `/api/projects/.../generate/*` (proxied at `/api/cw/*`)
+- CC facades: `/api/geek-content-creator/*` (tools-from-names, project revise, Site Analyzer)
 - Local port: **3003**
 
 ## Dev
@@ -23,11 +24,13 @@ npm run dev
 
 Open [http://localhost:3003](http://localhost:3003). Requires GeekOAuth and GeekAPI (often **:8080** on macOS) with Content Writer v2 controllers merged in.
 
-## Smoke checklist (CWV2 path)
+## Smoke checklist (day one)
 
-1. Sign in → **Projects** → select/create client → **New Project**
-2. Open project → Crawl → upload keyword sources → Generate (pillar/blog/tools/…)
-3. Confirm draft appears in Content Results
+1. Sign in → **Projects** → client → **New Project** → Crawl + research → **Generate blog** (no pillar)
+2. Site Analyzer → pick gap → project with related-page research → Generate
+3. Standalone image prompt on dashboard (topic + notes)
+4. AI Tools: names + brief on a project (no Tools section required)
+5. SEO/polish → Revise (Full/Section) → Content approval → Mix
 
 ## Deploy (Vercel)
 
