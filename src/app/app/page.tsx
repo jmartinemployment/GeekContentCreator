@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ClientsPanel from "@/components/content-writer/ClientsPanel";
 import ProjectForm from "@/components/content-writer/ProjectForm";
 import ProjectList from "@/components/content-writer/ProjectList";
+import StandaloneImagePromptPanel from "@/components/content-writer/StandaloneImagePromptPanel";
 import { getClients, getRecentProjects } from "@/lib/content-writer/api";
 import type { Client, ProjectSummary } from "@/lib/content-writer/types";
 
@@ -98,6 +99,7 @@ function DashboardInner() {
               initialName={initialName}
               onCreated={handleProjectCreated}
             />
+            <StandaloneImagePromptPanel clientId={selectedClientId} />
             <ProjectList projects={clientProjects} />
           </>
         )}

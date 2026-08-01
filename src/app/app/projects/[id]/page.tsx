@@ -8,6 +8,7 @@ import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import HumanToolsHint from "@/components/content-writer/HumanToolsHint";
+import DraftQualityPanel from "@/components/content-writer/DraftQualityPanel";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { crawlProject, getProject } from "@/lib/content-writer/api";
 import type {
@@ -144,6 +145,11 @@ export default function ProjectPage() {
           projectId={project.id}
           canRunTools={(generated?.article?.wordCount ?? 0) >= 200}
           onGenerated={setGenerated}
+        />
+
+        <DraftQualityPanel
+          result={generated}
+          targetKeyword={project.targetKeyword}
         />
 
         <ReviewPublishPanel projectId={project.id} result={generated} onGenerated={setGenerated} />
