@@ -33,7 +33,7 @@ export function AiToolsPanel({
       <h2 className="font-display text-xl font-semibold">AI Tools</h2>
       <p className="text-sm text-[var(--gcc-muted)]">
         Context required, source flexible — pick names from this artifact or supply a list + brief.
-        Blocked only when no names.
+        Needs at least one tool name to generate.
       </p>
 
       <form onSubmit={submit} className="space-y-3">

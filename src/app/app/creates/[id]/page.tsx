@@ -154,7 +154,7 @@ export default async function CreateWorkspacePage({
     const toolNames = [...new Set([...selected, ...manual])];
     if (toolNames.length === 0) {
       redirect(
-        `/app/creates/${id}?error=${encodeURIComponent("AI Tools blocked: provide tool names")}`,
+        `/app/creates/${id}?error=${encodeURIComponent("Add at least one tool name to generate AI Tools")}`,
       );
     }
     if (!primary && !brief) {

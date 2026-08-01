@@ -8,6 +8,7 @@ import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import HumanToolsHint from "@/components/content-writer/HumanToolsHint";
+import ContentApprovalPanel from "@/components/content-writer/ContentApprovalPanel";
 import DraftQualityPanel from "@/components/content-writer/DraftQualityPanel";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { crawlProject, getProject } from "@/lib/content-writer/api";
@@ -102,14 +103,23 @@ export default function ProjectPage() {
         <p className="mt-2 text-sm text-muted">{project.projectUrl}</p>
       </div>
 
-      {keywordSources.some((k) =>
-        (k.originalFileName || "").toLowerCase().includes("site-analyzer")
-      ) ? (
-        <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
-          Site Analyzer research is attached under Upload Research. Crawl the site (auto-runs once),
-          then Generate plan below.
-        </p>
-      ) : null}
+      {(() => {
+        const sa = keywordSources.find((k) =>
+          (k.originalFileName || "").toLowerCase().includes("site-analyzer"),
+        );
+        if (!sa) return null;
+        const m = (sa.originalFileName || "").match(/(\d+)pages/i);
+        const n = m ? Number(m[1]) : null;
+        return (
+          <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
+            Site Analyzer research attached
+            {n != null && n > 0
+              ? ` — using ${n} related page${n === 1 ? "" : "s"}`
+              : ""}
+            . Crawl the site (auto-runs once), then Generate plan below.
+          </p>
+        );
+      })()}
 
       {canGenerate ? (
         <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
@@ -143,7 +153,7 @@ export default function ProjectPage() {
 
         <HumanToolsHint
           projectId={project.id}
-          canRunTools={(generated?.article?.wordCount ?? 0) >= 200}
+          canRunPillarTools={(generated?.article?.wordCount ?? 0) >= 200}
           onGenerated={setGenerated}
         />
 
@@ -151,6 +161,8 @@ export default function ProjectPage() {
           result={generated}
           targetKeyword={project.targetKeyword}
         />
+
+        <ContentApprovalPanel projectId={project.id} result={generated} />
 
         <ReviewPublishPanel projectId={project.id} result={generated} onGenerated={setGenerated} />
       </div>

@@ -194,6 +194,27 @@ export function generateToolsContent(
   );
 }
 
+/**
+ * Content Creator addition: human tool names + brief → CWV2 tool prompts.
+ * Does not require a pillar Tools section (POST …/generate/tools).
+ */
+export function generateToolsFromNames(
+  projectId: string,
+  input: { toolNames: string[]; brief: string; provider?: string },
+): Promise<GeneratedContentSet> {
+  return request<GeneratedContentSet>(
+    `/api/geek-content-creator/projects/${projectId}/tools-from-names`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        toolNames: input.toolNames,
+        brief: input.brief,
+        provider: input.provider ?? "OpenAi",
+      }),
+    },
+  );
+}
+
 export function generateBlogContent(
   projectId: string,
 ): Promise<GeneratedContentSet> {

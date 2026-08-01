@@ -11,6 +11,8 @@ import {
   isProductionContentWriterApi,
 } from "@/lib/content-writer/api";
 import { SITE_SECTION_STORAGE_KEY } from "@/lib/site-section-storage";
+import { SiteContextBanner } from "@/components/SiteContextBanner";
+import type { SiteSectionContext } from "@/lib/types";
 
 function formatSiteSectionResearchFile(payload: {
   gapTopic?: string;
@@ -28,8 +30,10 @@ function formatSiteSectionResearchFile(payload: {
 }): string {
   const section = payload.section;
   if (!section?.relatedPages?.length) return "";
+  const n = section.relatedPages.length;
   const lines: string[] = [
     "Site Analyzer — existing site section context for content generation.",
+    `Using ${n} related page${n === 1 ? "" : "s"}.`,
     `Gap topic: ${payload.gapTopic || section.gapTopic || ""}`,
   ];
   if (section.gapSectionPath) lines.push(`Section path: ${section.gapSectionPath}`);
@@ -71,6 +75,31 @@ export default function ProjectForm({
   const [useExactKeywordAsTitle, setUseExactKeywordAsTitle] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [siteSectionPreview, setSiteSectionPreview] =
+    useState<SiteSectionContext | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SITE_SECTION_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        siteAnalysisId?: string;
+        gapTopic?: string;
+        section?: SiteSectionContext;
+      };
+      if (parsed.section?.relatedPages?.length) {
+        setSiteSectionPreview({
+          siteAnalysisId: parsed.siteAnalysisId || parsed.section.siteAnalysisId || "",
+          gapTopic: parsed.gapTopic || parsed.section.gapTopic || "",
+          gapSectionPath: parsed.section.gapSectionPath ?? null,
+          relatedPages: parsed.section.relatedPages,
+          topicalNeighbors: parsed.section.topicalNeighbors ?? [],
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,14 +141,16 @@ export default function ProjectForm({
           };
           const text = formatSiteSectionResearchFile(parsed);
           if (text) {
+            const pageCount = parsed.section?.relatedPages?.length ?? 0;
             const file = new File(
               [text],
-              "site-analyzer-section.txt",
+              `site-analyzer-section-${pageCount}pages.txt`,
               { type: "text/plain" },
             );
             await uploadKeywordSource(project.id, "CompetitorCrawl", file);
           }
           sessionStorage.removeItem(SITE_SECTION_STORAGE_KEY);
+          setSiteSectionPreview(null);
         }
       } catch {
         /* research upload is best-effort */
@@ -142,6 +173,12 @@ export default function ProjectForm({
       <p className="mt-1 text-sm text-muted">
         Enter the client site to crawl and the primary keyword this content set should target.
       </p>
+
+      {siteSectionPreview ? (
+        <div className="mt-4">
+          <SiteContextBanner siteSection={siteSectionPreview} />
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
