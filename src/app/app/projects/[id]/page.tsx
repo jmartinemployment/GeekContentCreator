@@ -10,6 +10,7 @@ import ContentResults from "@/components/content-writer/ContentResults";
 import HumanToolsHint from "@/components/content-writer/HumanToolsHint";
 import ContentApprovalPanel from "@/components/content-writer/ContentApprovalPanel";
 import DraftQualityPanel from "@/components/content-writer/DraftQualityPanel";
+import DraftRevisePanel from "@/components/content-writer/DraftRevisePanel";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { crawlProject, getProject } from "@/lib/content-writer/api";
 import type {
@@ -30,6 +31,10 @@ export default function ProjectPage() {
   const [generated, setGenerated] = useState<GeneratedContentSet | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [autoCrawlMsg, setAutoCrawlMsg] = useState<string | null>(null);
+  const [reviseSeed, setReviseSeed] = useState<{
+    feedback: string;
+    contentType: "TechnicalArticle" | "BlogPost";
+  } | null>(null);
 
   const canGenerate = crawl !== null && keywordSources.length > 0;
 
@@ -160,6 +165,18 @@ export default function ProjectPage() {
         <DraftQualityPanel
           result={generated}
           targetKeyword={project.targetKeyword}
+          onApplyFeedback={(feedback, contentType) =>
+            setReviseSeed({ feedback, contentType })
+          }
+        />
+
+        <DraftRevisePanel
+          projectId={project.id}
+          result={generated}
+          seedFeedback={reviseSeed?.feedback}
+          seedContentType={reviseSeed?.contentType}
+          onSeedConsumed={() => setReviseSeed(null)}
+          onGenerated={setGenerated}
         />
 
         <ContentApprovalPanel projectId={project.id} result={generated} />

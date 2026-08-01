@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   generateBlogContent,
   generateColdOutreachContent,
+  generateImagePromptsContent,
   generateSocialContent,
   getProject,
   ApiError,
@@ -25,6 +26,7 @@ export default function ProjectRepurposePage() {
   const [blog, setBlog] = useState(true);
   const [social, setSocial] = useState(false);
   const [cold, setCold] = useState(false);
+  const [imagePrompts, setImagePrompts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
@@ -46,7 +48,7 @@ export default function ProjectRepurposePage() {
   function run() {
     setError(null);
     setDone([]);
-    if (!blog && !social && !cold) {
+    if (!blog && !social && !cold && !imagePrompts) {
       setError("Pick at least one output type.");
       return;
     }
@@ -65,6 +67,10 @@ export default function ProjectRepurposePage() {
         if (cold) {
           await generateColdOutreachContent(projectId);
           finished.push("Cold outreach email");
+        }
+        if (imagePrompts) {
+          await generateImagePromptsContent(projectId);
+          finished.push("Image prompts");
         }
         setDone(finished);
       } catch (e) {
@@ -121,6 +127,14 @@ export default function ProjectRepurposePage() {
             onChange={(e) => setCold(e.target.checked)}
           />
           Cold outreach email
+        </label>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={imagePrompts}
+            onChange={(e) => setImagePrompts(e.target.checked)}
+          />
+          Image prompts (attached)
         </label>
 
         <button

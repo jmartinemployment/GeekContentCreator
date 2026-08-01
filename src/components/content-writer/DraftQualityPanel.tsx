@@ -18,9 +18,14 @@ type DraftKind = "article" | "blog";
 export default function DraftQualityPanel({
   result,
   targetKeyword,
+  onApplyFeedback,
 }: {
   result: GeneratedContentSet | null;
   targetKeyword: string;
+  onApplyFeedback?: (
+    feedback: string,
+    contentType: "TechnicalArticle" | "BlogPost",
+  ) => void;
 }) {
   const [kind, setKind] = useState<DraftKind>("article");
 
@@ -35,6 +40,9 @@ export default function DraftQualityPanel({
             wordCount: result.blog.wordCount,
           }
         : null;
+
+  const contentType =
+    kind === "article" ? ("TechnicalArticle" as const) : ("BlogPost" as const);
 
   const seo: SeoReport | null = useMemo(() => {
     if (!draft) return null;
@@ -73,8 +81,8 @@ export default function DraftQualityPanel({
         On-page SEO &amp; polish
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Structural checks against the project keyword. Use editorial review below to
-        rewrite; paste apply-feedback into a review rewrite when needed.
+        Structural checks against the project keyword. Apply fixes via Revise
+        below.
       </p>
 
       <div className="mt-4 flex gap-2">
@@ -117,7 +125,15 @@ export default function DraftQualityPanel({
               </li>
             ))}
           </ul>
-          {seo.applyFeedback ? (
+          {seo.applyFeedback && onApplyFeedback ? (
+            <button
+              type="button"
+              onClick={() => onApplyFeedback(seo.applyFeedback, contentType)}
+              className="text-sm font-semibold text-brand underline"
+            >
+              Apply SEO fixes via revise
+            </button>
+          ) : seo.applyFeedback ? (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-950">
               Apply via revise: {seo.applyFeedback}
             </p>
@@ -138,7 +154,15 @@ export default function DraftQualityPanel({
               </li>
             ))}
           </ul>
-          {polish.applyFeedback ? (
+          {polish.applyFeedback && onApplyFeedback ? (
+            <button
+              type="button"
+              onClick={() => onApplyFeedback(polish.applyFeedback, contentType)}
+              className="text-sm font-semibold text-brand underline"
+            >
+              Apply polish fixes via revise
+            </button>
+          ) : polish.applyFeedback ? (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-950">
               Apply via revise: {polish.applyFeedback}
             </p>

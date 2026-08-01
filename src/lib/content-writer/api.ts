@@ -215,6 +215,36 @@ export function generateToolsFromNames(
   );
 }
 
+/**
+ * Content Creator addition: operator Revise (Full/Section) on a CWV2 project draft.
+ */
+export function reviseProjectContent(
+  projectId: string,
+  input: {
+    contentType: string;
+    feedback: string;
+    scope?: "full" | "section";
+    sectionPath?: string;
+    toolSlug?: string;
+    provider?: string;
+  },
+): Promise<GeneratedContentSet> {
+  return request<GeneratedContentSet>(
+    `/api/geek-content-creator/projects/${projectId}/revise`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        contentType: input.contentType,
+        feedback: input.feedback,
+        scope: input.scope ?? "full",
+        sectionPath: input.sectionPath ?? null,
+        toolSlug: input.toolSlug ?? null,
+        provider: input.provider ?? "OpenAi",
+      }),
+    },
+  );
+}
+
 export function generateBlogContent(
   projectId: string,
 ): Promise<GeneratedContentSet> {
