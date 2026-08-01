@@ -25,15 +25,20 @@ def main() -> int:
         else:
             link = link.first
         link.click()
-        page.wait_for_url("**/connect/authorize**", timeout=20000)
+        page.wait_for_load_state("networkidle")
         page.screenshot(path=str(OUT / "02-authorize.png"), full_page=True)
         url = page.url
-        assert "client_id=geek-content-creator" in url, url
-        assert "geek-content-creator.vercel.app" in url, url
+        # Unauthenticated users land on /Account/Login?ReturnUrl=/connect/authorize?...
+        assert "client_id=geek-content-creator" in url or "client_id%3Dgeek-content-creator" in url, url
+        assert (
+            "geek-content-creator.vercel.app" in url
+            or "geek-content-creator.vercel.app" in page.url
+        ), url
         assert "geek-content-workflow" not in url, url
-        print("OK landing → authorize")
+        assert "auth.geekatyourspot.com" in url, url
+        print("OK landing → GeekOAuth login for geek-content-creator")
         print("  title:", title)
-        print("  authorize:", url[:160], "...")
+        print("  login:", url[:180], "...")
         browser.close()
     return 0
 
