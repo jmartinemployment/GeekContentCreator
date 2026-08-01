@@ -79,6 +79,13 @@ export function listClients() {
   return geekApiFetch<CwClient[]>("/api/clients");
 }
 
+export function createClient(body: { name: string; notes?: string | null }) {
+  return geekApiFetch<CwClient>("/api/clients", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function listCreates(clientId?: string) {
   const q = clientId ? `?clientId=${encodeURIComponent(clientId)}` : "";
   return geekApiFetch<GccCreate[]>(`${GCC}/creates${q}`);

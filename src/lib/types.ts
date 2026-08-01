@@ -135,9 +135,12 @@ export type ToolGenerateRequest = {
   provider?: string;
 };
 
-export type CwClient = {
+export type BrandClient = {
   id: string;
   name: string;
   notes?: string | null;
   createdAtUtc: string;
 };
+
+/** @deprecated Use BrandClient — not a Content Writer / GCW type. */
+export type CwClient = BrandClient;

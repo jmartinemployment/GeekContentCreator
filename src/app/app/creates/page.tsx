@@ -15,10 +15,10 @@ export default async function CreatesListPage() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-display text-3xl font-semibold">Creates</h1>
         <Link
-          href="/app/create"
+          href="/app"
           className="rounded-md bg-[var(--gcc-teal)] px-3 py-2 text-sm font-semibold text-white"
         >
-          New create
+          New project
         </Link>
       </div>
       {error ? (

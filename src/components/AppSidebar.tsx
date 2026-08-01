@@ -4,10 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const nav = [
-  { href: "/app", label: "Home", exact: true },
-  { href: "/app/create", label: "New create" },
+  { href: "/app", label: "Projects", exact: true },
   { href: "/app/site-analyzer", label: "Site Analyzer" },
-  { href: "/app/creates", label: "Creates" },
 ] as const;
 
 export function AppSidebar() {

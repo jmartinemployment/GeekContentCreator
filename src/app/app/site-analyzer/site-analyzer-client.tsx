@@ -11,6 +11,15 @@ type Gap = {
   suggestPillar: boolean;
 };
 
+import { SITE_SECTION_STORAGE_KEY } from "@/lib/site-section-storage";
+
+function toAbsoluteSiteUrl(domain: string): string {
+  const d = domain.trim().replace(/\/$/, "");
+  if (!d) return "";
+  if (/^https?:\/\//i.test(d)) return d;
+  return `https://${d}`;
+}
+
 export function SiteAnalyzerClient() {
   const router = useRouter();
   const [domain, setDomain] = useState("");
@@ -59,15 +68,32 @@ export function SiteAnalyzerClient() {
         if (!section.relatedPages?.length) {
           throw new Error("Site section context missing related pages");
         }
+
+        const projectUrl = toAbsoluteSiteUrl(domain);
+        try {
+          sessionStorage.setItem(
+            SITE_SECTION_STORAGE_KEY,
+            JSON.stringify({
+              siteAnalysisId: analysisId,
+              gapTopic: gap.topic,
+              projectUrl,
+              section,
+            }),
+          );
+        } catch {
+          /* private mode — still navigate with query prefs */
+        }
+
         const q = new URLSearchParams({
           topic: gap.topic,
-          startingContentType: gap.suggestPillar ? "pillar" : "blog",
           siteAnalysisId: analysisId,
-          siteSection: JSON.stringify(section),
         });
-        router.push(`/app/create?${q.toString()}`);
+        if (projectUrl) q.set("projectUrl", projectUrl);
+        if (gap.suggestPillar) q.set("suggestPillar", "1");
+
+        router.push(`/app?${q.toString()}`);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to start create");
+        setError(e instanceof Error ? e.message : "Failed to start project");
       }
     });
   }
@@ -137,7 +163,7 @@ export function SiteAnalyzerClient() {
                 onClick={() => pickGap(g)}
                 className="shrink-0 rounded-md border border-[var(--gcc-teal)] px-3 py-1.5 text-sm font-semibold text-[var(--gcc-teal-deep)]"
               >
-                Start create
+                Start project
               </button>
             </li>
           ))}

@@ -16,7 +16,7 @@ export function GenerateControls({
 
   function run() {
     setError(null);
-    setStatus("Starting…");
+    setStatus("Generating…");
     startTransition(async () => {
       try {
         const res = await fetch(`/api/creates/${createId}/generate`, {
@@ -24,29 +24,8 @@ export function GenerateControls({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ provider }),
         });
-        const body = await res.json();
+        const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Generate failed");
-
-        if (body.jobId) {
-          setStatus("Generating (job running)…");
-          for (let i = 0; i < 90; i++) {
-            await new Promise((r) => setTimeout(r, 2000));
-            const jobRes = await fetch(`/api/jobs/${body.jobId}`);
-            const job = await jobRes.json();
-            if (!jobRes.ok) throw new Error(job.error || "Job poll failed");
-            if (job.status === "ready") {
-              setStatus("Ready");
-              router.refresh();
-              return;
-            }
-            if (job.status === "failed") {
-              throw new Error(job.error || "Generate failed");
-            }
-            setStatus(`Generating… (${i + 1})`);
-          }
-          throw new Error("Generate timed out — refresh and check artifacts");
-        }
-
         setStatus("Ready");
         router.refresh();
       } catch (e) {
