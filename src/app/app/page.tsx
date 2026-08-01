@@ -73,7 +73,7 @@ function DashboardInner() {
       {gapTopic ? (
         <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
           Site Analyzer gap prefilled. Confirm client/department, then create —
-          related site pages are saved into project notes for generate context.
+          related site pages upload as a research file for Generate (after Crawl).
           {suggestPillar ? " Pillar suggested for this gap." : ""}
         </p>
       ) : null}

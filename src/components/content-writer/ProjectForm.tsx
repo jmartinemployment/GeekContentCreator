@@ -5,14 +5,14 @@ import { PROVIDER_OPTIONS, type CategoryOption, type LlmProviderType, type Proje
 import {
   createProject,
   getGeekBackendCategories,
-  updateProjectNotes,
+  uploadKeywordSource,
   ApiError,
   defaultLlmProvider,
   isProductionContentWriterApi,
 } from "@/lib/content-writer/api";
 import { SITE_SECTION_STORAGE_KEY } from "@/lib/site-section-storage";
 
-function formatSiteSectionNotes(payload: {
+function formatSiteSectionResearchFile(payload: {
   gapTopic?: string;
   section?: {
     gapTopic?: string;
@@ -29,7 +29,7 @@ function formatSiteSectionNotes(payload: {
   const section = payload.section;
   if (!section?.relatedPages?.length) return "";
   const lines: string[] = [
-    "Site Analyzer context (existing site section — use as Generate reference):",
+    "Site Analyzer — existing site section context for content generation.",
     `Gap topic: ${payload.gapTopic || section.gapTopic || ""}`,
   ];
   if (section.gapSectionPath) lines.push(`Section path: ${section.gapSectionPath}`);
@@ -38,11 +38,11 @@ function formatSiteSectionNotes(payload: {
     lines.push(`Page: ${page.title || "(untitled)"}`);
     lines.push(`URL: ${page.url}`);
     if (page.headings?.length) lines.push(`Headings: ${page.headings.slice(0, 8).join(" | ")}`);
-    if (page.excerpt) lines.push(`Excerpt: ${page.excerpt.slice(0, 600)}`);
+    if (page.excerpt) lines.push(`Excerpt: ${page.excerpt.slice(0, 800)}`);
   }
   if (section.topicalNeighbors?.length) {
     lines.push("");
-    lines.push(`Topical neighbors: ${section.topicalNeighbors.join(", ")}`);
+    lines.push(`Topical neighbors: ${section.topicalNeighbors.join(" | ")}`);
   }
   return lines.join("\n");
 }
@@ -101,22 +101,28 @@ export default function ProjectForm({
         useExactKeywordAsTitle,
       });
 
-      // CC addition: attach Site Analyzer section excerpts to project notes for generate context.
+      // CC addition: Site Analyzer section → research upload (NOT project.Notes —
+      // CWV2 parses Notes as comma-separated DesiredHeadings).
       try {
         const raw = sessionStorage.getItem(SITE_SECTION_STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw) as {
             gapTopic?: string;
-            section?: Parameters<typeof formatSiteSectionNotes>[0]["section"];
+            section?: Parameters<typeof formatSiteSectionResearchFile>[0]["section"];
           };
-          const notes = formatSiteSectionNotes(parsed);
-          if (notes) {
-            await updateProjectNotes(project.id, notes);
+          const text = formatSiteSectionResearchFile(parsed);
+          if (text) {
+            const file = new File(
+              [text],
+              "site-analyzer-section.txt",
+              { type: "text/plain" },
+            );
+            await uploadKeywordSource(project.id, "CompetitorCrawl", file);
           }
           sessionStorage.removeItem(SITE_SECTION_STORAGE_KEY);
         }
       } catch {
-        /* notes are best-effort */
+        /* research upload is best-effort */
       }
 
       onCreated(project);

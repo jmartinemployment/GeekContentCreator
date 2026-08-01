@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import CrawlPanel from "@/components/content-writer/CrawlPanel";
@@ -8,7 +8,7 @@ import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
-import { getProject } from "@/lib/content-writer/api";
+import { crawlProject, getProject } from "@/lib/content-writer/api";
 import type {
   CrawlSummary,
   GeneratedContentSet,
@@ -19,12 +19,14 @@ import type {
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const autoCrawlTried = useRef(false);
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [crawl, setCrawl] = useState<CrawlSummary | null>(null);
   const [keywordSources, setKeywordSources] = useState<KeywordSourceResponse[]>([]);
   const [generated, setGenerated] = useState<GeneratedContentSet | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [autoCrawlMsg, setAutoCrawlMsg] = useState<string | null>(null);
 
   const canGenerate = crawl !== null && keywordSources.length > 0;
 
@@ -35,14 +37,37 @@ export default function ProjectPage() {
       setCrawl(detail.crawl);
       setKeywordSources(detail.keywordSources);
       setGenerated(detail.contentSet);
+      return detail;
     } catch {
       setLoadError("Could not load this project.");
+      return null;
     }
   }, [projectId]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // CC addition: start crawl once when opening a project that has no crawl yet.
+  useEffect(() => {
+    if (!project || crawl || !project.projectUrl || autoCrawlTried.current) return;
+    autoCrawlTried.current = true;
+    let cancelled = false;
+    setAutoCrawlMsg("Crawling site…");
+    crawlProject(project.id, 40)
+      .then((summary) => {
+        if (!cancelled) {
+          setCrawl(summary);
+          setAutoCrawlMsg(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAutoCrawlMsg("Auto-crawl failed — use Crawl below.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project, crawl]);
 
   if (loadError) {
     return (
@@ -76,6 +101,10 @@ export default function ProjectPage() {
       </div>
 
       <div className="flex flex-col gap-6">
+        {autoCrawlMsg ? (
+          <p className="text-sm text-muted">{autoCrawlMsg}</p>
+        ) : null}
+
         <CrawlPanel projectId={project.id} projectUrl={project.projectUrl} crawl={crawl} onCrawled={setCrawl} />
 
         <FileUploadPanel projectId={project.id} keywordSources={keywordSources} onChanged={setKeywordSources} />

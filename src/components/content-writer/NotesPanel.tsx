@@ -37,10 +37,10 @@ export default function NotesPanel({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-foreground">4. Notes</h2>
+      <h2 className="text-lg font-semibold text-foreground">4. Desired Headings (optional)</h2>
       <p className="mt-1 text-sm text-muted">
-        Optional. Comma-separated topics that must appear as headings in the pillar article (e.g.
-        Pricing, Implementation Timeline, Security &amp; Compliance).
+        Comma-separated H2s for the pillar outline (e.g. Pricing, Implementation Timeline). Not
+        freeform research — use Upload Research for Site Analyzer / SERP files.
       </p>
 
       <textarea
@@ -50,7 +50,7 @@ export default function NotesPanel({
           setSaved(false);
         }}
         rows={3}
-        placeholder="Pricing, Implementation Timeline, Security &amp; Compliance"
+        placeholder="Pricing, Implementation Timeline, Security & Compliance"
         className="mt-4 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
       />
 
