@@ -7,6 +7,7 @@ import CrawlPanel from "@/components/content-writer/CrawlPanel";
 import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
+import HumanToolsHint from "@/components/content-writer/HumanToolsHint";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { crawlProject, getProject } from "@/lib/content-writer/api";
 import type {
@@ -100,6 +101,27 @@ export default function ProjectPage() {
         <p className="mt-2 text-sm text-muted">{project.projectUrl}</p>
       </div>
 
+      {keywordSources.some((k) =>
+        (k.originalFileName || "").toLowerCase().includes("site-analyzer")
+      ) ? (
+        <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
+          Site Analyzer research is attached under Upload Research. Crawl the site (auto-runs once),
+          then Generate plan below.
+        </p>
+      ) : null}
+
+      {canGenerate ? (
+        <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+          Ready to generate — crawl and research are in place. Use{" "}
+          <strong className="font-semibold">Generate plan</strong> in step 5.
+        </p>
+      ) : (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          Generate unlocks after crawl finishes and at least one research file is present
+          {keywordSources.length > 0 ? " (research attached — waiting on crawl)" : crawl ? " (crawl done — upload research or use Site Analyzer)" : ""}.
+        </p>
+      )}
+
       <div className="flex flex-col gap-6">
         {autoCrawlMsg ? (
           <p className="text-sm text-muted">{autoCrawlMsg}</p>
@@ -115,6 +137,12 @@ export default function ProjectPage() {
           projectId={project.id}
           canGenerate={canGenerate}
           result={generated}
+          onGenerated={setGenerated}
+        />
+
+        <HumanToolsHint
+          projectId={project.id}
+          canRunTools={(generated?.article?.wordCount ?? 0) >= 200}
           onGenerated={setGenerated}
         />
 
