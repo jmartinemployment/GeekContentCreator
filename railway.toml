@@ -1,9 +1,0 @@
-# Railway / Nixpacks-friendly defaults for Geek Content Creator
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
-
-[deploy]
-healthcheckPath = "/"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 5

@@ -12,6 +12,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DOCKER_BUILD=1
 # Public env vars must be present at build for Next inlining
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_AUTH_URL

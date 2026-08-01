@@ -52,11 +52,11 @@ flowchart LR
 
 ### Deploy / hosting (not in question)
 
-Same family as sibling Geek apps: **Railway-class deploy** for the Next app; **GeekAPI** (and GeekRepository, GeekOAuth, Geek-SEO) already hosted as platform services. Content Creator does **not** invent a new auth or API island.
+Same family as sibling Geek apps: **Vercel** for the Next app (same pattern as Geek Content Workflow); **GeekAPI** (and GeekRepository, GeekOAuth, Geek-SEO) already hosted as platform services. Content Creator does **not** invent a new auth or API island.
 
-**CORS already exists** on GeekAPI (`CORS_ORIGINS`). At first deploy / local wire-up, **add Content Creator’s origins** to that existing allowlist (e.g. production Content Creator URL and `http://localhost:3000`) — same mechanism sibling apps use. Do not build a separate CORS layer in Next.
+**CORS already exists** on GeekAPI (`CORS_ORIGINS`). At first deploy / local wire-up, **add Content Creator’s origins** to that existing allowlist (e.g. production Content Creator URL and `http://localhost:3003`) — same mechanism sibling apps use. Do not build a separate CORS layer in Next.
 
-Other first-deploy config (not architecture choice): production URLs, Railway project/service name for this Next app. Pattern = Geek Content Workflow.
+Other first-deploy config (not architecture choice): production URLs, Vercel project name for this Next app. Pattern = Geek Content Workflow.
 
 ---
 
@@ -81,7 +81,7 @@ Secrets and LLM keys stay on **GeekAPI** (or platform secret store) — **not** 
 | `REPO_URL` / repository API key | GeekAPI → GeekRepository |
 | SEO / Niche upstream URLs | GeekAPI or Geek-SEO service config |
 
-Exact variable names: copy from Geek Content Workflow’s `.env.example` / Railway vars when wiring auth, then add Content Creator–specific ones only if needed.
+Exact variable names: copy from Geek Content Workflow’s `.env.example` / Vercel env when wiring auth, then add Content Creator–specific ones only if needed.
 
 **CORS:** configured on **GeekAPI** (`CORS_ORIGINS`), not in this Next app. Extend that list with Content Creator origins when wiring.
 
@@ -271,6 +271,6 @@ flowchart TD
 5. Site Analyzer endpoints (gaps + related pages).  
 6. Revise / on-page SEO / polish / approve / repurpose.  
 7. Async job status for long generates (§7).  
-8. Deploy Next on Railway beside siblings; point at existing GeekAPI (§2). **Add this app’s origins to GeekAPI `CORS_ORIGINS`** (CORS already exists — extend the list only).
+8. Deploy Next on **Vercel** beside siblings; point at existing GeekAPI (§2). **Add this app’s origins to GeekAPI `CORS_ORIGINS`** (CORS already exists — extend the list only).
 
 Until wired, scaffold is UI-only (`npm run dev`).
