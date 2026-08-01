@@ -13,29 +13,21 @@ def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(APP, wait_until="networkidle")
+        page.goto(APP, wait_until="domcontentloaded")
         page.screenshot(path=str(OUT / "01-landing.png"), full_page=True)
         title = page.title()
         body = page.inner_text("body")
-        assert "Geek Content Creator" in body or "Content Creator" in body or "Geek" in body, body[:500]
-        # Prefer Sign in CTA if present
-        link = page.get_by_role("link", name="Sign in")
-        if link.count() == 0:
-            link = page.locator('a[href*="auth/start"], a[href*="/api/auth/start"]').first
-        else:
-            link = link.first
-        link.click()
-        page.wait_for_load_state("networkidle")
+        assert "Geek Content Creator" in body, body[:500]
+        assert page.locator('a[href="/api/auth/start"]').count() >= 1
+
+        page.goto(f"{APP}/api/auth/start", wait_until="domcontentloaded")
         page.screenshot(path=str(OUT / "02-authorize.png"), full_page=True)
         url = page.url
         # Unauthenticated users land on /Account/Login?ReturnUrl=/connect/authorize?...
-        assert "client_id=geek-content-creator" in url or "client_id%3Dgeek-content-creator" in url, url
-        assert (
-            "geek-content-creator.vercel.app" in url
-            or "geek-content-creator.vercel.app" in page.url
-        ), url
-        assert "geek-content-workflow" not in url, url
         assert "auth.geekatyourspot.com" in url, url
+        assert "client_id%3Dgeek-content-creator" in url or "client_id=geek-content-creator" in url, url
+        assert "geek-content-creator.vercel.app" in url, url
+        assert "geek-content-workflow" not in url, url
         print("OK landing → GeekOAuth login for geek-content-creator")
         print("  title:", title)
         print("  login:", url[:180], "...")
