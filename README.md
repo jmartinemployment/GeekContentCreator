@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Geek Content Creator
 
-## Getting Started
+Day-one writing loop: Site Analyzer gaps + site section context into create, generate, revise, on-page SEO, polish, content approval, Repurpose (Mix).
 
-First, run the development server:
+**Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
+**Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).
+
+## Stack
+
+- Next.js 16 App Router + TypeScript + Tailwind
+- GeekOAuth client: `geek-content-creator`
+- GeekAPI namespace: `/api/geek-content-creator/*`
+- Local port: **3003**
+
+## Dev
 
 ```bash
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3003](http://localhost:3003). Requires GeekOAuth (:5001) and GeekAPI (often **:8080** on macOS if :5000 is taken by AirPlay) with Content Creator facades, plus GeekRepository (:5050).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Local GeekRepository against a shared DB may need `SKIP_AUTH_SQL_MIGRATIONS=1` if auth SQL scripts lack ownership.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Status
 
-## Learn More
+Day-one surfaces implemented: GeekOAuth client, GeekAPI `/api/geek-content-creator/*` (via GeekRepository), Next UI on **:3003**.
 
-To learn more about Next.js, take a look at the following resources:
+## Smoke checklist
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Sign in → **New create** → Blog (no pillar) → Generate  
+2. Create with Pillar when wanted  
+3. **Site Analyzer** → Analyze domain → pick gap → create prefilled with site section banner  
+4. Generate with Site Analyzer create → prompt includes related pages (banner shows N pages)  
+5. Standalone **Image prompt** blocked without notes; succeeds with topic+notes  
+6. **AI Tools** from human names + brief; pick-from-artifact when candidates exist  
+7. Revise Full/Section → new version  
+8. On-page SEO + Apply via revise; Polish + Apply  
+9. Content approval → **Repurpose** Mix (types+counts, no auto suite)  
+10. Pillar / multi-tool Generate returns job and completes (poll)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Optional: set `GEEK_SEO_API_URL` and pass a Niche profile id for live gaps.
 
-## Deploy on Vercel
+## API smoke (no LLM)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+With GeekAPI + GeekRepository running Content Creator routes:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+GEEK_API_URL=http://localhost:5000 GEEK_BEARER="$(uuidgen)" python3 scripts/smoke-gcc-api.py
+```
+
+Covers Site Analyzer analyze → section context (non-empty related pages) → create gate → persist.
+
+## Deploy (Railway / Docker)
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_APP_URL=https://your-app.up.railway.app \
+  --build-arg NEXT_PUBLIC_AUTH_URL=https://oauth.example.com \
+  --build-arg NEXT_PUBLIC_GEEK_API_URL=https://api.example.com \
+  --build-arg NEXT_PUBLIC_OAUTH_REDIRECT_URI=https://your-app.up.railway.app/auth/callback \
+  -t geek-content-creator .
+```
+
+Runtime: listen on `PORT` (image default **3003**). Set the same `NEXT_PUBLIC_*` values used at build time in the service env.
+
+Also register the prod redirect URI on the GeekOAuth client `geek-content-creator`, and add the app origin to GeekAPI `CORS_ORIGINS` (preview hosts `geek-content-creator-*.vercel.app` are already allowed by parser).
