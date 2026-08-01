@@ -55,15 +55,20 @@ Covers Site Analyzer analyze → section context (non-empty related pages) → c
 
 ## Deploy (Railway / Docker)
 
+Production Railway project: **geek-content-creator**  
+Public URL: https://geek-content-creator-production.up.railway.app  
+
+GitHub → Railway auto-deploy: connect repo `jmartinemployment/GeekContentCreator` to the `geek-content-creator` service in the Railway dashboard (Railway GitHub App must include this repo). Env vars for `NEXT_PUBLIC_*` are already set on the service.
+
 ```bash
 docker build \
-  --build-arg NEXT_PUBLIC_APP_URL=https://your-app.up.railway.app \
-  --build-arg NEXT_PUBLIC_AUTH_URL=https://oauth.example.com \
-  --build-arg NEXT_PUBLIC_GEEK_API_URL=https://api.example.com \
-  --build-arg NEXT_PUBLIC_OAUTH_REDIRECT_URI=https://your-app.up.railway.app/auth/callback \
+  --build-arg NEXT_PUBLIC_APP_URL=https://geek-content-creator-production.up.railway.app \
+  --build-arg NEXT_PUBLIC_AUTH_URL=https://auth.geekatyourspot.com \
+  --build-arg NEXT_PUBLIC_GEEK_API_URL=https://api.geekatyourspot.com \
+  --build-arg NEXT_PUBLIC_OAUTH_REDIRECT_URI=https://geek-content-creator-production.up.railway.app/auth/callback \
   -t geek-content-creator .
 ```
 
 Runtime: listen on `PORT` (image default **3003**). Set the same `NEXT_PUBLIC_*` values used at build time in the service env.
 
-Also register the prod redirect URI on the GeekOAuth client `geek-content-creator`, and add the app origin to GeekAPI `CORS_ORIGINS` (preview hosts `geek-content-creator-*.vercel.app` are already allowed by parser).
+Also register the prod redirect URI on the GeekOAuth client `geek-content-creator` (Railway URL is seeded), and add the app origin to GeekAPI `CORS_ORIGINS` if not using defaults (preview hosts `geek-content-creator-*.vercel.app` / Railway production host are already allowed by parser).
