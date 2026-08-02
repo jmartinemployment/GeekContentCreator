@@ -37,7 +37,7 @@ export default function NotesPanel({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-foreground">4. Desired Headings (optional)</h2>
+      <h2 className="text-lg font-semibold text-foreground">Desired Headings (optional)</h2>
       <p className="mt-1 text-sm text-muted">
         Comma-separated H2s for the pillar outline (e.g. Pricing, Implementation Timeline). Not
         freeform research — use Upload Research for Site Analyzer / SERP files.

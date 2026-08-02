@@ -165,7 +165,59 @@ export const CONTENT_LENGTH_TARGETS = {
     maxChars: 1900,
     label: "200–300 words, 1,300–1,900 chars",
   },
+  instagram: {
+    minWords: 50,
+    maxWords: 150,
+    maxChars: 2200,
+    label: "50–150 words, under 2,200 chars",
+    definition: "Instagram caption — scannable, one clear ask, hashtags optional and sparse.",
+  },
+  metaAds: {
+    minWords: 15,
+    maxWords: 40,
+    primaryTextMaxChars: 125,
+    headlineMaxChars: 40,
+    label: "Primary ~125 chars · headline ~40 chars",
+    definition: "Meta feed/story ad — short primary text, punchy headline, single CTA.",
+  },
+  googleAds: {
+    minWords: 8,
+    maxWords: 30,
+    headlineMaxChars: 30,
+    descriptionMaxChars: 90,
+    label: "Headlines ≤30 chars · descriptions ≤90 chars",
+    definition: "Google Search/RSA-style — tight headlines and descriptions, keyword-aligned.",
+  },
 } as const;
+
+/** Length bands offered on the Content Brief (keyed for generate guidance). */
+export const LENGTH_BAND_OPTIONS: {
+  value: keyof typeof CONTENT_LENGTH_TARGETS;
+  label: string;
+}[] = [
+  { value: "pillar", label: `Pillar — ${CONTENT_LENGTH_TARGETS.pillar.label}` },
+  { value: "blog", label: `Blog — ${CONTENT_LENGTH_TARGETS.blog.label}` },
+  { value: "tools", label: `AI Tools page — ${CONTENT_LENGTH_TARGETS.tools.label}` },
+  {
+    value: "emailColdOutreach",
+    label: `Cold email — ${CONTENT_LENGTH_TARGETS.emailColdOutreach.label}`,
+  },
+  {
+    value: "socialFacebook",
+    label: `Facebook — ${CONTENT_LENGTH_TARGETS.socialFacebook.label}`,
+  },
+  {
+    value: "socialLinkedIn",
+    label: `LinkedIn — ${CONTENT_LENGTH_TARGETS.socialLinkedIn.label}`,
+  },
+  { value: "instagram", label: `Instagram — ${CONTENT_LENGTH_TARGETS.instagram.label}` },
+  { value: "metaAds", label: `Meta ads — ${CONTENT_LENGTH_TARGETS.metaAds.label}` },
+  { value: "googleAds", label: `Google ads — ${CONTENT_LENGTH_TARGETS.googleAds.label}` },
+  {
+    value: "imagePrompt",
+    label: `Image prompt — ${CONTENT_LENGTH_TARGETS.imagePrompt.label}`,
+  },
+];
 
 export interface ColdOutreachEmailDraft {
   subject: string;

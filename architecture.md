@@ -148,12 +148,15 @@ UI must show **running / failed / ready** and not double-submit. Prefer GeekAPI 
 
 - Authenticate with **GeekOAuth**; call **GeekAPI** with the session token.
 - Add **Content Creator–owned** GeekAPI routes for creates, versions, revise, SEO, polish, approve, repurpose, image prompts, Site Analyzer gaps + **site section context**.
-- Run writing through the **shared Content Writer v2 generate engine** with structured inputs:
+- Run writing through the **shared Content Writer v2 generate engine in-process inside GeekAPI**, or **copied** modules under `GeekAPI/Services/ContentCreator/` (do **not** edit the Content Writer v2 repo). Structured inputs:
   - topic / starting content type
+  - **Content Brief** (`BriefJson` on create) — required for generate; fail closed if missing
+  - **Research** (`ResearchJson` — SERP index + ≤3 quoteable destination-page extracts)
   - optional freeform notes
-  - **`SiteSectionContext`** when create started from Site Analyzer — **required** if site analysis is attached (reject keyword-only)
+  - **`SiteSectionContext`** when create started from Site Analyzer — **required** if site analysis is attached (`ValidateSiteSectionGate`: non-empty `relatedPages`)
   - tool names + brief when generating AI Tools
 - Reuse Niche / Geek-SEO gap signals behind a **new** Site Analyzer UI.
+- **Correctness over expediency.** Copied CWV2 code becomes canonical Content Creator code when CWV2 retires — no upstream sync ceremony.
 
 ### Do not
 
@@ -161,13 +164,28 @@ UI must show **running / failed / ready** and not double-submit. Prefer GeekAPI 
 |-------|-----|
 | Content Writer v2 project screens as product UI | Job only, not UI |
 | Main design = fill `/api/projects` fields then `generate/pillar` | Rejected form-filler |
+| Edit Content Writer v2 repo for product features | Copy into Content Creator / GeekAPI Content Creator |
+| Trick `content-brief.html` / keyword-source uploads as the brief | Persist `BriefJson` on the create |
+| Google SERP results-page heading scrape as research | SERP = index; follow destination URLs |
+| Partial research success when one URL fails | Fail closed; operator retries |
+| Client-only brief on generate (bypass DB) | Generate reads persisted create JSON |
 | Content Writer v3 / v4 | Out of plan |
 | Ship inside Geek Content Workflow | Separate product |
 | Day-one pixel render via image-generator | Prompt text first |
-| Research dossier required for v1 | Later phase |
+| Formal Research dossier required for v1 | Later phase (deep follow-URLs research is day one) |
 | Site Analyzer Generate with **keyword only** and no site section context | Content Writer v2 failure mode |
 
-API namespace: Content Creator’s own (e.g. `/api/geek-content-creator/...`), not host-as-GCW.
+API namespace: Content Creator’s own (`/api/geek-content-creator/...`), not host-as-GCW.
+
+**Brief / research / generate (implemented locally):**
+
+| Endpoint | Role |
+|----------|------|
+| `PATCH /creates/{id}/brief-research` | Persist `BriefJson` and/or `ResearchJson` |
+| `POST /creates/{id}/research/follow` | Fetch ≤3 URLs; fail closed; write `ResearchJson` on full success |
+| `POST /creates/{id}/generate` | Validate brief from DB; inject BRIEF + research; Site Analyzer gate unchanged |
+
+Ops: deploy GeekRepository (startup runs `Database.MigrateAsync` for Content Creator — includes `AddGccCreateBriefResearchJson`) and GeekAPI; then live smoke.
 
 ---
 

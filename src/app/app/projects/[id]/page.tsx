@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import CrawlPanel from "@/components/content-writer/CrawlPanel";
 import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
+import ContentBriefPanel from "@/components/content-writer/ContentBriefPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import HumanToolsHint from "@/components/content-writer/HumanToolsHint";
@@ -12,7 +13,8 @@ import ContentApprovalPanel from "@/components/content-writer/ContentApprovalPan
 import DraftQualityPanel from "@/components/content-writer/DraftQualityPanel";
 import DraftRevisePanel from "@/components/content-writer/DraftRevisePanel";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
-import { crawlProject, getProject } from "@/lib/content-writer/api";
+import { crawlProject, getProject, ApiError } from "@/lib/content-writer/api";
+import { generateGccCreate } from "@/lib/gcc-api";
 import type {
   CrawlSummary,
   GeneratedContentSet,
@@ -35,8 +37,14 @@ export default function ProjectPage() {
     feedback: string;
     contentType: "TechnicalArticle" | "BlogPost";
   } | null>(null);
+  const [briefFormComplete, setBriefFormComplete] = useState(false);
+  const [briefSavedOnServer, setBriefSavedOnServer] = useState(false);
+  const [gccCreateId, setGccCreateId] = useState<string | null>(null);
+  const [gccGenerateMsg, setGccGenerateMsg] = useState<string | null>(null);
+  const [gccGenerating, setGccGenerating] = useState(false);
 
-  const canGenerate = crawl !== null && keywordSources.length > 0;
+  /** Content Creator generate: brief must be saved on create (server). Crawl optional for CC path. */
+  const canGenerateGcc = briefFormComplete && briefSavedOnServer && !!gccCreateId;
 
   const load = useCallback(async () => {
     try {
@@ -56,7 +64,6 @@ export default function ProjectPage() {
     load();
   }, [load]);
 
-  // CC addition: start crawl once when opening a project that has no crawl yet.
   useEffect(() => {
     if (!project || crawl || !project.projectUrl || autoCrawlTried.current) return;
     autoCrawlTried.current = true;
@@ -76,6 +83,47 @@ export default function ProjectPage() {
       cancelled = true;
     };
   }, [project, crawl]);
+
+  async function runGccGenerate() {
+    if (!gccCreateId || !canGenerateGcc) return;
+    setGccGenerateMsg(null);
+    setGccGenerating(true);
+    try {
+      const result = await generateGccCreate(gccCreateId);
+      if (result.created?.length) {
+        const titles = result.created
+          .map((c) => c.artifact?.title || c.artifact?.id)
+          .filter(Boolean);
+        setGccGenerateMsg(
+          `Generated ${result.created.length} AI Tool artifact${result.created.length === 1 ? "" : "s"}: ${titles.join(", ")}`,
+        );
+      } else if (result.artifact && result.version) {
+        const preview =
+          typeof result.version.bodyJson === "string"
+            ? result.version.bodyJson.slice(0, 280)
+            : "";
+        setGccGenerateMsg(
+          [
+            `Created ${result.artifact.contentType ?? "artifact"} “${result.artifact.title ?? result.artifact.id}”`,
+            `version ${result.version.versionNumber ?? result.version.id}`,
+            preview ? `\n\n${preview}${result.version.bodyJson && result.version.bodyJson.length > 280 ? "…" : ""}` : "",
+          ].join(" "),
+        );
+      } else {
+        setGccGenerateMsg("Generate finished.");
+      }
+    } catch (err) {
+      setGccGenerateMsg(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Generate failed",
+      );
+    } finally {
+      setGccGenerating(false);
+    }
+  }
 
   if (loadError) {
     return (
@@ -103,56 +151,85 @@ export default function ProjectPage() {
       </Link>
 
       <div className="mb-8 mt-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand">{project.targetKeyword}</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-brand">
+          {project.targetKeyword}
+        </p>
         <h1 className="mt-1 text-3xl font-bold text-foreground">{project.name}</h1>
         <p className="mt-2 text-sm text-muted">{project.projectUrl}</p>
       </div>
 
-      {(() => {
-        const sa = keywordSources.find((k) =>
-          (k.originalFileName || "").toLowerCase().includes("site-analyzer"),
-        );
-        if (!sa) return null;
-        const m = (sa.originalFileName || "").match(/(\d+)pages/i);
-        const n = m ? Number(m[1]) : null;
-        return (
-          <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
-            Site Analyzer research attached
-            {n != null && n > 0
-              ? ` — using ${n} related page${n === 1 ? "" : "s"} from this site section`
-              : ""}
-            . Generate uses this file as research (not keyword alone). Crawl auto-runs once,
-            then use Generate plan / Blog below.
-          </p>
-        );
-      })()}
-
-      {canGenerate ? (
+      {canGenerateGcc ? (
         <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-          Ready to generate — crawl and research are in place. Use{" "}
-          <strong className="font-semibold">Generate plan</strong> in step 5.
+          Content Brief saved on Content Creator create — use{" "}
+          <strong className="font-semibold">Generate (Content Creator)</strong> below.
         </p>
       ) : (
         <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          Generate unlocks after crawl finishes and at least one research file is present
-          {keywordSources.length > 0 ? " (research attached — waiting on crawl)" : crawl ? " (crawl done — upload research or use Site Analyzer)" : ""}.
+          Generate stays disabled until Content Brief required fields are filled and{" "}
+          <strong className="font-semibold">Save brief for generate</strong> succeeds
+          {!briefFormComplete ? " (fields incomplete)" : ""}
+          {briefFormComplete && !briefSavedOnServer ? " (not saved to server yet)" : ""}
+          .
         </p>
       )}
 
       <div className="flex flex-col gap-6">
-        {autoCrawlMsg ? (
-          <p className="text-sm text-muted">{autoCrawlMsg}</p>
-        ) : null}
+        {autoCrawlMsg ? <p className="text-sm text-muted">{autoCrawlMsg}</p> : null}
 
-        <CrawlPanel projectId={project.id} projectUrl={project.projectUrl} crawl={crawl} onCrawled={setCrawl} />
+        <CrawlPanel
+          projectId={project.id}
+          projectUrl={project.projectUrl}
+          crawl={crawl}
+          onCrawled={setCrawl}
+        />
 
-        <FileUploadPanel projectId={project.id} keywordSources={keywordSources} onChanged={setKeywordSources} />
+        <ContentBriefPanel
+          clientId={project.clientId}
+          targetKeyword={project.targetKeyword}
+          onBriefValidityChange={setBriefFormComplete}
+          onBriefSaved={(id, ok) => {
+            setGccCreateId(id || null);
+            setBriefSavedOnServer(ok && !!id);
+          }}
+        />
+
+        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground">
+            Generate (Content Creator)
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Calls <code className="text-xs">/api/geek-content-creator/creates/…/generate</code>.
+            Uses persisted BriefJson / ResearchJson from the database only.
+          </p>
+          <button
+            type="button"
+            disabled={!canGenerateGcc || gccGenerating}
+            onClick={runGccGenerate}
+            className="mt-4 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {gccGenerating ? "Generating…" : "Generate starting content"}
+          </button>
+          {!canGenerateGcc ? (
+            <p className="mt-2 text-xs text-muted">
+              Disabled until brief is saved — inline required markers above (no redirect).
+            </p>
+          ) : null}
+          {gccGenerateMsg ? (
+            <p className="mt-2 text-sm text-foreground whitespace-pre-wrap">{gccGenerateMsg}</p>
+          ) : null}
+        </div>
+
+        <FileUploadPanel
+          projectId={project.id}
+          keywordSources={keywordSources}
+          onChanged={setKeywordSources}
+        />
 
         <NotesPanel projectId={project.id} notes={project.notes} onSaved={setProject} />
 
         <ContentResults
           projectId={project.id}
-          canGenerate={canGenerate}
+          canGenerate={false}
           result={generated}
           onGenerated={setGenerated}
         />
@@ -183,7 +260,11 @@ export default function ProjectPage() {
 
         <ContentApprovalPanel projectId={project.id} result={generated} />
 
-        <ReviewPublishPanel projectId={project.id} result={generated} onGenerated={setGenerated} />
+        <ReviewPublishPanel
+          projectId={project.id}
+          result={generated}
+          onGenerated={setGenerated}
+        />
       </div>
     </div>
   );

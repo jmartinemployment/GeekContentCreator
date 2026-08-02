@@ -2,7 +2,18 @@
 
 import { useState } from "react";
 import { deleteKeywordSource, uploadKeywordSource, ApiError } from "@/lib/content-writer/api";
-import { KEYWORD_SOURCE_CATEGORIES, type KeywordSourceCategory, type KeywordSourceResponse } from "@/lib/content-writer/types";
+import { MAX_QUOTEABLE_RESEARCH_DOCS } from "@/lib/content-writer/brief-catalog";
+import {
+  KEYWORD_SOURCE_CATEGORIES,
+  type KeywordSourceCategory,
+  type KeywordSourceResponse,
+} from "@/lib/content-writer/types";
+
+const QUOTEABLE_CATEGORIES = new Set<KeywordSourceCategory>([
+  "Wikipedia",
+  "EduDomain",
+  "GovDomain",
+]);
 
 export default function FileUploadPanel({
   projectId,
@@ -17,13 +28,35 @@ export default function FileUploadPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const quoteableCount = keywordSources.filter((k) =>
+    QUOTEABLE_CATEGORIES.has(k.category),
+  ).length;
+
   async function handleFilesSelected(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
     setError(null);
+
+    const files = Array.from(fileList);
+    if (QUOTEABLE_CATEGORIES.has(category)) {
+      const room = MAX_QUOTEABLE_RESEARCH_DOCS - quoteableCount;
+      if (room <= 0) {
+        setError(
+          `Quoteable pages are capped at ${MAX_QUOTEABLE_RESEARCH_DOCS} (Wikipedia / .edu / .gov). Remove one before uploading.`,
+        );
+        return;
+      }
+      if (files.length > room) {
+        setError(
+          `Only ${room} more quoteable page${room === 1 ? "" : "s"} allowed (max ${MAX_QUOTEABLE_RESEARCH_DOCS}).`,
+        );
+        return;
+      }
+    }
+
     setIsUploading(true);
     try {
       const uploaded: KeywordSourceResponse[] = [];
-      for (const file of Array.from(fileList)) {
+      for (const file of files) {
         uploaded.push(await uploadKeywordSource(projectId, category, file));
       }
       onChanged([...keywordSources, ...uploaded]);
@@ -46,10 +79,11 @@ export default function FileUploadPanel({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-foreground">3. Upload Research Inputs</h2>
+      <h2 className="text-lg font-semibold text-foreground">Legacy project file uploads</h2>
       <p className="mt-1 text-sm text-muted">
-        Upload manually-scraped research by category. Keyword SERP files are kept tight (intent/headings);
-        Wikipedia, .edu, and .gov files are used as quotable sources in the article body. PAA: one question per line (top 12 used in the FAQ section).
+        Optional Content Writer v2 project keyword-sources only. Content Creator Generate uses the
+        Content Brief + Follow URLs (deep research) above — not these uploads. Cap for quoteable
+        wiki / .edu / .gov files: {MAX_QUOTEABLE_RESEARCH_DOCS}.
       </p>
 
       <div className="mt-5 flex flex-wrap items-end gap-3">
@@ -80,6 +114,12 @@ export default function FileUploadPanel({
           />
         </label>
       </div>
+
+      {QUOTEABLE_CATEGORIES.has(category) ? (
+        <p className="mt-2 text-xs text-muted">
+          Quoteable uploads: {quoteableCount} / {MAX_QUOTEABLE_RESEARCH_DOCS}
+        </p>
+      ) : null}
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 

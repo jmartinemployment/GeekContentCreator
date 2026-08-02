@@ -77,11 +77,11 @@ export default function ContentResults({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-foreground">5. Generate Content</h2>
+      <h2 className="text-lg font-semibold text-foreground">Generate Content</h2>
       <p className="mt-1 text-sm text-muted">
-        Content Writer v2 steps. Pillar is optional — generate a standalone blog from crawl +
-        research, or run pillar plan/body first for the companion-blog path. Tool pages from the
-        pillar Tools section still need a pillar body; AI Tools from names live in the panel below.
+        Content Writer v2 steps. Requires crawl + saved Content Brief (generate buttons stay
+        disabled until then — no redirect wall). Pillar is optional — generate a standalone blog
+        from crawl + brief/research, or run pillar plan/body first for the companion-blog path.
       </p>
 
       <div className="mt-5 space-y-3">
@@ -262,7 +262,10 @@ export default function ContentResults({
       </button>
 
       {!canGenerate && (
-        <p className="mt-2 text-xs text-muted">Crawl the site and upload at least one research input first.</p>
+        <p className="mt-2 text-xs text-muted">
+          Legacy Content Writer v2 project generate steps are disabled here. Use{" "}
+          <strong>Generate (Content Creator)</strong> above after saving the Content Brief.
+        </p>
       )}
       {error && (
         <p className={`mt-4 text-sm ${error.toLowerCase().includes("timed out") ? "text-amber-700" : "text-red-600"}`}>

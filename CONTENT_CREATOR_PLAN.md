@@ -5,8 +5,8 @@
 | **Status** | Ready for automated review (pass 2) |
 | **Review focus** | Consistency of locks; scope boundaries; LLM budgets; naming |
 | **New repo** | `/Users/jeffmartin/development/GeekContentCreator` (Next.js scaffolded) |
-| **Copies (same content)** | This file · `GeekContentWorkflow/CONTENT_CREATOR_PLAN.md` · `/Users/jeffmartin/development/CONTENT_CREATOR_PLAN.md` |
-| **Last locked** | 2026-08-01 |
+| **Copies (same content)** | This file · `/Users/jeffmartin/development/CONTENT_CREATOR_PLAN.md` |
+| **Last locked** | 2026-08-02 (Content Brief + deep research + generate on creates) |
 
 ---
 
@@ -51,9 +51,9 @@ Same platform family as Geek Content Workflow — not a new auth/API island.
 | Writing | Shared Content Writer v2 **generate engine** (orchestrator, prompt builders, image-prompt builders) as **in-process library and/or GeekAPI internal services** |
 | Hosting | Confirm at scaffold (expect same Geek / Railway-class pattern as sibling apps) |
 
-**Infrastructure today:** GeekOAuth, GeekAPI, Content Writer v2 on GeekAPI, and Geek Content Workflow facades are live and usable as references. Content Creator itself is **not** wired yet — stack is the intended default; smoke verification happens at scaffold.
+**Infrastructure today:** GeekOAuth, GeekAPI, Content Writer v2 on GeekAPI, and Geek Content Workflow facades are live. Content Creator GeekAPI surface (`/api/geek-content-creator/...`) owns creates, brief/research persistence, Site Analyzer gates, and generate. Next talks to **GeekAPI only** for that path.
 
-**Open at scaffold only:** extract shared writing package vs call existing GeekAPI in-process services first (**contract stays the same** — engine API, not Content Writer v2 project-field HTTP).
+**Writing package:** prefer copied / in-process Content Creator services under GeekAPI (`Services/ContentCreator/`). Do **not** edit the Content Writer v2 repo; copies become canonical when CWV2 retires.
 
 ---
 
@@ -82,9 +82,17 @@ Same platform family as Geek Content Workflow — not a new auth/API island.
 | Are | Are not |
 |-----|---------|
 | New app + own persistence | Filling Content Writer v2 project fields as the product design |
-| Shared Content Writer v2 generate engine | Deep-link into Content Writer v2’s old screens |
+| Shared Content Writer v2 generate engine **in-process inside GeekAPI**, or **copied** into `GeekAPI/Services/ContentCreator/` | Deep-link into Content Writer v2’s old screens |
 | Engine in GeekAPI or shared package | Treating Content Writer v2 HTTP project API as the product contract |
 | Site Analyzer Generate with **site section context** | Keyword-from-home Generate with **zero** site section reference (Content Writer v2 failure) |
+| **Content Brief** + deep research (follow ≤3 organic URLs) on Content Creator creates (`BriefJson` / `ResearchJson`) | Trick keyword-source uploads / Google SERP heading scrape as research |
+| Next → `/api/geek-content-creator/...` for brief, research, generate | Editing the Content Writer v2 **repo** (copy into Content Creator instead) |
+
+**Correctness over expediency.** Content Writer v2 retires once Content Creator is proven; copied files become canonical Content Creator code (no upstream sync).
+
+**Content Brief (day one — implemented):** human-selected intent, buying stage, audience, angle, CTA, tone-of-voice scales, length — fail closed with disabled Generate + inline required markers. Persist on create (`PATCH .../brief-research`); generate reads **server** `BriefJson` / `ResearchJson` only.
+
+**Deep research (day one, not the later Research dossier — implemented):** SERP is an index (titles/URLs/PAA/related). Follow destination pages (≤3) via `POST .../research/follow`; article extract with caps (8 headings / 6 paragraphs / 200 heading / 500 paragraph chars); any URL fetch or empty extract fails the whole research op (URL + reason).
 
 ---
 
@@ -317,7 +325,8 @@ flowchart TD
 
 ## 12. Build sequence
 
-1. Scaffold done at `/Users/jeffmartin/development/GeekContentCreator`. Next: GeekOAuth + GeekAPI + starting-content chooser.  
+1. Scaffold done at `/Users/jeffmartin/development/GeekContentCreator`. GeekOAuth + GeekAPI + starting-content chooser.  
+1b. **Content Brief + deep research + generate on creates** (BriefJson / ResearchJson; Next → `/api/geek-content-creator/...`). Deploy GeekRepository (auto-migrates on startup) + GeekAPI for live smoke.  
 2. Generate + Revise (Full/Section) + on-page SEO + Polish + Content approval.  
 3. Standalone image prompt (human context required) + attached/Mix image prompts for all types.  
 4. **Site Analyzer day one:** analyze site → list **content gaps** → pick gap → prefilled create; **existing site content attached as Generate context**.  
@@ -350,6 +359,10 @@ flowchart TD
 - [x] No Content Writer v2 old project UI on happy path.  
 - [x] Stack assumption: GeekOAuth + GeekAPI (confirm at scaffold).  
 - [x] Repo is `/Users/jeffmartin/development/GeekContentCreator` (Next.js scaffolded).  
+- [x] **Content Brief** required fields persist on create; Generate disabled until saved (inline required; no redirect).  
+- [x] Generate reads persisted `BriefJson` / `ResearchJson` only (missing → `"brief required"`).  
+- [x] Deep research follows ≤3 URLs with extract caps; any failure / empty extract fails the whole op.  
+- [x] Content Writer v2 **repo** not edited for this feature (copy into GeekAPI Content Creator).  
 
 ---
 
