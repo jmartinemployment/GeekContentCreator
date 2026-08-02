@@ -47,4 +47,4 @@ Production host: **https://geek-content-creator.vercel.app**
 
 ## Legacy
 
-`/app/creates` is the earlier homemade create/generate surface — not the primary path.
+`/app/creates` redirects to Projects. Prefer CWV2 projects on `/app`.
