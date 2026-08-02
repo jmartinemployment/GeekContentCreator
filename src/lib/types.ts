@@ -22,6 +22,8 @@ export type GccCreate = {
   notes: string | null;
   siteAnalysisId: string | null;
   siteSectionJson: string | null;
+  briefJson: string | null;
+  researchJson: string | null;
   status: string;
   createdAtUtc: string;
   updatedAtUtc: string;

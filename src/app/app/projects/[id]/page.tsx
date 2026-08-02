@@ -14,7 +14,7 @@ import DraftQualityPanel from "@/components/content-writer/DraftQualityPanel";
 import DraftRevisePanel from "@/components/content-writer/DraftRevisePanel";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { crawlProject, getProject, ApiError } from "@/lib/content-writer/api";
-import { generateGccCreate } from "@/lib/gcc-api";
+import { generateGccCreate, previewBodyDocument } from "@/lib/gcc-api";
 import type {
   CrawlSummary,
   GeneratedContentSet,
@@ -92,25 +92,22 @@ export default function ProjectPage() {
       const result = await generateGccCreate(gccCreateId);
       if (result.created?.length) {
         const titles = result.created
-          .map((c) => c.artifact?.title || c.artifact?.id)
+          .map((c) => c.artifact?.name || c.artifact?.id)
           .filter(Boolean);
         setGccGenerateMsg(
-          `Generated ${result.created.length} AI Tool artifact${result.created.length === 1 ? "" : "s"}: ${titles.join(", ")}`,
+          `Generated ${result.created.length} AI Tool artifact${result.created.length === 1 ? "" : "s"}: ${titles.join(", ")}. Open the create workspace to revise / approve.`,
         );
       } else if (result.artifact && result.version) {
-        const preview =
-          typeof result.version.bodyJson === "string"
-            ? result.version.bodyJson.slice(0, 280)
-            : "";
+        const preview = previewBodyDocument(result.version.bodyDocumentJson, 280);
         setGccGenerateMsg(
           [
-            `Created ${result.artifact.contentType ?? "artifact"} “${result.artifact.title ?? result.artifact.id}”`,
-            `version ${result.version.versionNumber ?? result.version.id}`,
-            preview ? `\n\n${preview}${result.version.bodyJson && result.version.bodyJson.length > 280 ? "…" : ""}` : "",
+            `Created ${result.artifact.type} “${result.artifact.name}”`,
+            `v${result.version.versionNumber}.`,
+            preview ? `\n\n${preview}` : "",
           ].join(" "),
         );
       } else {
-        setGccGenerateMsg("Generate finished.");
+        setGccGenerateMsg("Generate finished — open the create workspace.");
       }
     } catch (err) {
       setGccGenerateMsg(
@@ -216,6 +213,14 @@ export default function ProjectPage() {
           ) : null}
           {gccGenerateMsg ? (
             <p className="mt-2 text-sm text-foreground whitespace-pre-wrap">{gccGenerateMsg}</p>
+          ) : null}
+          {gccCreateId ? (
+            <Link
+              href={`/app/creates/${gccCreateId}`}
+              className="mt-4 inline-block text-sm font-semibold text-brand hover:underline"
+            >
+              Open create workspace (draft / revise / SEO / approve) →
+            </Link>
           ) : null}
         </div>
 

@@ -108,25 +108,82 @@ export function followResearchUrls(
   );
 }
 
-export interface GccArtifactRef {
+export interface GccArtifact {
   id: string;
-  createId?: string;
-  contentType?: string;
-  title?: string;
-  status?: string;
+  createId: string;
+  parentArtifactId?: string | null;
+  type: string;
+  name: string;
+  status: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
 }
 
-export interface GccVersionRef {
+export interface GccArtifactVersion {
   id: string;
-  artifactId?: string;
-  bodyJson?: string;
-  versionNumber?: number;
+  artifactId: string;
+  versionNumber: number;
+  bodyDocumentJson: string;
+  metadataJson?: string | null;
+  createdAtUtc: string;
+}
+
+export interface GccCreateDetail extends GccCreate {
+  artifacts: GccArtifact[];
 }
 
 export interface GccGenerateResult {
-  artifact?: GccArtifactRef;
-  version?: GccVersionRef;
-  created?: Array<{ artifact: GccArtifactRef; version: GccVersionRef }>;
+  artifact?: GccArtifact;
+  version?: GccArtifactVersion;
+  created?: Array<{ artifact: GccArtifact; version: GccArtifactVersion }>;
+}
+
+export interface GccSeoReport {
+  targetKeyword: string;
+  score: number;
+  wordCount: number;
+  sectionCount: number;
+  keywordDensityPercent: number;
+  checks: Array<{
+    id: string;
+    label: string;
+    passed: boolean;
+    detail: string;
+    fixHint?: string | null;
+  }>;
+  applyFeedback: string;
+}
+
+export interface GccPolishReport {
+  score: number;
+  shipReady: boolean;
+  wordCount: number;
+  sentenceCount: number;
+  avgSentenceWords: number;
+  checks: Array<{
+    id: string;
+    label: string;
+    passed: boolean;
+    detail: string;
+    fixHint?: string | null;
+  }>;
+  applyFeedback: string;
+}
+
+export function getGccCreateDetail(id: string): Promise<GccCreateDetail> {
+  return gccRequest<GccCreateDetail>(`/api/geek-content-creator/creates/${id}`);
+}
+
+export function listGccArtifacts(createId: string): Promise<GccArtifact[]> {
+  return gccRequest<GccArtifact[]>(
+    `/api/geek-content-creator/artifacts?createId=${encodeURIComponent(createId)}`,
+  );
+}
+
+export function listGccVersions(artifactId: string): Promise<GccArtifactVersion[]> {
+  return gccRequest<GccArtifactVersion[]>(
+    `/api/geek-content-creator/versions?artifactId=${encodeURIComponent(artifactId)}`,
+  );
 }
 
 export function generateGccCreate(
@@ -140,6 +197,112 @@ export function generateGccCreate(
       body: JSON.stringify({ provider: provider ?? "OpenAi" }),
     },
   );
+}
+
+export function reviseGccVersion(
+  versionId: string,
+  input: {
+    feedback: string;
+    scope?: "full" | "section";
+    sectionPath?: string | null;
+    provider?: string;
+  },
+): Promise<GccArtifactVersion> {
+  return gccRequest<GccArtifactVersion>(
+    `/api/geek-content-creator/versions/${versionId}/revise`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        feedback: input.feedback,
+        scope: input.scope ?? "full",
+        sectionPath: input.sectionPath ?? null,
+        provider: input.provider ?? "OpenAi",
+      }),
+    },
+  );
+}
+
+export function seoGccVersion(
+  versionId: string,
+  keyword: string,
+): Promise<GccSeoReport> {
+  const q = encodeURIComponent(keyword);
+  return gccRequest<GccSeoReport>(
+    `/api/geek-content-creator/versions/${versionId}/seo?keyword=${q}`,
+  );
+}
+
+export function polishGccVersion(versionId: string): Promise<GccPolishReport> {
+  return gccRequest<GccPolishReport>(
+    `/api/geek-content-creator/versions/${versionId}/polish`,
+  );
+}
+
+export function approveGccVersion(
+  versionId: string,
+  notes?: string | null,
+): Promise<{ artifact: GccArtifact }> {
+  return gccRequest(`/api/geek-content-creator/versions/${versionId}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ notes: notes ?? null }),
+  });
+}
+
+export interface GccMixRequest {
+  blog?: boolean;
+  techArticle?: boolean;
+  emailCount?: number;
+  linkedInCount?: number;
+  xCount?: number;
+  instagramCount?: number;
+  metaAdsCount?: number;
+  googleAdsCount?: number;
+  aiToolNames?: string[] | null;
+  aiToolBrief?: string | null;
+  imagePrompts?: boolean;
+  provider?: string;
+}
+
+export function repurposeGccVersion(
+  versionId: string,
+  mix: GccMixRequest,
+): Promise<{ created?: unknown[] }> {
+  return gccRequest(`/api/geek-content-creator/versions/${versionId}/repurpose`, {
+    method: "POST",
+    body: JSON.stringify({
+      blog: mix.blog ?? false,
+      techArticle: mix.techArticle ?? false,
+      emailCount: mix.emailCount ?? 0,
+      linkedInCount: mix.linkedInCount ?? 0,
+      xCount: mix.xCount ?? 0,
+      instagramCount: mix.instagramCount ?? 0,
+      metaAdsCount: mix.metaAdsCount ?? 0,
+      googleAdsCount: mix.googleAdsCount ?? 0,
+      aiToolNames: mix.aiToolNames ?? null,
+      aiToolBrief: mix.aiToolBrief ?? null,
+      imagePrompts: mix.imagePrompts ?? false,
+      provider: mix.provider ?? "OpenAi",
+    }),
+  });
+}
+
+/** Best-effort plain preview from stored body JSON — fail closed to raw string. */
+export function previewBodyDocument(bodyDocumentJson: string, max = 1200): string {
+  try {
+    const parsed = JSON.parse(bodyDocumentJson) as Record<string, unknown>;
+    const body =
+      (typeof parsed.body === "string" && parsed.body) ||
+      (typeof parsed.content === "string" && parsed.content) ||
+      (typeof parsed.markdown === "string" && parsed.markdown) ||
+      "";
+    const title = typeof parsed.title === "string" ? parsed.title : "";
+    const text = [title, body].filter(Boolean).join("\n\n") || bodyDocumentJson;
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+  } catch {
+    return bodyDocumentJson.length > max
+      ? `${bodyDocumentJson.slice(0, max)}…`
+      : bodyDocumentJson;
+  }
 }
 
 export function briefToJson(brief: ContentBrief): string {
