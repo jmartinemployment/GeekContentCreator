@@ -40,12 +40,5 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!Array.isArray(analysis.gaps)) {
-    return NextResponse.json(
-      { error: "Analyze response missing gaps array" },
-      { status: 502 },
-    );
-  }
-
   return NextResponse.json(analysis);
 }

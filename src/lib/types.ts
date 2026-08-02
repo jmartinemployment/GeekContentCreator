@@ -109,7 +109,14 @@ export type ContentGap = {
 export type SiteAnalysis = {
   id: string;
   domain: string;
-  status: string;
+  status: "processing" | "ready" | "failed" | string;
+  gaps?: ContentGap[];
+  error?: string;
+  seoProjectId?: string;
+  seoProfileId?: string;
+  step?: string;
+  stepNumber?: number;
+  totalSteps?: number;
 };
 
 export type RepurposeMixRequest = {
