@@ -185,7 +185,7 @@ API namespace: Content Creator’s own (`/api/geek-content-creator/...`), not ho
 | `POST /creates/{id}/research/follow` | Fetch ≤3 URLs; fail closed; write `ResearchJson` on full success |
 | `POST /creates/{id}/generate` | Validate brief from DB; inject BRIEF + research; Site Analyzer gate unchanged |
 
-Ops: deploy GeekRepository (startup runs `Database.MigrateAsync` for Content Creator — includes `AddGccCreateBriefResearchJson`) and GeekAPI; then live smoke.
+Ops: GeekRepository startup runs `Database.MigrateAsync` for Content Creator (prod applied `AddGccCreateBriefResearchJson` with GeekAPI `59aa0ea`).
 
 ---
 

@@ -326,7 +326,7 @@ flowchart TD
 ## 12. Build sequence
 
 1. Scaffold done at `/Users/jeffmartin/development/GeekContentCreator`. GeekOAuth + GeekAPI + starting-content chooser.  
-1b. **Content Brief + deep research + generate on creates** (BriefJson / ResearchJson; Next → `/api/geek-content-creator/...`). Deploy GeekRepository (auto-migrates on startup) + GeekAPI for live smoke.  
+1b. **Content Brief + deep research + generate on creates** (BriefJson / ResearchJson; Next → `/api/geek-content-creator/...`). Shipped: GeekRepository auto-migrates on startup; GeekAPI + frontend redeployed; smoke covers brief/research fail-closed.  
 2. Generate + Revise (Full/Section) + on-page SEO + Polish + Content approval.  
 3. Standalone image prompt (human context required) + attached/Mix image prompts for all types.  
 4. **Site Analyzer day one:** analyze site → list **content gaps** → pick gap → prefilled create; **existing site content attached as Generate context**.  
