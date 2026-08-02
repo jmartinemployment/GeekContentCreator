@@ -134,25 +134,33 @@ export default function ContentResults({
         <StepRow
           step={4}
           title="Social content"
-          description="Facebook (~40 words) and LinkedIn (~200–300 words) posts linking to the pillar."
+          description="Facebook (~40 words) and LinkedIn (~200–300 words) posts linking to the pillar or blog."
           done={hasSocial}
-          disabled={!hasPillarBody || isGenerating}
+          disabled={!(hasPillarBody || hasBlog) || isGenerating}
           isRunning={generatingStep === "social"}
           buttonLabel={hasSocial ? "Regenerate social" : "Generate social"}
           onClick={() => runStep("social", () => generateSocialContent(projectId))}
-          lockedMessage={!hasPillarBody ? "Needs a pillar body (or use Mix after approving a blog)." : undefined}
+          lockedMessage={
+            !(hasPillarBody || hasBlog)
+              ? "Generate a pillar body or blog first."
+              : undefined
+          }
         />
 
         <StepRow
           step={5}
           title="Cold outreach email"
-          description={`${CONTENT_LENGTH_TARGETS.emailColdOutreach.definition} Target ${CONTENT_LENGTH_TARGETS.emailColdOutreach.label} words — subject, body, and one CTA to the pillar.`}
+          description={`${CONTENT_LENGTH_TARGETS.emailColdOutreach.definition} Target ${CONTENT_LENGTH_TARGETS.emailColdOutreach.label} words — subject, body, and one CTA.`}
           done={result?.coldOutreachEmail != null}
-          disabled={!hasPillarBody || isGenerating}
+          disabled={!(hasPillarBody || hasBlog) || isGenerating}
           isRunning={generatingStep === "cold-outreach"}
           buttonLabel={result?.coldOutreachEmail ? "Regenerate email" : "Generate email"}
           onClick={() => runStep("cold-outreach", () => generateColdOutreachContent(projectId))}
-          lockedMessage={!hasPillarBody ? "Needs a pillar body." : undefined}
+          lockedMessage={
+            !(hasPillarBody || hasBlog)
+              ? "Generate a pillar body or blog first."
+              : undefined
+          }
         />
 
         <StepRow

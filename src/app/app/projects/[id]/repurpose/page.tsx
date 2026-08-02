@@ -99,8 +99,8 @@ export default function ProjectRepurposePage() {
       </Link>
       <h1 className="mt-4 text-2xl font-bold text-foreground">Repurpose (Mix)</h1>
       <p className="mt-2 text-sm text-muted">
-        Choose types to generate from this project. No auto full suite — only what
-        you select runs via Content Writer v2 generate.
+        Choose types to generate from this project. Social and cold outreach work from a
+        pillar <em>or</em> standalone blog. No auto full suite — only what you select runs.
       </p>
 
       <div className="mt-6 space-y-3 rounded-xl border border-border bg-surface p-6">
