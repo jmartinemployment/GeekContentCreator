@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import type { GeneratedContentSet } from "@/lib/content-writer/types";
+import {
+  getProjectContentApproval,
+  setProjectContentApproval,
+} from "@/lib/content-writer/api";
 import {
   isContentApproved,
   setContentApproved,
@@ -10,7 +14,7 @@ import {
 
 /**
  * Content Creator addition: operator content approval on CWV2 drafts.
- * Gates Repurpose (Mix). Distinct from CWV2 LLM review verdicts.
+ * Persists on the project (GeekAPI) and mirrors locally for Mix gate.
  */
 export default function ContentApprovalPanel({
   projectId,
@@ -20,6 +24,8 @@ export default function ContentApprovalPanel({
   result: GeneratedContentSet | null;
 }) {
   const [approved, setApproved] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const hasDraft =
     (result?.article?.wordCount ?? 0) > 0 ||
@@ -27,17 +33,46 @@ export default function ContentApprovalPanel({
     (result?.toolPosts?.length ?? 0) > 0;
 
   useEffect(() => {
+    let cancelled = false;
     setApproved(isContentApproved(projectId));
+    getProjectContentApproval(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        setApproved(res.approved);
+        setContentApproved(projectId, res.approved);
+      })
+      .catch(() => {
+        /* fall back to local */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
   function approve() {
-    setContentApproved(projectId, true);
-    setApproved(true);
+    setError(null);
+    startTransition(async () => {
+      try {
+        await setProjectContentApproval(projectId, true);
+        setContentApproved(projectId, true);
+        setApproved(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Approval failed");
+      }
+    });
   }
 
   function revoke() {
-    setContentApproved(projectId, false);
-    setApproved(false);
+    setError(null);
+    startTransition(async () => {
+      try {
+        await setProjectContentApproval(projectId, false);
+        setContentApproved(projectId, false);
+        setApproved(false);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Revoke failed");
+      }
+    });
   }
 
   if (!hasDraft) return null;
@@ -52,9 +87,7 @@ export default function ContentApprovalPanel({
 
       {approved ? (
         <div className="mt-4 space-y-3">
-          <p className="text-sm font-medium text-green-800">
-            Content approved on this browser.
-          </p>
+          <p className="text-sm font-medium text-green-800">Content approved.</p>
           <div className="flex flex-wrap gap-3">
             <Link
               href={`/app/projects/${projectId}/repurpose`}
@@ -64,8 +97,9 @@ export default function ContentApprovalPanel({
             </Link>
             <button
               type="button"
+              disabled={pending}
               onClick={revoke}
-              className="rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+              className="rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
             >
               Revoke approval
             </button>
@@ -74,12 +108,14 @@ export default function ContentApprovalPanel({
       ) : (
         <button
           type="button"
+          disabled={pending}
           onClick={approve}
-          className="mt-4 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
+          className="mt-4 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:opacity-50"
         >
-          Content approval
+          {pending ? "Saving…" : "Content approval"}
         </button>
       )}
+      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
     </section>
   );
 }

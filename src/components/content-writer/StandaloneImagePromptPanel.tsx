@@ -1,25 +1,25 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 
 /**
  * Content Creator addition: standalone image prompt (topic + notes required).
- * Server route creates the draft; CWV2 project Image Prompts remain the attached path.
+ * Returns prompt text inline — no legacy /app/creates redirect.
  */
 export default function StandaloneImagePromptPanel({
   clientId,
 }: {
   clientId: string | null;
 }) {
-  const router = useRouter();
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resultJson, setResultJson] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function run() {
     setError(null);
+    setResultJson(null);
     if (!clientId) {
       setError("Select or create a client first.");
       return;
@@ -34,7 +34,6 @@ export default function StandaloneImagePromptPanel({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clientId,
             topic: topic.trim(),
             notes: notes.trim(),
             provider: "OpenAi",
@@ -42,7 +41,15 @@ export default function StandaloneImagePromptPanel({
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Image prompt generate failed");
-        router.push(`/app/creates/${body.createId}`);
+        const raw =
+          typeof body.promptJson === "string"
+            ? body.promptJson
+            : JSON.stringify(body.prompt ?? body, null, 2);
+        try {
+          setResultJson(JSON.stringify(JSON.parse(raw), null, 2));
+        } catch {
+          setResultJson(raw);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Image prompt generate failed");
       }
@@ -55,8 +62,9 @@ export default function StandaloneImagePromptPanel({
         Standalone image prompt
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Content Creator addition — prompt text only (no pixels). For section prompts on a
-        full content set, use Image Prompts on a project after pillar + blog.
+        Prompt text only (no pixels). Topic and notes are required. For section
+        prompts on a content set, use Image Prompts on a project after blog
+        generate.
       </p>
 
       <label className="mt-4 block space-y-1.5">
@@ -88,6 +96,23 @@ export default function StandaloneImagePromptPanel({
         {pending ? "Generating…" : "Generate image prompt"}
       </button>
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+      {resultJson ? (
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-foreground">Result</p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-brand underline"
+              onClick={() => navigator.clipboard.writeText(resultJson)}
+            >
+              Copy
+            </button>
+          </div>
+          <pre className="max-h-80 overflow-auto rounded-md border border-border bg-surface-muted p-3 text-xs text-foreground whitespace-pre-wrap">
+            {resultJson}
+          </pre>
+        </div>
+      ) : null}
     </section>
   );
 }

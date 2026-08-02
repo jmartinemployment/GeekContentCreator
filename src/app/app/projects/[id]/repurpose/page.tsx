@@ -10,10 +10,11 @@ import {
   generateSocialContent,
   generateToolsFromNames,
   getProject,
+  getProjectContentApproval,
   ApiError,
   defaultLlmProvider,
 } from "@/lib/content-writer/api";
-import { isContentApproved } from "@/lib/content-approval";
+import { isContentApproved, setContentApproved } from "@/lib/content-approval";
 
 /**
  * Content Creator Mix chooser on CWV2 projects — after content approval.
@@ -36,7 +37,21 @@ export default function ProjectRepurposePage() {
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    setAllowed(isContentApproved(projectId));
+    let cancelled = false;
+    const local = isContentApproved(projectId);
+    setAllowed(local);
+    getProjectContentApproval(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        setContentApproved(projectId, res.approved);
+        setAllowed(res.approved);
+      })
+      .catch(() => {
+        if (!cancelled) setAllowed(local);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
   useEffect(() => {

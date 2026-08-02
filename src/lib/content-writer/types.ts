@@ -107,6 +107,7 @@ export interface ProjectDetail extends ProjectSummary {
   generatedContent: GeneratedContentResponse[];
   contentSet: GeneratedContentSet | null;
   notes: string | null;
+  contentApprovedAtUtc?: string | null;
 }
 
 export interface ArticleDraft {

@@ -40,8 +40,8 @@ export default function HomePage() {
           Write from site gaps — grounded in what the site already says.
         </h1>
         <p className="mt-4 max-w-lg text-base leading-relaxed text-white/60">
-          Starting content you choose, revise, on-page SEO, content approval, then
-          Repurpose — without Content Writer v2&apos;s old screens.
+          Content Writer v2 generate, plus Site Analyzer, revise, on-page SEO,
+          polish, content approval, and Mix — pillar optional.
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
           <Link

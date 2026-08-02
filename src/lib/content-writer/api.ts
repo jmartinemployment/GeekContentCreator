@@ -264,6 +264,22 @@ export async function listImagePromptRows(
   return res.rows ?? [];
 }
 
+export function setProjectContentApproval(
+  projectId: string,
+  approved: boolean,
+): Promise<{ projectId: string; contentApprovedAtUtc: string | null }> {
+  return request(`/api/geek-content-creator/projects/${projectId}/content-approval`, {
+    method: "POST",
+    body: JSON.stringify({ approved }),
+  });
+}
+
+export function getProjectContentApproval(
+  projectId: string,
+): Promise<{ projectId: string; approved: boolean; contentApprovedAtUtc: string | null }> {
+  return request(`/api/geek-content-creator/projects/${projectId}/content-approval`);
+}
+
 export function generateBlogContent(
   projectId: string,
 ): Promise<GeneratedContentSet> {
