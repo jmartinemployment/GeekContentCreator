@@ -317,7 +317,7 @@ export function repurposeGccVersion(
   });
 }
 
-/** Best-effort plain preview from stored body JSON — fail closed to raw string. */
+/** Best-effort plain preview from stored body JSON — fail closed to raw/pretty JSON. */
 export function previewBodyDocument(bodyDocumentJson: string, max = 1200): string {
   try {
     const parsed = JSON.parse(bodyDocumentJson) as Record<string, unknown>;
@@ -327,8 +327,17 @@ export function previewBodyDocument(bodyDocumentJson: string, max = 1200): strin
       (typeof parsed.markdown === "string" && parsed.markdown) ||
       "";
     const title = typeof parsed.title === "string" ? parsed.title : "";
-    const text = [title, body].filter(Boolean).join("\n\n") || bodyDocumentJson;
-    return text.length > max ? `${text.slice(0, max)}…` : text;
+    const prompt =
+      (typeof parsed.prompt === "string" && parsed.prompt) ||
+      (typeof parsed.imagePrompt === "string" && parsed.imagePrompt) ||
+      "";
+    if (title || body || prompt) {
+      const text = [title, prompt, body].filter(Boolean).join("\n\n");
+      return text.length > max ? `${text.slice(0, max)}…` : text;
+    }
+    // Image-prompt / structured artifacts: show pretty JSON (not opaque one-liner).
+    const pretty = JSON.stringify(parsed, null, 2);
+    return pretty.length > max ? `${pretty.slice(0, max)}…` : pretty;
   } catch {
     return bodyDocumentJson.length > max
       ? `${bodyDocumentJson.slice(0, max)}…`

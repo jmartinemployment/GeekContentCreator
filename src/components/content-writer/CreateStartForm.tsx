@@ -30,6 +30,7 @@ export default function CreateStartForm() {
   const topicFromQuery = searchParams.get("topic")?.trim() ?? "";
   const siteAnalysisIdQuery = searchParams.get("siteAnalysisId")?.trim() ?? "";
   const typeFromQuery = searchParams.get("type")?.trim() ?? "";
+  const clientIdFromQuery = searchParams.get("clientId")?.trim() ?? "";
   const suggestPillar = searchParams.get("suggestPillar") === "1";
 
   const initialType = STARTING_TYPES.some((t) => t.value === typeFromQuery)
@@ -39,7 +40,7 @@ export default function CreateStartForm() {
       : "blog";
 
   const [clients, setClients] = useState<Client[]>([]);
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(clientIdFromQuery);
   const [topic, setTopic] = useState(topicFromQuery);
   const [startingContentType, setStartingContentType] = useState(initialType);
   const [notes, setNotes] = useState("");
@@ -52,16 +53,28 @@ export default function CreateStartForm() {
     getClients()
       .then((list) => {
         setClients(list);
-        if (list[0]) setClientId(list[0].id);
+        setClientId((prev) => {
+          if (prev && list.some((c) => c.id === prev)) return prev;
+          if (clientIdFromQuery && list.some((c) => c.id === clientIdFromQuery)) {
+            return clientIdFromQuery;
+          }
+          return list[0]?.id ?? "";
+        });
       })
       .catch((e) =>
         setLoadError(e instanceof Error ? e.message : "Could not load clients."),
       );
-  }, []);
+  }, [clientIdFromQuery]);
 
   useEffect(() => {
     if (topicFromQuery) setTopic(topicFromQuery);
   }, [topicFromQuery]);
+
+  useEffect(() => {
+    if (typeFromQuery && STARTING_TYPES.some((t) => t.value === typeFromQuery)) {
+      setStartingContentType(typeFromQuery);
+    }
+  }, [typeFromQuery]);
 
   useEffect(() => {
     const h = readSiteSectionHandoff();
@@ -127,7 +140,8 @@ export default function CreateStartForm() {
       <h1 className="mt-1 text-3xl font-bold text-foreground">Start a create</h1>
       <p className="mt-2 text-sm text-muted">
         Owns brief, research, and generate on a Content Creator create — not a
-        Content Writer v2 project form-filler.
+        Content Writer v2 project form-filler. After this step you save the Content
+        Brief, then Generate (image prompts still need topic + notes here).
       </p>
 
       {loadError ? <p className="mt-4 text-sm text-red-600">{loadError}</p> : null}

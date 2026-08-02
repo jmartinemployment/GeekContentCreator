@@ -57,13 +57,21 @@ export default function CreatesListPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/app/create?type=imagePrompt"
+            href={
+              selectedClientId
+                ? `/app/create?type=imagePrompt&clientId=${encodeURIComponent(selectedClientId)}`
+                : "/app/create?type=imagePrompt"
+            }
             className="rounded-md border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/20"
           >
             Image prompt
           </Link>
           <Link
-            href="/app/create"
+            href={
+              selectedClientId
+                ? `/app/create?clientId=${encodeURIComponent(selectedClientId)}`
+                : "/app/create"
+            }
             className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
           >
             Start a create
@@ -88,7 +96,14 @@ export default function CreatesListPage() {
       {visible.length === 0 && !error ? (
         <p className="text-sm text-muted">
           No creates yet for this client.{" "}
-          <Link href="/app/create" className="font-semibold text-brand hover:underline">
+          <Link
+            href={
+              selectedClientId
+                ? `/app/create?clientId=${encodeURIComponent(selectedClientId)}`
+                : "/app/create"
+            }
+            className="font-semibold text-brand hover:underline"
+          >
             Start a create
           </Link>{" "}
           or pick a Site Analyzer gap.

@@ -112,7 +112,11 @@ function DashboardInner() {
             <p className="text-sm text-muted">
               Standalone image prompts:{" "}
               <a
-                href="/app/create?type=imagePrompt"
+                href={
+                  selectedClientId
+                    ? `/app/create?type=imagePrompt&clientId=${encodeURIComponent(selectedClientId)}`
+                    : "/app/create?type=imagePrompt"
+                }
                 className="font-semibold text-brand hover:underline"
               >
                 Start create → Image prompt
