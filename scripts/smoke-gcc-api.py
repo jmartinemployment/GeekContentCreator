@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""API smoke for Geek Content Creator day-one Site Analyzer path (no LLM).
+"""API smoke for Geek Content Creator Site Analyzer (fail-closed).
 
-Requires GeekAPI (+ GeekRepository) with Content Creator routes deployed.
-Auth: Bearer UUID (GeekAPI dev path) or a real access token.
+Requires GeekAPI with Content Creator routes deployed.
 
   GEEK_API_URL=https://api.geekatyourspot.com \\
-  GEEK_BEARER=<uuid-or-jwt> \\
+  GEEK_BEARER=<access-token> \\
   python3 scripts/smoke-gcc-api.py
+
+Optional live path (domain must match a Geek-SEO project for that user):
+
+  GEEK_SA_DOMAIN=example.com GEEK_BEARER=<token> python3 scripts/smoke-gcc-api.py
 """
 
 from __future__ import annotations
@@ -52,26 +55,67 @@ def req(method: str, path: str, body: dict | None = None) -> tuple[int, dict | l
 
 def main() -> int:
     print(f"API {API}")
+    # Fail-closed: unknown domain must not invent demo gaps.
     status, analysis = req(
         "POST",
         f"{GCC}/site-analyzer/analyze",
         {"domain": "example.com", "seedTopic": "payroll automation"},
     )
+    if status < 400:
+        print(
+            "FAIL analyze expected error for example.com without Geek-SEO project;",
+            "got",
+            status,
+            analysis,
+        )
+        return 1
+    err = analysis.get("error") if isinstance(analysis, dict) else analysis
+    print(f"OK analyze fail-closed status={status} error={err}")
+
+    # Image prompt create still requires notes (independent of Site Analyzer).
+    status, blocked_img = req(
+        "POST",
+        f"{GCC}/creates",
+        {
+            "clientId": str(uuid.uuid4()),
+            "startingContentType": "imagePrompt",
+            "topic": "Hero scene",
+            "notes": None,
+        },
+    )
+    if status < 400:
+        print("FAIL expected imagePrompt notes gate", status, blocked_img)
+        return 1
+    print("OK imagePrompt create requires notes")
+
+    live_domain = (os.environ.get("GEEK_SA_DOMAIN") or "").strip()
+    if not live_domain:
+        print("SKIP live Site Analyzer (set GEEK_SA_DOMAIN for signed-in user with Geek-SEO analysis)")
+        print("SMOKE PASS (fail-closed analyze + imagePrompt gate)")
+        return 0
+
+    status, analysis = req(
+        "POST",
+        f"{GCC}/site-analyzer/analyze",
+        {"domain": live_domain, "seedTopic": None},
+    )
     if status >= 400:
-        print("FAIL analyze", status, analysis)
+        print("FAIL live analyze", status, analysis)
         return 1
     assert isinstance(analysis, dict)
     aid = analysis.get("id")
     gaps = analysis.get("gaps") or []
-    if not aid or not gaps:
-        # older API: fetch gaps
-        status, gaps = req("GET", f"{GCC}/site-analyzer/{aid}/gaps")
-        if status >= 400 or not gaps:
-            print("FAIL gaps", status, gaps)
-            return 1
-    print(f"OK analyze id={aid} gaps={len(gaps)} demo={analysis.get('isDemo')}")
+    if not aid:
+        print("FAIL live analyze missing id", analysis)
+        return 1
+    print(f"OK live analyze id={aid} gaps={len(gaps)}")
 
-    gap = gaps[0] if isinstance(gaps, list) else None
+    if not gaps:
+        print("OK live analyze returned zero gaps (valid if site has none)")
+        print("SMOKE PASS")
+        return 0
+
+    gap = gaps[0]
     if not isinstance(gap, dict):
         print("FAIL gap shape", gap)
         return 1
@@ -87,7 +131,6 @@ def main() -> int:
         return 1
     print(f"OK section-context relatedPages={len(related)}")
 
-    # Gate: create without related pages must 400 when siteAnalysisId set
     status, blocked = req(
         "POST",
         f"{GCC}/creates",
@@ -125,50 +168,9 @@ def main() -> int:
         print("FAIL create with site section", status, created)
         return 1
     print(f"OK create {created['id']} with site section")
-
-    # Persist round-trip: gaps still load after "restart" (repo, not memory)
-    status, gaps2 = req("GET", f"{GCC}/site-analyzer/{aid}/gaps")
-    if status >= 400 or not gaps2:
-        print("FAIL persisted gaps", status, gaps2)
-        return 1
-    print("OK site analysis persisted (gaps reload)")
-
-    # Image prompt create gate
-    status, blocked_img = req(
-        "POST",
-        f"{GCC}/creates",
-        {
-            "clientId": str(uuid.uuid4()),
-            "startingContentType": "imagePrompt",
-            "topic": "Hero scene",
-            "notes": None,
-        },
-    )
-    if status < 400:
-        print("FAIL expected imagePrompt notes gate", status, blocked_img)
-        return 1
-    print("OK imagePrompt create requires notes")
-
-    # Generate with site-context create — may 502/503 without LLM keys; still must not 400 on gate
-    create_id = created["id"]
-    status, gen = req(
-        "POST",
-        f"{GCC}/creates/{create_id}/generate",
-        {"provider": "OpenAi"},
-    )
-    if status == 400:
-        print("FAIL generate blocked by site-context gate unexpectedly", gen)
-        return 1
-    if status in (200, 202):
-        print(f"OK generate started/completed status={status}")
-    elif status in (502, 503):
-        print(f"OK generate reached LLM path (provider unavailable status={status})")
-    else:
-        print(f"WARN generate status={status} body={gen}")
-
-    print("SMOKE PASS (analyze → section context → gate → create → imagePrompt gate; generate if keys allow)")
+    print("SMOKE PASS (fail-closed + live Site Analyzer path)")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

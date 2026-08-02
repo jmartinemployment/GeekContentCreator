@@ -20,7 +20,6 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         domain: body.domain,
         seedTopic: body.seedTopic ?? null,
-        nicheProfileId: body.nicheProfileId ?? null,
       }),
       cache: "no-store",
     },

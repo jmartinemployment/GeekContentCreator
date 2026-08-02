@@ -24,15 +24,15 @@ export function SiteAnalyzerClient() {
   const router = useRouter();
   const [domain, setDomain] = useState("");
   const [seedTopic, setSeedTopic] = useState("");
-  const [nicheProfileId, setNicheProfileId] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
   const [gaps, setGaps] = useState<Gap[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function analyze() {
     setError(null);
+    setGaps([]);
+    setAnalysisId(null);
     startTransition(async () => {
       try {
         const res = await fetch("/api/site-analyzer/analyze", {
@@ -41,14 +41,17 @@ export function SiteAnalyzerClient() {
           body: JSON.stringify({
             domain,
             seedTopic: seedTopic || null,
-            nicheProfileId: nicheProfileId.trim() || null,
           }),
         });
-        const body = await res.json();
+        const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Analyze failed");
         setAnalysisId(body.id);
-        setIsDemo(Boolean(body.isDemo));
         setGaps(body.gaps ?? []);
+        if (!(body.gaps ?? []).length) {
+          setError(
+            "Site analysis loaded, but Geek-SEO reported no content gaps for this domain.",
+          );
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Analyze failed");
       }
@@ -63,7 +66,7 @@ export function SiteAnalyzerClient() {
         const res = await fetch(
           `/api/site-analyzer/section-context?analysisId=${encodeURIComponent(analysisId)}&gapTopic=${encodeURIComponent(gap.topic)}`,
         );
-        const section = await res.json();
+        const section = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(section.error || "Section context failed");
         if (!section.relatedPages?.length) {
           throw new Error("Site section context missing related pages");
@@ -123,26 +126,17 @@ export function SiteAnalyzerClient() {
             {pending ? "Working…" : "Analyze"}
           </button>
         </div>
-        <input
-          value={nicheProfileId}
-          onChange={(e) => setNicheProfileId(e.target.value)}
-          placeholder="Optional Niche profile id (GUID from seo.geekatyourspot.com — live gaps when signed in)"
-          className="w-full rounded-md border border-[var(--gcc-line)] bg-white px-3 py-2 text-sm"
-        />
         <p className="text-xs text-[var(--gcc-muted)]">
-          Without a profile id, Analyze returns demo gaps with non-empty site-section
-          related pages so Generate is never keyword-only.
+          Loads content gaps and existing pages from your Geek-SEO project for
+          this domain. If the site is not analyzed there yet, Analyze returns an
+          error — it does not invent gaps.
         </p>
+      </div>
 
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
       {analysisId ? (
-        <p className="text-xs text-[var(--gcc-muted)]">
-          Analysis {analysisId}
-          {isDemo
-            ? " (demo gaps — Geek-SEO unavailable or no profile)"
-            : " (live Niche gaps)"}
-        </p>
+        <p className="text-xs text-[var(--gcc-muted)]">Analysis {analysisId}</p>
       ) : null}
 
       {gaps.length > 0 ? (

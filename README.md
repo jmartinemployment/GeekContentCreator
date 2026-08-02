@@ -24,7 +24,7 @@ npm run dev
 
 Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted only**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`). Do not run a local GeekAPI.
 
-**Site Analyzer:** demo gaps work without Geek-SEO. Live gaps need a Niche profile id (from `seo.geekatyourspot.com`) while signed in; GeekAPI must have `GEEK_SEO_API_URL=https://seo-api.geekatyourspot.com` (set on Railway).
+**Site Analyzer:** Enter a domain you already have analyzed in Geek-SEO (same signed-in user). Content Creator loads real gaps and existing page URLs from that site model. If Geek-SEO is unset, unauthorized, or has no project/analysis for the domain, Analyze returns an error — it does not invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL=https://seo-api.geekatyourspot.com`.
 
 ## Smoke checklist (day one)
 

@@ -26,7 +26,6 @@ function formatSiteSectionResearchFile(payload: {
       excerpt?: string;
     }[];
     topicalNeighbors?: string[];
-    isDemo?: boolean;
   };
 }): string {
   const section = payload.section;
@@ -37,11 +36,6 @@ function formatSiteSectionResearchFile(payload: {
     `Using ${n} related page${n === 1 ? "" : "s"} from this site section.`,
     `Gap topic: ${payload.gapTopic || section.gapTopic || ""}`,
   ];
-  if (section.isDemo) {
-    lines.push(
-      "Note: demo site-section stand-ins (Geek-SEO Niche profile not attached). Still non-empty related pages so Generate is not keyword-only.",
-    );
-  }
   if (section.gapSectionPath) lines.push(`Section path: ${section.gapSectionPath}`);
   for (const page of section.relatedPages.slice(0, 8)) {
     lines.push("");
@@ -100,7 +94,6 @@ export default function ProjectForm({
           gapSectionPath: parsed.section.gapSectionPath ?? null,
           relatedPages: parsed.section.relatedPages,
           topicalNeighbors: parsed.section.topicalNeighbors ?? [],
-          isDemo: Boolean(parsed.section.isDemo),
         });
       }
     } catch {
