@@ -29,14 +29,19 @@ export default function CreateStartForm() {
   const searchParams = useSearchParams();
   const topicFromQuery = searchParams.get("topic")?.trim() ?? "";
   const siteAnalysisIdQuery = searchParams.get("siteAnalysisId")?.trim() ?? "";
+  const typeFromQuery = searchParams.get("type")?.trim() ?? "";
   const suggestPillar = searchParams.get("suggestPillar") === "1";
+
+  const initialType = STARTING_TYPES.some((t) => t.value === typeFromQuery)
+    ? typeFromQuery
+    : suggestPillar
+      ? "pillar"
+      : "blog";
 
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState("");
   const [topic, setTopic] = useState(topicFromQuery);
-  const [startingContentType, setStartingContentType] = useState(
-    suggestPillar ? "pillar" : "blog",
-  );
+  const [startingContentType, setStartingContentType] = useState(initialType);
   const [notes, setNotes] = useState("");
   const [handoff, setHandoff] = useState<SiteSectionHandoff | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

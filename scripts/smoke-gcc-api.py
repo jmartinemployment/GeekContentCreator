@@ -142,6 +142,31 @@ def main() -> int:
         return 1
     print("OK imagePrompt create requires notes")
 
+    # Site Analyzer create: empty relatedPages must fail (no keyword-only).
+    sa_id = str(uuid.uuid4())
+    status, sa_blocked = req(
+        "POST",
+        f"{GCC}/creates",
+        {
+            "clientId": str(uuid.uuid4()),
+            "startingContentType": "blog",
+            "topic": "sa empty relatedPages",
+            "notes": None,
+            "siteAnalysisId": sa_id,
+            "siteSection": {
+                "siteAnalysisId": sa_id,
+                "gapTopic": "payroll",
+                "gapSectionPath": None,
+                "relatedPages": [],
+                "topicalNeighbors": [],
+            },
+        },
+    )
+    if status < 400:
+        print("FAIL SA create with empty relatedPages", status, sa_blocked)
+        return 1
+    print("OK SA create rejects empty relatedPages")
+
     status, create = req(
         "POST",
         f"{GCC}/creates",

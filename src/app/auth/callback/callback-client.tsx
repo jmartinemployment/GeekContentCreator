@@ -32,7 +32,7 @@ export function AuthCallbackClient() {
         setError(body?.error || "Sign-in failed");
         return;
       }
-      window.location.assign("/app");
+      window.location.assign("/app/creates");
     })();
 
     return () => {

@@ -326,11 +326,11 @@ flowchart TD
 ## 12. Build sequence
 
 1. Scaffold done at `/Users/jeffmartin/development/GeekContentCreator`. GeekOAuth + GeekAPI + starting-content chooser.  
-1b. **Content Brief + deep research + generate on creates** (BriefJson / ResearchJson; Next → `/api/geek-content-creator/...`). Shipped: GeekRepository auto-migrates on startup; GeekAPI + frontend redeployed; smoke covers brief/research fail-closed.  
-2. Generate + Revise (Full/Section) + on-page SEO + Polish + Content approval.  
-3. Standalone image prompt (human context required) + attached/Mix image prompts for all types.  
-4. **Site Analyzer day one:** analyze site → list **content gaps** → pick gap → prefilled create; **existing site content attached as Generate context**.  
-5. Repurpose chooser after content approval (types + counts + image prompts + AI Tools with flexible context).  
+1b. **Content Brief + deep research + generate on creates** (BriefJson / ResearchJson; Next → `/api/geek-content-creator/...`). Shipped.  
+2. Generate + Revise (Full/Section) + on-page SEO + Polish + Content approval on **create workspace** (`/app/creates/{id}`). Shipped.  
+3. Standalone image prompt (human context required) via Start create `type=imagePrompt` + attached/Mix image prompts.  
+4. **Site Analyzer day one:** pick gap → `/app/create` with **site section on the create** (non-empty relatedPages); Generate blocked if missing. Shipped.  
+5. Repurpose chooser after content approval on create artifact (`/app/creates/{id}/repurpose`).  
 6. Smoke: Blog-only (no pillar); **Site Analyzer gap → create with site context in Generate**; standalone image prompt; AI Tools from human names; Mix image prompts; Revise; approve → Repurpose.  
 7. **After application approval:** Research dossier + AI deep research + manual uploads + coverage SEO.  
 8. Calendar / pixel render via image-generator.
@@ -342,8 +342,8 @@ flowchart TD
 - [x] Create Blog (or Email/Social) without a pillar.  
 - [x] Pillar available when wanted.  
 - [x] **Site Analyzer:** show **content gaps** for a site (topics/headings with no page / suggest-pillar-class gaps). *(Geek-SEO-backed; fail closed if site not analyzed)*  
-- [x] **Site Analyzer:** pick a gap → create opens with topic/keyword prefilled.  
-- [x] **Site Analyzer:** Generate includes **existing site content from the relevant site section** (not keyword/gap title alone). *(real related pages from site model; reject if empty)*  
+- [x] **Site Analyzer:** pick a gap → Content Creator `/app/create` with topic prefilled + site section handoff (not CWV2 project form).  
+- [x] **Site Analyzer:** Generate includes **existing site content from the relevant site section** (not keyword/gap title alone). *(real relatedPages on create; reject if empty)*  
 - [x] **Regression vs Content Writer v2:** Site Analyzer–started Generate is **not** “home keyword with zero site section context.”  
 - [x] Standalone image prompt create with required human context (blocked without context).  
 - [x] Mix / attached image prompts use approved artifact as context.  
