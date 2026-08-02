@@ -291,11 +291,64 @@ export function generateBlogContent(
 
 export function generateSocialContent(
   projectId: string,
+  counts?: {
+    facebookCount?: number;
+    linkedInCount?: number;
+    xCount?: number;
+    instagramCount?: number;
+    metaAdsCount?: number;
+    googleAdsCount?: number;
+    provider?: string;
+  },
 ): Promise<GeneratedContentSet> {
-  return request<GeneratedContentSet>(
-    `/api/projects/${projectId}/generate/social`,
-    { method: "POST" },
-  );
+  // Plan §7: one social/ads pack call (not one call per channel).
+  return request<{ set: GeneratedContentSet }>(
+    `/api/geek-content-creator/projects/${projectId}/social-pack`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        facebookCount: counts?.facebookCount ?? 1,
+        linkedInCount: counts?.linkedInCount ?? 1,
+        xCount: counts?.xCount ?? 0,
+        instagramCount: counts?.instagramCount ?? 0,
+        metaAdsCount: counts?.metaAdsCount ?? 0,
+        googleAdsCount: counts?.googleAdsCount ?? 0,
+        provider: counts?.provider ?? defaultLlmProvider(),
+      }),
+    },
+  ).then((res) => res.set);
+}
+
+export function generateSocialPack(
+  projectId: string,
+  counts: {
+    facebookCount?: number;
+    linkedInCount?: number;
+    xCount?: number;
+    instagramCount?: number;
+    metaAdsCount?: number;
+    googleAdsCount?: number;
+    provider?: string;
+  },
+): Promise<{
+  set: GeneratedContentSet;
+  packJson: string;
+  channels: string[];
+  variantCount: number;
+  llmCalls: number;
+}> {
+  return request(`/api/geek-content-creator/projects/${projectId}/social-pack`, {
+    method: "POST",
+    body: JSON.stringify({
+      facebookCount: counts.facebookCount ?? 0,
+      linkedInCount: counts.linkedInCount ?? 0,
+      xCount: counts.xCount ?? 0,
+      instagramCount: counts.instagramCount ?? 0,
+      metaAdsCount: counts.metaAdsCount ?? 0,
+      googleAdsCount: counts.googleAdsCount ?? 0,
+      provider: counts.provider ?? defaultLlmProvider(),
+    }),
+  });
 }
 
 export function generateColdOutreachContent(

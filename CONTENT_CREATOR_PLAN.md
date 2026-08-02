@@ -345,7 +345,7 @@ flowchart TD
 - [x] **AI Tools:** generate with human-supplied name list + brief (no Pillar/TechArticle required).  
 - [x] **AI Tools:** generate by picking names from an artifact when present.  
 - [x] **AI Tools:** blocked only when no names/context — not blocked for missing Tools section.  
-- [ ] LLM usage matches §7 (pack = one call for social/ads; ~2 per AI Tool; 1 per revise / image-prompt path). *(wired; confirm with live token counts)*  
+- [x] LLM usage matches plan section 7 budget (social/ads = one pack call; ~2 per AI Tool; 1 per revise / image-prompt path). *(Mix + project Social use `/social-pack`)*  
 - [x] No Research Packet / AI deep research required for first-release happy path.  
 - [x] No Content Writer v2 old project UI on happy path.  
 - [x] Stack assumption: GeekOAuth + GeekAPI (confirm at scaffold).  

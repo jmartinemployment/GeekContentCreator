@@ -138,8 +138,15 @@ export default function ContentResults({
           done={hasSocial}
           disabled={!(hasPillarBody || hasBlog) || isGenerating}
           isRunning={generatingStep === "social"}
-          buttonLabel={hasSocial ? "Regenerate social" : "Generate social"}
-          onClick={() => runStep("social", () => generateSocialContent(projectId))}
+          buttonLabel={hasSocial ? "Regenerate social pack" : "Generate social pack"}
+          onClick={() =>
+            runStep("social", () =>
+              generateSocialContent(projectId, {
+                facebookCount: 1,
+                linkedInCount: 1,
+              }),
+            )
+          }
           lockedMessage={
             !(hasPillarBody || hasBlog)
               ? "Generate a pillar body or blog first."
@@ -210,7 +217,10 @@ export default function ContentResults({
               onGenerated(state);
             }
             if (!state.facebookPost || !state.linkedInPost) {
-              state = await generateSocialContent(projectId);
+              state = await generateSocialContent(projectId, {
+                facebookCount: 1,
+                linkedInCount: 1,
+              });
               onGenerated(state);
             }
             if (!state.coldOutreachEmail) {
