@@ -167,6 +167,22 @@ def main() -> int:
         return 1
     print("OK SA create rejects empty relatedPages")
 
+    # AI Tools on create: names without brief / source must fail.
+    status, tools_blocked = req(
+        "POST",
+        f"{GCC}/tools/generate",
+        {
+            "createId": str(uuid.uuid4()),
+            "toolNames": ["Invoice OCR"],
+            "brief": None,
+            "sourceArtifactId": None,
+        },
+    )
+    if status < 400:
+        print("FAIL tools generate without brief", status, tools_blocked)
+        return 1
+    print("OK tools generate requires brief without source artifact")
+
     status, create = req(
         "POST",
         f"{GCC}/creates",

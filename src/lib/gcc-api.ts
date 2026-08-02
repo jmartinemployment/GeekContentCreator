@@ -279,6 +279,33 @@ export function approveGccVersion(
   });
 }
 
+export function generateGccTools(input: {
+  createId: string;
+  toolNames: string[];
+  brief?: string | null;
+  sourceArtifactId?: string | null;
+  provider?: string;
+}): Promise<{ created?: Array<{ artifact: GccArtifact; version: GccArtifactVersion }> }> {
+  const names = input.toolNames.map((n) => n.trim()).filter(Boolean);
+  if (names.length === 0) {
+    throw new ApiError("toolNames required (non-empty after trim)", 400);
+  }
+  if (!input.sourceArtifactId && !input.brief?.trim()) {
+    throw new ApiError("brief required when no sourceArtifactId", 400);
+  }
+  return gccRequest("/api/geek-content-creator/tools/generate", {
+    method: "POST",
+    body: JSON.stringify({
+      createId: input.createId,
+      toolNames: names,
+      selectedNames: names,
+      brief: input.brief?.trim() || null,
+      sourceArtifactId: input.sourceArtifactId || null,
+      provider: input.provider ?? "OpenAi",
+    }),
+  });
+}
+
 export interface GccMixRequest {
   blog?: boolean;
   techArticle?: boolean;
