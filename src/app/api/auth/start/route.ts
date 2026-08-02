@@ -15,6 +15,8 @@ export async function GET() {
   url.searchParams.set("code_challenge", challenge);
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("state", randomBytes(16).toString("base64url"));
+  // Always show GeekOAuth credentials — SSO cookie alone must not silent-sign-in.
+  url.searchParams.set("prompt", "login");
 
   const res = NextResponse.redirect(url.toString());
   res.cookies.set(PKCE_COOKIE, verifier, cookieOpts.pkce);

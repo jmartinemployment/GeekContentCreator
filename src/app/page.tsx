@@ -24,12 +24,13 @@ export default function HomePage() {
         <p className="font-display text-lg font-semibold tracking-tight">
           Geek Content Creator
         </p>
-        <Link
+        {/* Plain <a>: Next Link soft-nav fetches /api/auth/start and breaks OAuth redirects. */}
+        <a
           href="/api/auth/start"
           className="text-sm font-medium text-white/70 transition hover:text-white"
         >
           Sign in
-        </Link>
+        </a>
       </header>
 
       <main className="relative z-10 flex flex-1 flex-col justify-center px-6 pb-24 pt-10 sm:px-10 lg:px-16">
@@ -45,12 +46,12 @@ export default function HomePage() {
           pillar optional.
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
-          <Link
+          <a
             href="/api/auth/start"
             className="inline-flex items-center justify-center rounded-md bg-[var(--gcc-teal)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--gcc-teal-deep)]"
           >
             Sign in to create
-          </Link>
+          </a>
           <Link
             href="/app/creates"
             className="inline-flex items-center justify-center rounded-md border border-white/20 px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
