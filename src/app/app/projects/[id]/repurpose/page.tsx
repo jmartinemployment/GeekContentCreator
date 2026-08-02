@@ -8,11 +8,12 @@ import {
   generateColdOutreachContent,
   generateImagePromptsContent,
   generateSocialContent,
+  generateToolsFromNames,
   getProject,
   ApiError,
+  defaultLlmProvider,
 } from "@/lib/content-writer/api";
-
-const storageKey = (projectId: string) => `gcc.contentApproved.${projectId}`;
+import { isContentApproved } from "@/lib/content-approval";
 
 /**
  * Content Creator Mix chooser on CWV2 projects — after content approval.
@@ -23,20 +24,19 @@ export default function ProjectRepurposePage() {
   const projectId = params.id;
   const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [blog, setBlog] = useState(true);
+  const [blog, setBlog] = useState(false);
   const [social, setSocial] = useState(false);
   const [cold, setCold] = useState(false);
   const [imagePrompts, setImagePrompts] = useState(false);
+  const [aiTools, setAiTools] = useState(false);
+  const [toolNames, setToolNames] = useState("");
+  const [toolBrief, setToolBrief] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    try {
-      setAllowed(sessionStorage.getItem(storageKey(projectId)) === "1");
-    } catch {
-      setAllowed(false);
-    }
+    setAllowed(isContentApproved(projectId));
   }, [projectId]);
 
   useEffect(() => {
@@ -48,10 +48,21 @@ export default function ProjectRepurposePage() {
   function run() {
     setError(null);
     setDone([]);
-    if (!blog && !social && !cold && !imagePrompts) {
+    const names = toolNames
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    if (!blog && !social && !cold && !imagePrompts && !aiTools) {
       setError("Pick at least one output type.");
       return;
     }
+    if (aiTools && (names.length === 0 || !toolBrief.trim())) {
+      setError("AI Tools require names and a brief.");
+      return;
+    }
+
     startTransition(async () => {
       try {
         await getProject(projectId);
@@ -71,6 +82,14 @@ export default function ProjectRepurposePage() {
         if (imagePrompts) {
           await generateImagePromptsContent(projectId);
           finished.push("Image prompts");
+        }
+        if (aiTools) {
+          await generateToolsFromNames(projectId, {
+            toolNames: names,
+            brief: toolBrief.trim(),
+            provider: defaultLlmProvider(),
+          });
+          finished.push("AI Tools");
         }
         setDone(finished);
       } catch (e) {
@@ -99,8 +118,9 @@ export default function ProjectRepurposePage() {
       </Link>
       <h1 className="mt-4 text-2xl font-bold text-foreground">Repurpose (Mix)</h1>
       <p className="mt-2 text-sm text-muted">
-        Choose types to generate from this project. Social and cold outreach work from a
-        pillar <em>or</em> standalone blog. No auto full suite — only what you select runs.
+        Choose types to generate from this project. Social and cold outreach work
+        from a pillar <em>or</em> standalone blog. AI Tools use names + brief. No
+        auto full suite.
       </p>
 
       <div className="mt-6 space-y-3 rounded-xl border border-border bg-surface p-6">
@@ -136,6 +156,39 @@ export default function ProjectRepurposePage() {
           />
           Image prompts (attached)
         </label>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={aiTools}
+            onChange={(e) => setAiTools(e.target.checked)}
+          />
+          AI Tools (names + brief)
+        </label>
+
+        {aiTools ? (
+          <div className="ml-6 space-y-3 border-l border-border pl-4">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-foreground">Tool names</span>
+              <textarea
+                value={toolNames}
+                onChange={(e) => setToolNames(e.target.value)}
+                rows={2}
+                placeholder="One per line"
+                className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-foreground">Brief</span>
+              <textarea
+                value={toolBrief}
+                onChange={(e) => setToolBrief(e.target.value)}
+                rows={2}
+                placeholder="Audience and angle"
+                className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+        ) : null}
 
         <button
           type="button"

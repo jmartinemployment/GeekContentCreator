@@ -159,6 +159,7 @@ export default function ProjectPage() {
         <HumanToolsHint
           projectId={project.id}
           canRunPillarTools={(generated?.article?.wordCount ?? 0) >= 200}
+          result={generated}
           onGenerated={setGenerated}
         />
 

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { GeneratedContentSet } from "@/lib/content-writer/types";
-
-const storageKey = (projectId: string) => `gcc.contentApproved.${projectId}`;
+import {
+  isContentApproved,
+  setContentApproved,
+} from "@/lib/content-approval";
 
 /**
  * Content Creator addition: operator content approval on CWV2 drafts.
@@ -25,28 +27,16 @@ export default function ContentApprovalPanel({
     (result?.toolPosts?.length ?? 0) > 0;
 
   useEffect(() => {
-    try {
-      setApproved(sessionStorage.getItem(storageKey(projectId)) === "1");
-    } catch {
-      setApproved(false);
-    }
+    setApproved(isContentApproved(projectId));
   }, [projectId]);
 
   function approve() {
-    try {
-      sessionStorage.setItem(storageKey(projectId), "1");
-    } catch {
-      /* private mode */
-    }
+    setContentApproved(projectId, true);
     setApproved(true);
   }
 
   function revoke() {
-    try {
-      sessionStorage.removeItem(storageKey(projectId));
-    } catch {
-      /* private mode */
-    }
+    setContentApproved(projectId, false);
     setApproved(false);
   }
 
@@ -63,7 +53,7 @@ export default function ContentApprovalPanel({
       {approved ? (
         <div className="mt-4 space-y-3">
           <p className="text-sm font-medium text-green-800">
-            Content approved for this session.
+            Content approved on this browser.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link

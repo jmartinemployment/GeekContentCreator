@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   generateToolsFromNames,
   generateToolsContent,
+  listToolNameCandidates,
   ApiError,
   defaultLlmProvider,
 } from "@/lib/content-writer/api";
@@ -11,35 +12,70 @@ import type { GeneratedContentSet } from "@/lib/content-writer/types";
 
 /**
  * Content Creator addition: AI Tools from human names + brief (no Pillar Tools gate).
- * Optional secondary path still runs CWV2 POST …/generate/tools when a Tools section exists.
+ * Also pick names from pillar Tools / existing tool drafts when present.
  */
 export default function HumanToolsHint({
   projectId,
   canRunPillarTools,
+  result,
   onGenerated,
 }: {
   projectId: string;
   /** True when pillar body is long enough for CWV2 Tools-section generate. */
   canRunPillarTools: boolean;
+  result: GeneratedContentSet | null;
   onGenerated: (result: GeneratedContentSet) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [namesText, setNamesText] = useState("");
   const [brief, setBrief] = useState("");
+  const [candidates, setCandidates] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
 
-  const names = namesText
+  useEffect(() => {
+    let cancelled = false;
+    listToolNameCandidates(projectId)
+      .then((names) => {
+        if (cancelled) return;
+        setCandidates(names);
+        setSelected((prev) => {
+          const next = { ...prev };
+          for (const n of names) {
+            if (!(n in next)) next[n] = false;
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        /* optional enrichment */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, result?.toolPosts?.length, result?.article?.wordCount]);
+
+  const picked = useMemo(
+    () => Object.entries(selected).filter(([, v]) => v).map(([k]) => k),
+    [selected],
+  );
+
+  const manualNames = namesText
     .split(/[\n,]/)
     .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 5);
+    .filter(Boolean);
 
+  const names = [...new Set([...picked, ...manualNames])].slice(0, 5);
   const canRunFromNames = names.length > 0 && brief.trim().length > 0;
 
   function runFromNames() {
     setError(null);
-    if (!canRunFromNames) {
-      setError("Add at least one tool name and a short brief.");
+    if (names.length === 0) {
+      setError("Add or pick at least one tool name.");
+      return;
+    }
+    if (!brief.trim()) {
+      setError("A short brief is required.");
       return;
     }
     startTransition(async () => {
@@ -78,13 +114,38 @@ export default function HumanToolsHint({
     <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">AI Tools</h2>
       <p className="mt-1 text-sm text-muted">
-        Generate tool pages from names you supply and a short brief. Uses Content
-        Writer v2 tool prompts — a pillar Tools section is not required.
+        Context required, source flexible — pick names from this project&apos;s
+        drafts when present, or supply a list + brief. A pillar Tools section is
+        not required.
       </p>
+
+      {candidates.length > 0 ? (
+        <fieldset className="mt-4 space-y-1.5">
+          <legend className="text-sm font-medium text-foreground">
+            From this project
+          </legend>
+          {candidates.map((name) => (
+            <label key={name} className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={Boolean(selected[name])}
+                onChange={(e) =>
+                  setSelected((prev) => ({ ...prev, [name]: e.target.checked }))
+                }
+              />
+              {name}
+            </label>
+          ))}
+        </fieldset>
+      ) : (
+        <p className="mt-4 text-xs text-muted">
+          No candidate names detected yet — use the human list below.
+        </p>
+      )}
 
       <label className="mt-4 block space-y-1.5">
         <span className="text-sm font-medium text-foreground">
-          Tool names (up to 5)
+          Or human-supplied names (up to 5 total)
         </span>
         <textarea
           value={namesText}
@@ -116,7 +177,7 @@ export default function HumanToolsHint({
       </button>
       {!canRunFromNames ? (
         <p className="mt-2 text-xs text-muted">
-          Enter tool names and a brief to enable generate.
+          Pick or enter tool names and a brief to enable generate.
         </p>
       ) : null}
 

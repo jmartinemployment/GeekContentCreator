@@ -215,6 +215,14 @@ export function generateToolsFromNames(
   );
 }
 
+/** Candidate tool names from pillar Tools section, existing tool drafts, and Desired Headings. */
+export async function listToolNameCandidates(projectId: string): Promise<string[]> {
+  const res = await request<{ names: string[] }>(
+    `/api/geek-content-creator/projects/${projectId}/tool-name-candidates`,
+  );
+  return res.names ?? [];
+}
+
 /**
  * Content Creator addition: operator Revise (Full/Section) on a CWV2 project draft.
  */
