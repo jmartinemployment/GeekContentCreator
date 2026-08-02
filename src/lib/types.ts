@@ -11,6 +11,8 @@ export type SiteSectionContext = {
   gapSectionPath: string | null;
   relatedPages: RelatedPage[];
   topicalNeighbors: string[];
+  /** True when gaps/related pages are demo stand-ins (Geek-SEO not wired). */
+  isDemo?: boolean;
 };
 
 export type GccCreate = {

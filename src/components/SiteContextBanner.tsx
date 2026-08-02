@@ -18,6 +18,9 @@ export function SiteContextBanner({
           ? ` from “${siteSection.gapSectionPath}”`
           : " from this site section"}
         {siteSection.gapTopic ? ` · gap: ${siteSection.gapTopic}` : ""}.
+        {siteSection.isDemo
+          ? " Demo stand-ins (set a Niche profile id for live Geek-SEO gaps)."
+          : ""}
       </p>
     </div>
   );
