@@ -88,10 +88,52 @@ def main() -> int:
         return 1
     print("OK imagePrompt create requires notes")
 
+    # Content Brief / research / generate — no fallbacks.
+    status, create = req(
+        "POST",
+        f"{GCC}/creates",
+        {
+            "clientId": str(uuid.uuid4()),
+            "startingContentType": "blog",
+            "topic": "smoke brief gate",
+            "notes": None,
+            "siteAnalysisId": None,
+            "siteSection": None,
+        },
+    )
+    if status >= 400 or not isinstance(create, dict) or not create.get("id"):
+        print("FAIL create blog for brief gate", status, create)
+        return 1
+    cid = create["id"]
+    print(f"OK create {cid} without brief")
+
+    status, gen = req("POST", f"{GCC}/creates/{cid}/generate", {"provider": "OpenAi"})
+    if status < 400:
+        print("FAIL generate without brief should be blocked", status, gen)
+        return 1
+    gen_text = gen if isinstance(gen, str) else json.dumps(gen)
+    if "brief required" not in gen_text.lower():
+        print("FAIL expected 'brief required'", status, gen_text)
+        return 1
+    print("OK generate fail-closed without BriefJson")
+
+    status, research = req(
+        "POST",
+        f"{GCC}/creates/{cid}/research/follow",
+        {
+            "urls": ["https://this-host-does-not-exist.invalid/page"],
+            "serpIndex": None,
+        },
+    )
+    if status < 400:
+        print("FAIL research should fail closed on bad URL", status, research)
+        return 1
+    print(f"OK research fail-closed on URL failure status={status}")
+
     live_domain = (os.environ.get("GEEK_SA_DOMAIN") or "").strip()
     if not live_domain:
         print("SKIP live Site Analyzer (set GEEK_SA_DOMAIN for signed-in user with Geek-SEO analysis)")
-        print("SMOKE PASS (fail-closed analyze + imagePrompt gate)")
+        print("SMOKE PASS (fail-closed analyze + brief/research/generate gates)")
         return 0
 
     status, analysis = req(
