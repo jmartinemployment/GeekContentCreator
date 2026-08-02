@@ -229,11 +229,12 @@ export async function listToolNameCandidates(projectId: string): Promise<string[
 export function reviseProjectContent(
   projectId: string,
   input: {
-    contentType: string;
+    contentType?: string;
     feedback: string;
     scope?: "full" | "section";
     sectionPath?: string;
     toolSlug?: string;
+    slug?: string;
     provider?: string;
   },
 ): Promise<GeneratedContentSet> {
@@ -242,15 +243,25 @@ export function reviseProjectContent(
     {
       method: "POST",
       body: JSON.stringify({
-        contentType: input.contentType,
+        contentType: input.contentType ?? null,
         feedback: input.feedback,
         scope: input.scope ?? "full",
         sectionPath: input.sectionPath ?? null,
         toolSlug: input.toolSlug ?? null,
+        slug: input.slug ?? null,
         provider: input.provider ?? "OpenAi",
       }),
     },
   );
+}
+
+export async function listImagePromptRows(
+  projectId: string,
+): Promise<{ slug: string; title: string; contentType: string; promptPreview: string }[]> {
+  const res = await request<{
+    rows: { slug: string; title: string; contentType: string; promptPreview: string }[];
+  }>(`/api/geek-content-creator/projects/${projectId}/image-prompt-rows`);
+  return res.rows ?? [];
 }
 
 export function generateBlogContent(

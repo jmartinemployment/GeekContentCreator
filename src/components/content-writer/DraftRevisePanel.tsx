@@ -3,12 +3,13 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   reviseProjectContent,
+  listImagePromptRows,
   ApiError,
   defaultLlmProvider,
 } from "@/lib/content-writer/api";
 import type { GeneratedContentSet } from "@/lib/content-writer/types";
 
-type Target = "TechnicalArticle" | "BlogPost" | "ToolPost";
+type Target = "TechnicalArticle" | "BlogPost" | "ToolPost" | "ImagePrompt";
 
 /**
  * Content Creator addition: Revise textarea + Full/Section on CWV2 drafts.
@@ -25,7 +26,7 @@ export default function DraftRevisePanel({
   projectId: string;
   result: GeneratedContentSet | null;
   seedFeedback?: string | null;
-  seedContentType?: Target | null;
+  seedContentType?: "TechnicalArticle" | "BlogPost" | null;
   onGenerated: (result: GeneratedContentSet) => void;
   onSeedConsumed?: () => void;
 }) {
@@ -36,12 +37,17 @@ export default function DraftRevisePanel({
   const [sectionPath, setSectionPath] = useState("");
   const [target, setTarget] = useState<Target>("TechnicalArticle");
   const [toolSlug, setToolSlug] = useState("");
+  const [imageRows, setImageRows] = useState<
+    { slug: string; title: string; contentType: string; promptPreview: string }[]
+  >([]);
+  const [imageSlug, setImageSlug] = useState("");
 
   const tools = result?.toolPosts ?? [];
   const hasArticle = (result?.article?.wordCount ?? 0) > 0;
   const hasBlog = result?.blog != null;
   const hasTools = tools.length > 0;
-  const hasAny = hasArticle || hasBlog || hasTools;
+  const hasImages = imageRows.length > 0;
+  const hasAny = hasArticle || hasBlog || hasTools || hasImages;
 
   useEffect(() => {
     if (!seedFeedback) return;
@@ -49,7 +55,6 @@ export default function DraftRevisePanel({
     if (seedContentType) setTarget(seedContentType);
     setScope("full");
     onSeedConsumed?.();
-    // Intentionally only when seedFeedback changes — avoid re-running on callback identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedFeedback, seedContentType]);
 
@@ -63,13 +68,31 @@ export default function DraftRevisePanel({
     );
   }, [tools]);
 
+  useEffect(() => {
+    let cancelled = false;
+    listImagePromptRows(projectId)
+      .then((rows) => {
+        if (cancelled) return;
+        setImageRows(rows);
+        setImageSlug((prev) =>
+          prev && rows.some((r) => r.slug === prev) ? prev : (rows[0]?.slug ?? ""),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setImageRows([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, result?.imagePrompts?.sections?.length]);
+
   function run() {
     setError(null);
     if (!feedback.trim()) {
       setError("Feedback is required.");
       return;
     }
-    if (scope === "section" && !sectionPath.trim()) {
+    if (target !== "ImagePrompt" && scope === "section" && !sectionPath.trim()) {
       setError("Section path is required when scope is Section.");
       return;
     }
@@ -77,14 +100,22 @@ export default function DraftRevisePanel({
       setError("Choose which tool to revise.");
       return;
     }
+    if (target === "ImagePrompt" && !imageSlug) {
+      setError("Choose which image prompt to revise.");
+      return;
+    }
     startTransition(async () => {
       try {
         const next = await reviseProjectContent(projectId, {
-          contentType: target,
+          contentType: target === "ImagePrompt" ? undefined : target,
           feedback: feedback.trim(),
-          scope,
-          sectionPath: scope === "section" ? sectionPath.trim() : undefined,
+          scope: target === "ImagePrompt" ? "full" : scope,
+          sectionPath:
+            target !== "ImagePrompt" && scope === "section"
+              ? sectionPath.trim()
+              : undefined,
           toolSlug: target === "ToolPost" ? toolSlug : undefined,
+          slug: target === "ImagePrompt" ? imageSlug : undefined,
           provider: defaultLlmProvider(),
         });
         onGenerated(next);
@@ -111,7 +142,7 @@ export default function DraftRevisePanel({
       <h2 className="text-lg font-semibold text-foreground">Revise</h2>
       <p className="mt-1 text-sm text-muted">
         Feedback textarea · Full or Section · replaces the selected draft (new
-        body, not a chat thread).
+        body, not a chat thread). Image prompts always use Full.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -151,6 +182,18 @@ export default function DraftRevisePanel({
         >
           Tool
         </button>
+        <button
+          type="button"
+          disabled={!hasImages}
+          onClick={() => setTarget("ImagePrompt")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+            target === "ImagePrompt"
+              ? "bg-brand text-white"
+              : "border border-border text-foreground disabled:opacity-40"
+          }`}
+        >
+          Image prompt
+        </button>
       </div>
 
       {target === "ToolPost" && tools.length > 0 ? (
@@ -170,48 +213,73 @@ export default function DraftRevisePanel({
         </label>
       ) : null}
 
+      {target === "ImagePrompt" && imageRows.length > 0 ? (
+        <label className="mt-3 block space-y-1.5">
+          <span className="text-sm font-medium text-foreground">Image prompt</span>
+          <select
+            value={imageSlug}
+            onChange={(e) => setImageSlug(e.target.value)}
+            className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
+          >
+            {imageRows.map((r) => (
+              <option key={r.slug} value={r.slug}>
+                {r.title || r.slug}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
       <label className="mt-3 block space-y-1.5">
         <span className="text-sm font-medium text-foreground">Feedback</span>
         <textarea
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           rows={4}
-          placeholder="What should change?"
+          placeholder={
+            target === "ImagePrompt"
+              ? "How should this image-generation prompt change?"
+              : "What should change?"
+          }
           className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </label>
 
-      <div className="mt-3 flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="radio"
-            name="revise-scope"
-            checked={scope === "full"}
-            onChange={() => setScope("full")}
-          />
-          Full
-        </label>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="radio"
-            name="revise-scope"
-            checked={scope === "section"}
-            onChange={() => setScope("section")}
-          />
-          Section
-        </label>
-      </div>
+      {target !== "ImagePrompt" ? (
+        <>
+          <div className="mt-3 flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="radio"
+                name="revise-scope"
+                checked={scope === "full"}
+                onChange={() => setScope("full")}
+              />
+              Full
+            </label>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="radio"
+                name="revise-scope"
+                checked={scope === "section"}
+                onChange={() => setScope("section")}
+              />
+              Section
+            </label>
+          </div>
 
-      {scope === "section" ? (
-        <label className="mt-3 block space-y-1.5">
-          <span className="text-sm font-medium text-foreground">Section path</span>
-          <input
-            value={sectionPath}
-            onChange={(e) => setSectionPath(e.target.value)}
-            placeholder='e.g. "Key Capabilities"'
-            className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
-          />
-        </label>
+          {scope === "section" ? (
+            <label className="mt-3 block space-y-1.5">
+              <span className="text-sm font-medium text-foreground">Section path</span>
+              <input
+                value={sectionPath}
+                onChange={(e) => setSectionPath(e.target.value)}
+                placeholder='e.g. "Key Capabilities"'
+                className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
+              />
+            </label>
+          ) : null}
+        </>
       ) : null}
 
       <button

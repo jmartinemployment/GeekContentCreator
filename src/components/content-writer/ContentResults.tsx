@@ -200,15 +200,12 @@ export default function ContentResults({
         onClick={() =>
           runStep("all", async () => {
             let state = result;
-            if (!state?.article) {
-              state = await generatePillarPlanContent(projectId);
-              onGenerated(state);
-            }
-            if ((state.article?.wordCount ?? 0) < PILLAR_BODY_MIN_WORDS) {
+            // Blog-first path: do not force pillar. If a pillar plan already exists, finish body.
+            if (state?.article && (state.article.wordCount ?? 0) < PILLAR_BODY_MIN_WORDS) {
               state = await generatePillarBodyContent(projectId);
               onGenerated(state);
             }
-            if (!state.blog) {
+            if (!state?.blog) {
               state = await generateBlogContent(projectId);
               onGenerated(state);
             }
@@ -220,9 +217,16 @@ export default function ContentResults({
               state = await generateColdOutreachContent(projectId);
               onGenerated(state);
             }
-            if (!state.toolPosts?.length) {
-              state = await generateToolsContent(projectId);
-              onGenerated(state);
+            if (
+              (state.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS &&
+              !state.toolPosts?.length
+            ) {
+              try {
+                state = await generateToolsContent(projectId);
+                onGenerated(state);
+              } catch {
+                /* no Tools section — use AI Tools panel instead */
+              }
             }
             if (!state.imagePrompts?.sections?.length) {
               state = await generateImagePromptsContent(projectId);
@@ -234,11 +238,17 @@ export default function ContentResults({
         disabled={
           !canGenerate ||
           isGenerating ||
-          (hasPillarBody && hasBlog && hasSocial && result?.coldOutreachEmail != null && hasTools && hasImagePrompts)
+          (hasBlog &&
+            hasSocial &&
+            result?.coldOutreachEmail != null &&
+            hasImagePrompts &&
+            (hasTools || !hasPillarBody))
         }
         className="mt-4 text-sm font-medium text-brand hover:underline disabled:opacity-60"
       >
-        {generatingStep === "all" ? "Generating..." : "Generate all remaining steps"}
+        {generatingStep === "all"
+          ? "Generating..."
+          : "Generate remaining (blog-first; pillar optional)"}
       </button>
 
       {!canGenerate && (

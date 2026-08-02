@@ -29,8 +29,8 @@ Open [http://localhost:3003](http://localhost:3003). Requires GeekOAuth and Geek
 1. Sign in → **Projects** → client → **New Project** → Crawl + research → **Generate blog** (no pillar)
 2. Site Analyzer → pick gap → project with related-page research → Generate
 3. Standalone image prompt on dashboard (topic + notes)
-4. AI Tools: names + brief on a project (no Tools section required)
-5. SEO/polish → Revise (Full/Section) → Content approval → Mix
+4. AI Tools: pick from drafts or names + brief (no Tools section required)
+5. SEO/polish → Revise (pillar / blog / tool / image prompt) → Content approval → Mix
 
 ## Deploy (Vercel)
 
