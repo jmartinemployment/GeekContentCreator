@@ -2,7 +2,7 @@
  * Geek Content Creator → GeekOAuth → GeekAPI → GeekRepository.
  * Never call GeekRepository from this app.
  */
-const authUrl = (process.env.NEXT_PUBLIC_AUTH_URL ?? "http://localhost:5001").replace(
+const authUrl = (process.env.NEXT_PUBLIC_AUTH_URL ?? "https://auth.geekatyourspot.com").replace(
   /\/$/,
   "",
 );
