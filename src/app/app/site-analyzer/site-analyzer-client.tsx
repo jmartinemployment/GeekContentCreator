@@ -45,16 +45,16 @@ export function SiteAnalyzerClient() {
           }),
         });
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(body.error || "Analyze failed");
+        if (!res.ok) throw new Error(body.error || "Could not load gaps from Geek-SEO");
         setAnalysisId(body.id);
         setGaps(body.gaps ?? []);
         if (!(body.gaps ?? []).length) {
           setError(
-            "Site analysis loaded, but Geek-SEO reported no content gaps for this domain.",
+            "Geek-SEO niche analysis loaded, but it reports no content gaps for this domain.",
           );
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Analyze failed");
+        setError(e instanceof Error ? e.message : "Could not load gaps from Geek-SEO");
       }
     });
   }
@@ -118,7 +118,7 @@ export function SiteAnalyzerClient() {
           <input
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
-            placeholder="example.com"
+            placeholder="geekatyourspot.com"
             className="flex-1 rounded-md border border-[var(--gcc-line)] bg-white px-3 py-2 text-sm"
           />
           <input
@@ -133,13 +133,13 @@ export function SiteAnalyzerClient() {
             onClick={analyze}
             className="rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pending ? "Working…" : "Analyze"}
+            {pending ? "Loading…" : "Load gaps"}
           </button>
         </div>
         <p className="text-xs text-[var(--gcc-muted)]">
-          Loads content gaps and existing pages from your Geek-SEO project for
-          this domain. If the site is not analyzed there yet, Analyze returns an
-          error — it does not invent gaps.
+          Matches the domain to your Geek-SEO project and loads its latest niche
+          analysis. If that project has not been analyzed in Geek-SEO yet, finish
+          niche analysis there first, then load gaps here.
         </p>
       </div>
 
