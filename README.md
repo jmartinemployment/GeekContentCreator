@@ -45,7 +45,7 @@ Production host: **https://geek-content-creator.vercel.app**
 | `NEXT_PUBLIC_GEEK_API_URL` | `https://api.geekatyourspot.com` |
 | `NEXT_PUBLIC_OAUTH_CLIENT_ID` | `geek-content-creator` |
 | `NEXT_PUBLIC_OAUTH_REDIRECT_URI` | `{APP_URL}/auth/callback` |
-| `GEEK_BACKEND_API_KEY` | optional server-only fallback for `/api/cw` |
+| `GEEK_BACKEND_API_KEY` | not used by Content Creator UI proxies (signed-in Bearer only) |
 
 ## Legacy
 

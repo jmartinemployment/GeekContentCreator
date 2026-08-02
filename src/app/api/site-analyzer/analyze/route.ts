@@ -33,18 +33,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // Prefer gaps from analyze response; fall back to gaps endpoint for older APIs.
-  let gaps = Array.isArray(analysis.gaps) ? analysis.gaps : null;
-  if (!gaps) {
-    const gapsRes = await fetch(
-      `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/${analysis.id}/gaps`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      },
+  if (!analysis?.id) {
+    return NextResponse.json(
+      { error: "Analyze response missing analysis id" },
+      { status: 502 },
     );
-    gaps = gapsRes.ok ? await gapsRes.json() : [];
   }
 
-  return NextResponse.json({ ...analysis, gaps });
+  if (!Array.isArray(analysis.gaps)) {
+    return NextResponse.json(
+      { error: "Analyze response missing gaps array" },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json(analysis);
 }

@@ -16,11 +16,11 @@ import {
   ApiError,
   defaultLlmProvider,
 } from "@/lib/content-writer/api";
-import { isContentApproved, setContentApproved } from "@/lib/content-approval";
 
 /**
  * Content Creator Mix chooser on CWV2 projects — after content approval.
  * Runs existing CWV2 generate steps the operator selects (no auto full suite).
+ * Approval gate uses GeekAPI only (no localStorage authority).
  */
 export default function ProjectRepurposePage() {
   const params = useParams<{ id: string }>();
@@ -41,16 +41,17 @@ export default function ProjectRepurposePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const local = isContentApproved(projectId);
-    setAllowed(local);
     getProjectContentApproval(projectId)
       .then((res) => {
         if (cancelled) return;
-        setContentApproved(projectId, res.approved);
         setAllowed(res.approved);
       })
-      .catch(() => {
-        if (!cancelled) setAllowed(local);
+      .catch((e) => {
+        if (cancelled) return;
+        setAllowed(false);
+        setError(
+          e instanceof Error ? e.message : "Could not verify content approval",
+        );
       });
     return () => {
       cancelled = true;

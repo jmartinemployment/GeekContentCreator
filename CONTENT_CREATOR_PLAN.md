@@ -330,26 +330,26 @@ flowchart TD
 
 ## 13. Acceptance criteria (review / smoke)
 
-- [ ] Create Blog (or Email/Social) without a pillar.  
-- [ ] Pillar available when wanted.  
-- [ ] **Site Analyzer:** show **content gaps** for a site (topics/headings with no page / suggest-pillar-class gaps).  
-- [ ] **Site Analyzer:** pick a gap → create opens with topic/keyword prefilled.  
-- [ ] **Site Analyzer:** Generate includes **existing site content from the relevant site section** (not keyword/gap title alone).  
-- [ ] **Regression vs Content Writer v2:** Site Analyzer–started Generate is **not** “home keyword with zero site section context.”  
-- [ ] Standalone image prompt create with required human context (blocked without context).  
-- [ ] Mix / attached image prompts use approved artifact as context.  
-- [ ] Image prompts for all content types when attached; prompt text only.  
-- [ ] Revise: Full or Section; new version; all types including image prompts.  
-- [ ] On-page SEO works from draft + keyword (no research dossier).  
-- [ ] Content approval required before Repurpose; Repurpose human-chosen; no auto suite.  
-- [ ] **AI Tools:** generate with human-supplied name list + brief (no Pillar/TechArticle required).  
-- [ ] **AI Tools:** generate by picking names from an artifact when present.  
-- [ ] **AI Tools:** blocked only when no names/context — not blocked for missing Tools section.  
-- [ ] LLM usage matches §7 (pack = one call for social/ads; ~2 per AI Tool; 1 per revise / image-prompt path).  
-- [ ] No Research Packet / AI deep research required for first-release happy path.  
-- [ ] No Content Writer v2 old project UI on happy path.  
-- [ ] Stack assumption: GeekOAuth + GeekAPI (confirm at scaffold).  
-- [ ] Repo is `/Users/jeffmartin/development/GeekContentCreator` (Next.js scaffolded).  
+- [x] Create Blog (or Email/Social) without a pillar.  
+- [x] Pillar available when wanted.  
+- [x] **Site Analyzer:** show **content gaps** for a site (topics/headings with no page / suggest-pillar-class gaps). *(Geek-SEO-backed; fail closed if site not analyzed)*  
+- [x] **Site Analyzer:** pick a gap → create opens with topic/keyword prefilled.  
+- [x] **Site Analyzer:** Generate includes **existing site content from the relevant site section** (not keyword/gap title alone). *(real related pages from site model; reject if empty)*  
+- [x] **Regression vs Content Writer v2:** Site Analyzer–started Generate is **not** “home keyword with zero site section context.”  
+- [x] Standalone image prompt create with required human context (blocked without context).  
+- [x] Mix / attached image prompts use approved artifact as context.  
+- [x] Image prompts for all content types when attached; prompt text only.  
+- [x] Revise: Full or Section; new version; all types including image prompts.  
+- [x] On-page SEO works from draft + keyword (no research dossier).  
+- [x] Content approval required before Repurpose; Repurpose human-chosen; no auto suite. *(approval state from GeekAPI only)*  
+- [x] **AI Tools:** generate with human-supplied name list + brief (no Pillar/TechArticle required).  
+- [x] **AI Tools:** generate by picking names from an artifact when present.  
+- [x] **AI Tools:** blocked only when no names/context — not blocked for missing Tools section.  
+- [ ] LLM usage matches §7 (pack = one call for social/ads; ~2 per AI Tool; 1 per revise / image-prompt path). *(wired; confirm with live token counts)*  
+- [x] No Research Packet / AI deep research required for first-release happy path.  
+- [x] No Content Writer v2 old project UI on happy path.  
+- [x] Stack assumption: GeekOAuth + GeekAPI (confirm at scaffold).  
+- [x] Repo is `/Users/jeffmartin/development/GeekContentCreator` (Next.js scaffolded).  
 
 ---
 

@@ -47,8 +47,13 @@ export default function HumanToolsHint({
           return next;
         });
       })
-      .catch(() => {
-        /* optional enrichment */
+      .catch((e) => {
+        if (cancelled) return;
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Could not load tool name candidates from this project",
+        );
       });
     return () => {
       cancelled = true;

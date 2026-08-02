@@ -7,14 +7,10 @@ import {
   getProjectContentApproval,
   setProjectContentApproval,
 } from "@/lib/content-writer/api";
-import {
-  isContentApproved,
-  setContentApproved,
-} from "@/lib/content-approval";
 
 /**
  * Content Creator addition: operator content approval on CWV2 drafts.
- * Persists on the project (GeekAPI) and mirrors locally for Mix gate.
+ * Source of truth is GeekAPI project approval — not browser localStorage.
  */
 export default function ContentApprovalPanel({
   projectId,
@@ -24,6 +20,9 @@ export default function ContentApprovalPanel({
   result: GeneratedContentSet | null;
 }) {
   const [approved, setApproved] = useState(false);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -34,15 +33,19 @@ export default function ContentApprovalPanel({
 
   useEffect(() => {
     let cancelled = false;
-    setApproved(isContentApproved(projectId));
+    setLoadState("loading");
+    setError(null);
     getProjectContentApproval(projectId)
       .then((res) => {
         if (cancelled) return;
         setApproved(res.approved);
-        setContentApproved(projectId, res.approved);
+        setLoadState("ready");
       })
-      .catch(() => {
-        /* fall back to local */
+      .catch((e) => {
+        if (cancelled) return;
+        setApproved(false);
+        setLoadState("error");
+        setError(e instanceof Error ? e.message : "Could not load approval state");
       });
     return () => {
       cancelled = true;
@@ -54,7 +57,6 @@ export default function ContentApprovalPanel({
     startTransition(async () => {
       try {
         await setProjectContentApproval(projectId, true);
-        setContentApproved(projectId, true);
         setApproved(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Approval failed");
@@ -67,7 +69,6 @@ export default function ContentApprovalPanel({
     startTransition(async () => {
       try {
         await setProjectContentApproval(projectId, false);
-        setContentApproved(projectId, false);
         setApproved(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Revoke failed");
@@ -85,7 +86,11 @@ export default function ContentApprovalPanel({
         from automated review verdicts below.
       </p>
 
-      {approved ? (
+      {loadState === "loading" ? (
+        <p className="mt-4 text-sm text-muted">Loading approval state…</p>
+      ) : null}
+
+      {loadState === "ready" && approved ? (
         <div className="mt-4 space-y-3">
           <p className="text-sm font-medium text-green-800">Content approved.</p>
           <div className="flex flex-wrap gap-3">
@@ -105,7 +110,9 @@ export default function ContentApprovalPanel({
             </button>
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {loadState === "ready" && !approved ? (
         <button
           type="button"
           disabled={pending}
@@ -114,7 +121,8 @@ export default function ContentApprovalPanel({
         >
           {pending ? "Saving…" : "Content approval"}
         </button>
-      )}
+      ) : null}
+
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
     </section>
   );

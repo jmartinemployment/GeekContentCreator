@@ -4,7 +4,8 @@ import { apiConfig } from "@/lib/config";
 
 /**
  * Proxy to GeekAPI Content Writer v2 controllers (merged into GeekAPI).
- * Prefer the signed-in user's OAuth Bearer; fall back to GEEK_BACKEND_API_KEY.
+ * Requires the signed-in user's OAuth Bearer. Does not fall back to API key
+ * when the user token is rejected — that masked auth failures.
  * Never exposes keys to the browser.
  */
 async function proxy(
@@ -15,49 +16,28 @@ async function proxy(
   targetUrl.search = request.nextUrl.search;
 
   const token = await getAccessToken();
-  const apiKey = process.env.GEEK_BACKEND_API_KEY?.trim();
-  const hasBody = request.method !== "GET" && request.method !== "HEAD";
-  const bufferedBody = hasBody ? await request.arrayBuffer() : undefined;
-
-  async function forward(auth: "bearer" | "apikey"): Promise<Response> {
-    const headers = new Headers();
-    const contentType = request.headers.get("content-type");
-    if (contentType) headers.set("content-type", contentType);
-
-    if (auth === "bearer" && token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    } else if (auth === "apikey" && apiKey) {
-      headers.set("X-API-Key", apiKey);
-    } else {
-      return Response.json(
-        { error: "Unauthorized — sign in or configure GEEK_BACKEND_API_KEY" },
-        { status: 401 },
-      );
-    }
-
-    return fetch(targetUrl, {
-      method: request.method,
-      headers,
-      body: bufferedBody,
-      redirect: "manual",
-      cache: "no-store",
-    });
-  }
-
-  let response: Response;
-  if (token) {
-    response = await forward("bearer");
-    if (response.status === 401 && apiKey) {
-      response = await forward("apikey");
-    }
-  } else if (apiKey) {
-    response = await forward("apikey");
-  } else {
+  if (!token) {
     return Response.json(
-      { error: "Unauthorized — sign in or configure GEEK_BACKEND_API_KEY" },
+      { error: "Unauthorized — sign in required" },
       { status: 401 },
     );
   }
+
+  const hasBody = request.method !== "GET" && request.method !== "HEAD";
+  const bufferedBody = hasBody ? await request.arrayBuffer() : undefined;
+
+  const headers = new Headers();
+  const contentType = request.headers.get("content-type");
+  if (contentType) headers.set("content-type", contentType);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(targetUrl, {
+    method: request.method,
+    headers,
+    body: bufferedBody,
+    redirect: "manual",
+    cache: "no-store",
+  });
 
   const responseHeaders = new Headers(response.headers);
   responseHeaders.delete("content-encoding");
@@ -83,6 +63,3 @@ export const POST = handler;
 export const PUT = handler;
 export const PATCH = handler;
 export const DELETE = handler;
-
-/** CWV2 generate steps can run several minutes. */
-export const maxDuration = 300;

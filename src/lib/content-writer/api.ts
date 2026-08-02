@@ -15,7 +15,7 @@ import type {
 
 /**
  * Same-origin proxy → GeekAPI Content Writer v2 routes (/api/clients, /api/projects/.../generate).
- * Auth: server forwards the user's OAuth Bearer (or GEEK_BACKEND_API_KEY). Never call GCW.
+ * Auth: server forwards the user's OAuth Bearer. Never call GCW.
  */
 const API_BASE_URL = "/api/cw";
 
