@@ -192,7 +192,7 @@ export default function ContentResults({
           description={
             hasPillarBody
               ? "One image-generation prompt per H2 in the pillar and blog."
-              : "Image prompts for blog H2s (standalone blog path). Or use Standalone image prompt on the dashboard."
+              : "Image prompts for blog H2s (legacy project path). Prefer Start create → Image prompt on Creates."
           }
           done={hasImagePrompts}
           disabled={!hasBlog || isGenerating}

@@ -1,18 +1,20 @@
 # Geek Content Creator
 
-**Base:** Content Writer v2 (clients → projects → crawl → generate).  
-**Additions:** Site Analyzer, standalone blog (pillar optional), AI Tools from names, revise / SEO / polish / content approval / Mix, standalone image prompts.
+**Happy path:** Site Analyzer (optional) → **Start create** → Content Brief → generate → revise / on-page SEO / polish → content approval → Mix.
+
+Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator/...`. Content Writer v2 **projects** remain as a legacy surface only.
 
 **Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
 **Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).
 
 ## Stack
 
-- Next.js 16 App Router + TypeScript + Tailwind
+- Next.js App Router + TypeScript + Tailwind
 - GeekOAuth client: `geek-content-creator`
-- Content Writer v2 via GeekAPI: `/api/clients`, `/api/projects/.../generate/*` (proxied at `/api/cw/*`)
-- CC facades: `/api/geek-content-creator/*` (tools-from-names, project revise, Site Analyzer)
+- Content Creator API (proxied at `/api/cw/*`): `/api/geek-content-creator/creates`, brief-research, research/follow, generate, versions (revise / SEO / polish / approve / repurpose), Site Analyzer
+- Legacy CWV2 project APIs still proxied for `/app` Projects
 - Local port: **3003**
+- Production (Railway): `https://geek-content-creator-production.up.railway.app`
 
 ## Dev
 
@@ -22,31 +24,36 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted only**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`). Do not run a local GeekAPI.
+Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`).
 
-**Site Analyzer:** Enter a domain you already have analyzed in Geek-SEO (same signed-in user). Content Creator loads real gaps and existing page URLs from that site model. If Geek-SEO is unset, unauthorized, or has no project/analysis for the domain, Analyze returns an error — it does not invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL=https://seo-api.geekatyourspot.com`.
+**Site Analyzer:** Enter a domain already analyzed in Geek-SEO (same signed-in user). Analyze fails closed if Geek-SEO is unset, unauthorized, or has no project/analysis — it does not invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL`.
 
-## Smoke checklist (day one)
+## Operator smoke (day one)
 
-1. Sign in → **Projects** → client → **New Project** → Crawl + research → **Generate blog** (no pillar)
-2. Site Analyzer → pick gap → project with related-page research → Generate
-3. Standalone image prompt on dashboard (topic + notes)
-4. AI Tools: pick from drafts or names + brief (no Tools section required)
-5. SEO/polish → Revise (pillar / blog / tool / image prompt) → Content approval → Mix
+1. Sign in → **Creates** → client → **Start a create** (blog) → fill Content Brief → **Save brief** → **Generate**
+2. Site Analyzer → pick gap → **Start create** (site section with related pages required) → brief → Generate (not keyword-only)
+3. Image prompt: **Start create** with type Image prompt (topic + notes required) → brief → Generate
+4. Draft workspace: SEO / polish → Revise (Full or Section) → Content approval → Mix
+5. Fail-closed checks: generate without brief → `brief required`; research follow with a bad URL → whole op fails; SA create with empty `relatedPages` → rejected
 
-## Deploy (Vercel)
+API smoke:
 
-Production host: **https://geek-content-creator.vercel.app**
+```bash
+GEEK_API_URL=https://api.geekatyourspot.com python3 scripts/smoke-gcc-api.py
+```
 
-| Variable | Value |
-|----------|--------|
-| `NEXT_PUBLIC_APP_URL` | `https://geek-content-creator.vercel.app` |
+## Env
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_APP_URL` | App origin |
 | `NEXT_PUBLIC_AUTH_URL` | `https://auth.geekatyourspot.com` |
 | `NEXT_PUBLIC_GEEK_API_URL` | `https://api.geekatyourspot.com` |
 | `NEXT_PUBLIC_OAUTH_CLIENT_ID` | `geek-content-creator` |
 | `NEXT_PUBLIC_OAUTH_REDIRECT_URI` | `{APP_URL}/auth/callback` |
-| `GEEK_BACKEND_API_KEY` | not used by Content Creator UI proxies (signed-in Bearer only) |
+
+UI proxies use the signed-in OAuth Bearer only (no API-key fallback).
 
 ## Legacy
 
-`/app/creates` redirects to Projects. Prefer CWV2 projects on `/app`.
+`/app` **Projects** = Content Writer v2 clients/projects/crawl. Prefer **Creates** for writing. Do not edit the Content Writer v2 repo for product features — copy into GeekAPI `Services/ContentCreator/` when needed.

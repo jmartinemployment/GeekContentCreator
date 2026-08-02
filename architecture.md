@@ -188,6 +188,7 @@ API namespace: Content Creator’s own (`/api/geek-content-creator/...`), not ho
 | Create workspace `/app/creates/{id}` | Brief + generate + draft / revise / SEO / polish / approve |
 | `POST /versions/{id}/repurpose` | Mix after content approval on the create artifact |
 | Site Analyzer → `/app/create` | Not CWV2 project form-filler; section stored then persisted on create |
+| Image prompt | Start create `type=imagePrompt` (topic + notes on create); not a parallel non-create API |
 
 Ops: GeekRepository startup runs `Database.MigrateAsync` for Content Creator (prod applied `AddGccCreateBriefResearchJson` with GeekAPI `59aa0ea`).
 
