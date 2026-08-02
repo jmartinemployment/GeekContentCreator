@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3003](http://localhost:3003). Requires GeekOAuth and GeekAPI (often **:8080** on macOS) with Content Writer v2 controllers merged in.
+Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted only**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`). Do not run a local GeekAPI.
 
 ## Smoke checklist (day one)
 

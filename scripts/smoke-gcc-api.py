@@ -4,7 +4,7 @@
 Requires GeekAPI (+ GeekRepository) with Content Creator routes deployed.
 Auth: Bearer UUID (GeekAPI dev path) or a real access token.
 
-  GEEK_API_URL=http://localhost:5000 \\
+  GEEK_API_URL=https://api.geekatyourspot.com \\
   GEEK_BEARER=<uuid-or-jwt> \\
   python3 scripts/smoke-gcc-api.py
 """
@@ -19,7 +19,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
-API = os.environ.get("GEEK_API_URL", "http://localhost:5000").rstrip("/")
+API = os.environ.get("GEEK_API_URL", "https://api.geekatyourspot.com").rstrip("/")
 TOKEN = os.environ.get("GEEK_BEARER") or str(uuid.uuid4())
 GCC = f"{API}/api/geek-content-creator"
 

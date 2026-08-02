@@ -132,28 +132,52 @@ export default function ProjectForm({
 
       // CC addition: Site Analyzer section → research upload (NOT project.Notes —
       // CWV2 parses Notes as comma-separated DesiredHeadings).
-      try {
-        const raw = sessionStorage.getItem(SITE_SECTION_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as {
-            gapTopic?: string;
-            section?: Parameters<typeof formatSiteSectionResearchFile>[0]["section"];
-          };
-          const text = formatSiteSectionResearchFile(parsed);
-          if (text) {
-            const pageCount = parsed.section?.relatedPages?.length ?? 0;
-            const file = new File(
-              [text],
-              `site-analyzer-section-${pageCount}pages.txt`,
-              { type: "text/plain" },
-            );
-            await uploadKeywordSource(project.id, "CompetitorCrawl", file);
-          }
-          sessionStorage.removeItem(SITE_SECTION_STORAGE_KEY);
-          setSiteSectionPreview(null);
+      // When SA context is claimed, related pages are required — never create
+      // a keyword-only project from an Analyzer-started flow.
+      const raw = sessionStorage.getItem(SITE_SECTION_STORAGE_KEY);
+      if (raw) {
+        let parsed: {
+          siteAnalysisId?: string;
+          gapTopic?: string;
+          section?: Parameters<typeof formatSiteSectionResearchFile>[0]["section"];
+        };
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          throw new Error(
+            "Site Analyzer context is corrupted. Re-pick the gap from Site Analyzer.",
+          );
         }
-      } catch {
-        /* research upload is best-effort */
+        const pageCount = parsed.section?.relatedPages?.length ?? 0;
+        if (!pageCount) {
+          throw new Error(
+            "Site Analyzer create requires related pages from the site section. Re-pick the gap.",
+          );
+        }
+        const text = formatSiteSectionResearchFile(parsed);
+        if (!text) {
+          throw new Error(
+            "Could not build site section research for Generate. Re-pick the gap.",
+          );
+        }
+        try {
+          const file = new File(
+            [text],
+            `site-analyzer-section-${pageCount}pages.txt`,
+            { type: "text/plain" },
+          );
+          await uploadKeywordSource(project.id, "CompetitorCrawl", file);
+        } catch (uploadErr) {
+          const msg =
+            uploadErr instanceof ApiError
+              ? uploadErr.message
+              : "Failed to attach site section research";
+          throw new Error(
+            `${msg}. Project was created but Generate must not run keyword-only — upload research or re-start from Site Analyzer.`,
+          );
+        }
+        sessionStorage.removeItem(SITE_SECTION_STORAGE_KEY);
+        setSiteSectionPreview(null);
       }
 
       onCreated(project);
@@ -161,7 +185,7 @@ export default function ProjectForm({
       setProjectUrl("");
       setTargetKeyword("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not create project. Is the API running?");
+      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Could not create project.");
     } finally {
       setIsSubmitting(false);
     }

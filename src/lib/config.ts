@@ -11,7 +11,7 @@ const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3003").repl
   "",
 );
 const geekApiUrl = (
-  process.env.NEXT_PUBLIC_GEEK_API_URL ?? "http://localhost:5000"
+  process.env.NEXT_PUBLIC_GEEK_API_URL ?? "https://api.geekatyourspot.com"
 ).replace(/\/$/, "");
 
 export const authConfig = {

@@ -49,7 +49,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      `Could not reach the Content Writer API via ${API_BASE_URL}. Confirm GeekAPI is running.`,
+      `Could not reach hosted GeekAPI via ${API_BASE_URL}. Check NEXT_PUBLIC_GEEK_API_URL and auth.`,
       0,
     );
   }

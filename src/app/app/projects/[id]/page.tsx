@@ -119,9 +119,10 @@ export default function ProjectPage() {
           <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
             Site Analyzer research attached
             {n != null && n > 0
-              ? ` — using ${n} related page${n === 1 ? "" : "s"}`
+              ? ` — using ${n} related page${n === 1 ? "" : "s"} from this site section`
               : ""}
-            . Crawl the site (auto-runs once), then Generate plan below.
+            . Generate uses this file as research (not keyword alone). Crawl auto-runs once,
+            then use Generate plan / Blog below.
           </p>
         );
       })()}
