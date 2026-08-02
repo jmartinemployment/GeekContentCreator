@@ -40,8 +40,9 @@ export default function HomePage() {
           Write from site gaps — grounded in what the site already says.
         </h1>
         <p className="mt-4 max-w-lg text-base leading-relaxed text-white/60">
-          Content Writer v2 generate, plus Site Analyzer, revise, on-page SEO,
-          polish, content approval, and Mix — pillar optional.
+          Site Analyzer gaps start a create with real site section context. Content
+          Brief, deep research, generate, revise, on-page SEO, approve, and Mix —
+          pillar optional.
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
           <Link
@@ -51,7 +52,7 @@ export default function HomePage() {
             Sign in to create
           </Link>
           <Link
-            href="/app"
+            href="/app/creates"
             className="inline-flex items-center justify-center rounded-md border border-white/20 px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
           >
             Open app
