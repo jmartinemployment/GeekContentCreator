@@ -180,8 +180,6 @@ export const TOV_PRESETS: { id: string; label: string; scales: ToneOfVoiceScales
 /** Max quoteable wiki/.edu/.gov (or tool page) research docs per project. */
 export const MAX_QUOTEABLE_RESEARCH_DOCS = 3;
 
-export const CONTENT_BRIEF_FILE_NAME = "content-brief.html";
-export const CONTENT_BRIEF_PAA_FILE_NAME = "content-brief-paa.txt";
 export const CONTENT_BRIEF_STORAGE_PREFIX = "gcc-content-brief:";
 
 export type LengthBandKey =

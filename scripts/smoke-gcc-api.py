@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""API smoke for Geek Content Creator Site Analyzer (fail-closed).
+"""API smoke for Geek Content Creator (fail-closed — no soft success).
 
 Requires GeekAPI with Content Creator routes deployed.
 
   GEEK_API_URL=https://api.geekatyourspot.com \\
-  GEEK_BEARER=<access-token> \\
+  GEEK_BEARER=<access-token-or-user-uuid> \\
   python3 scripts/smoke-gcc-api.py
 
-Optional live path (domain must match a Geek-SEO project for that user):
+Or service auth:
+
+  GEEK_BACKEND_API_KEY=<key> X-Geek-User-Id=<uuid> python3 scripts/smoke-gcc-api.py
+
+Optional live Site Analyzer path (domain must exist in Geek-SEO for that user):
 
   GEEK_SA_DOMAIN=example.com GEEK_BEARER=<token> python3 scripts/smoke-gcc-api.py
 """
@@ -23,24 +27,61 @@ import urllib.request
 import uuid
 
 API = os.environ.get("GEEK_API_URL", "https://api.geekatyourspot.com").rstrip("/")
-TOKEN = os.environ.get("GEEK_BEARER") or str(uuid.uuid4())
+TOKEN = (os.environ.get("GEEK_BEARER") or "").strip()
+API_KEY = (os.environ.get("GEEK_BACKEND_API_KEY") or "").strip()
+# Prefer bearer smoke user; API key path needs an explicit user id (no anonymous fallback).
+USER_ID = (
+    os.environ.get("GEEK_USER_ID")
+    or os.environ.get("X_GEEK_USER_ID")
+    or ""
+).strip() or str(uuid.uuid4())
 GCC = f"{API}/api/geek-content-creator"
+AUTH_MODE = "bearer" if TOKEN else ("api-key" if API_KEY else "bearer-uuid")
+
+COMPLETE_BRIEF = {
+    "intent": "informational",
+    "buyingStage": "awareness",
+    "audiencePrimary": "cold_prospect",
+    "audienceModifiers": [],
+    "audienceDetail": "ops managers evaluating tooling",
+    "audienceExclude": "",
+    "angle": "howto_workflow",
+    "ctaType": "subscribe",
+    "ctaLabel": "",
+    "lengthBand": "blog",
+    "toneOfVoice": {
+        "formalCasual": 3,
+        "seriousPlayful": 3,
+        "matterEnthusiastic": 3,
+        "technicalPlain": 3,
+        "authoritativePeer": 3,
+    },
+    "serpTitles": "",
+    "serpUrls": "",
+    "paaQuestions": "",
+    "relatedSearches": "",
+    "writingNotes": "smoke",
+}
 
 
 def req(method: str, path: str, body: dict | None = None) -> tuple[int, dict | list | str]:
     data = None if body is None else json.dumps(body).encode()
-    r = urllib.request.Request(
-        path,
-        data=data,
-        method=method,
-        headers={
-            "Authorization": f"Bearer {TOKEN}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-    )
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if TOKEN:
+        headers["Authorization"] = f"Bearer {TOKEN}"
+    elif API_KEY:
+        headers["X-API-Key"] = API_KEY
+        headers["X-Geek-User-Id"] = USER_ID
+    else:
+        # GeekAPI accepts UUID bearer as user id for smoke (not a product fallback).
+        headers["Authorization"] = f"Bearer {USER_ID}"
+
+    r = urllib.request.Request(path, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(r, timeout=60) as resp:
+        with urllib.request.urlopen(r, timeout=90) as resp:
             raw = resp.read().decode()
             parsed: dict | list | str = json.loads(raw) if raw else {}
             return resp.status, parsed
@@ -53,9 +94,21 @@ def req(method: str, path: str, body: dict | None = None) -> tuple[int, dict | l
         return e.code, parsed
 
 
+def err_text(payload: dict | list | str) -> str:
+    if isinstance(payload, str):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("error", "title", "detail", "message"):
+            if payload.get(key):
+                return str(payload[key])
+        return json.dumps(payload)
+    return str(payload)
+
+
 def main() -> int:
-    print(f"API {API}")
-    # Fail-closed: unknown domain must not invent demo gaps.
+    print(f"API {API} auth={AUTH_MODE}")
+
+    # Fail-closed: must not invent gaps. Soft pass = demo/empty invent; hard pass = error.
     status, analysis = req(
         "POST",
         f"{GCC}/site-analyzer/analyze",
@@ -69,10 +122,11 @@ def main() -> int:
             analysis,
         )
         return 1
-    err = analysis.get("error") if isinstance(analysis, dict) else analysis
-    print(f"OK analyze fail-closed status={status} error={err}")
+    if isinstance(analysis, dict) and analysis.get("gaps"):
+        print("FAIL analyze invented gaps for unknown domain", analysis)
+        return 1
+    print(f"OK analyze fail-closed status={status} error={err_text(analysis)}")
 
-    # Image prompt create still requires notes (independent of Site Analyzer).
     status, blocked_img = req(
         "POST",
         f"{GCC}/creates",
@@ -88,7 +142,6 @@ def main() -> int:
         return 1
     print("OK imagePrompt create requires notes")
 
-    # Content Brief / research / generate — no fallbacks.
     status, create = req(
         "POST",
         f"{GCC}/creates",
@@ -111,13 +164,27 @@ def main() -> int:
     if status < 400:
         print("FAIL generate without brief should be blocked", status, gen)
         return 1
-    gen_text = gen if isinstance(gen, str) else json.dumps(gen)
-    if "brief required" not in gen_text.lower():
-        print("FAIL expected 'brief required'", status, gen_text)
+    if "brief required" not in err_text(gen).lower():
+        print("FAIL expected 'brief required'", status, gen)
         return 1
     print("OK generate fail-closed without BriefJson")
 
-    status, research = req(
+    # Incomplete brief still fails closed.
+    status, patched = req(
+        "PATCH",
+        f"{GCC}/creates/{cid}/brief-research",
+        {"briefJson": json.dumps({"intent": "informational"}), "researchJson": None},
+    )
+    if status >= 400 or not isinstance(patched, dict):
+        print("FAIL patch incomplete brief", status, patched)
+        return 1
+    status, gen = req("POST", f"{GCC}/creates/{cid}/generate", {"provider": "OpenAi"})
+    if status < 400 or "brief required" not in err_text(gen).lower():
+        print("FAIL incomplete brief must still block generate", status, gen)
+        return 1
+    print("OK generate fail-closed with incomplete BriefJson")
+
+    research_status, research = req(
         "POST",
         f"{GCC}/creates/{cid}/research/follow",
         {
@@ -125,15 +192,51 @@ def main() -> int:
             "serpIndex": None,
         },
     )
-    if status < 400:
-        print("FAIL research should fail closed on bad URL", status, research)
+    if research_status < 400:
+        print(
+            "FAIL research should fail closed on bad URL",
+            research_status,
+            research,
+        )
         return 1
-    print(f"OK research fail-closed on URL failure status={status}")
+    # Ensure failed research did not persist quoteables.
+    get_status, after = req("GET", f"{GCC}/creates/{cid}")
+    if get_status >= 400 or not isinstance(after, dict):
+        print("FAIL get create after research failure", get_status, after)
+        return 1
+    if after.get("researchJson"):
+        print("FAIL researchJson persisted after failed follow", after.get("researchJson"))
+        return 1
+    print(
+        f"OK research fail-closed on URL failure status={research_status} "
+        "(no ResearchJson saved)"
+    )
+
+    status, patched = req(
+        "PATCH",
+        f"{GCC}/creates/{cid}/brief-research",
+        {"briefJson": json.dumps(COMPLETE_BRIEF), "researchJson": None},
+    )
+    if status >= 400 or not isinstance(patched, dict) or not patched.get("briefJson"):
+        print("FAIL patch complete brief", status, patched)
+        return 1
+    print("OK complete BriefJson persisted")
+
+    # Generate must clear the brief gate. LLM/provider errors are allowed; brief required is not.
+    status, gen = req("POST", f"{GCC}/creates/{cid}/generate", {"provider": "OpenAi"})
+    gen_s = err_text(gen).lower()
+    if status >= 400 and "brief required" in gen_s:
+        print("FAIL generate still brief-required after complete brief", status, gen)
+        return 1
+    if status < 400:
+        print("OK generate cleared brief gate (artifact created)")
+    else:
+        print(f"OK generate cleared brief gate (provider/runtime status={status})")
 
     live_domain = (os.environ.get("GEEK_SA_DOMAIN") or "").strip()
     if not live_domain:
-        print("SKIP live Site Analyzer (set GEEK_SA_DOMAIN for signed-in user with Geek-SEO analysis)")
-        print("SMOKE PASS (fail-closed analyze + brief/research/generate gates)")
+        print("SKIP live Site Analyzer (set GEEK_SA_DOMAIN)")
+        print("SMOKE PASS (fail-closed brief/research/generate; no soft analyze)")
         return 0
 
     status, analysis = req(
