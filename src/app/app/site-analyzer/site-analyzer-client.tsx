@@ -126,10 +126,13 @@ export function SiteAnalyzerClient() {
         <input
           value={nicheProfileId}
           onChange={(e) => setNicheProfileId(e.target.value)}
-          placeholder="Optional Niche profile id (live Geek-SEO gaps when GEEK_SEO_API_URL is set)"
+          placeholder="Optional Niche profile id (GUID from seo.geekatyourspot.com — live gaps when signed in)"
           className="w-full rounded-md border border-[var(--gcc-line)] bg-white px-3 py-2 text-sm"
         />
-      </div>
+        <p className="text-xs text-[var(--gcc-muted)]">
+          Without a profile id, Analyze returns demo gaps with non-empty site-section
+          related pages so Generate is never keyword-only.
+        </p>
 
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 

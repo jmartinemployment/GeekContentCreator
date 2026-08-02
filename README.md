@@ -24,6 +24,8 @@ npm run dev
 
 Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted only**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`). Do not run a local GeekAPI.
 
+**Site Analyzer:** demo gaps work without Geek-SEO. Live gaps need a Niche profile id (from `seo.geekatyourspot.com`) while signed in; GeekAPI must have `GEEK_SEO_API_URL=https://seo-api.geekatyourspot.com` (set on Railway).
+
 ## Smoke checklist (day one)
 
 1. Sign in → **Projects** → client → **New Project** → Crawl + research → **Generate blog** (no pillar)

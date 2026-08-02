@@ -7,6 +7,8 @@ import {
   generateBlogContent,
   generateColdOutreachContent,
   generateImagePromptsContent,
+  generatePillarBodyContent,
+  generatePillarPlanContent,
   generateSocialContent,
   generateToolsFromNames,
   getProject,
@@ -25,6 +27,7 @@ export default function ProjectRepurposePage() {
   const projectId = params.id;
   const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [pillar, setPillar] = useState(false);
   const [blog, setBlog] = useState(false);
   const [social, setSocial] = useState(false);
   const [cold, setCold] = useState(false);
@@ -69,7 +72,7 @@ export default function ProjectRepurposePage() {
       .filter(Boolean)
       .slice(0, 5);
 
-    if (!blog && !social && !cold && !imagePrompts && !aiTools) {
+    if (!pillar && !blog && !social && !cold && !imagePrompts && !aiTools) {
       setError("Pick at least one output type.");
       return;
     }
@@ -82,6 +85,11 @@ export default function ProjectRepurposePage() {
       try {
         await getProject(projectId);
         const finished: string[] = [];
+        if (pillar) {
+          await generatePillarPlanContent(projectId);
+          await generatePillarBodyContent(projectId);
+          finished.push("TechArticle (pillar)");
+        }
         if (blog) {
           await generateBlogContent(projectId);
           finished.push("Blog");
@@ -139,6 +147,14 @@ export default function ProjectRepurposePage() {
       </p>
 
       <div className="mt-6 space-y-3 rounded-xl border border-border bg-surface p-6">
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={pillar}
+            onChange={(e) => setPillar(e.target.checked)}
+          />
+          TechArticle (pillar plan + body)
+        </label>
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"

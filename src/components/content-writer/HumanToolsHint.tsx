@@ -66,7 +66,12 @@ export default function HumanToolsHint({
     .filter(Boolean);
 
   const names = [...new Set([...picked, ...manualNames])].slice(0, 5);
-  const canRunFromNames = names.length > 0 && brief.trim().length > 0;
+  const fromArtifactOnly = picked.length > 0 && manualNames.length === 0;
+  const resolvedBrief = brief.trim()
+    || (fromArtifactOnly
+      ? "Generate tool pages for the selected tools already named on this project."
+      : "");
+  const canRunFromNames = names.length > 0 && resolvedBrief.length > 0;
 
   function runFromNames() {
     setError(null);
@@ -74,15 +79,15 @@ export default function HumanToolsHint({
       setError("Add or pick at least one tool name.");
       return;
     }
-    if (!brief.trim()) {
-      setError("A short brief is required.");
+    if (!resolvedBrief) {
+      setError("A short brief is required when supplying names manually.");
       return;
     }
     startTransition(async () => {
       try {
         const next = await generateToolsFromNames(projectId, {
           toolNames: names,
-          brief: brief.trim(),
+          brief: resolvedBrief,
           provider: defaultLlmProvider(),
         });
         onGenerated(next);
@@ -157,7 +162,12 @@ export default function HumanToolsHint({
       </label>
 
       <label className="mt-3 block space-y-1.5">
-        <span className="text-sm font-medium text-foreground">Brief</span>
+        <span className="text-sm font-medium text-foreground">
+          Brief{" "}
+          <span className="font-normal text-muted">
+            (required for manual names; optional when picking from this project)
+          </span>
+        </span>
         <textarea
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
@@ -177,7 +187,8 @@ export default function HumanToolsHint({
       </button>
       {!canRunFromNames ? (
         <p className="mt-2 text-xs text-muted">
-          Pick or enter tool names and a brief to enable generate.
+          Pick or enter tool names
+          {fromArtifactOnly ? "" : " and a brief"} to enable generate.
         </p>
       ) : null}
 
