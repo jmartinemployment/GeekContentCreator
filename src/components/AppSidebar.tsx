@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const nav = [
-  { href: "/app", label: "Projects", exact: true },
-  { href: "/app/site-analyzer", label: "Site Analyzer" },
-] as const;
+const nav: { href: string; label: string; match: "exact" | "prefix" }[] = [
+  { href: "/app/creates", label: "Creates", match: "prefix" },
+  { href: "/app/create", label: "Start create", match: "exact" },
+  { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
+  { href: "/app", label: "Projects", match: "exact" },
+];
 
 export function AppSidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--gcc-line)] bg-[var(--gcc-slate)] px-3 py-5 text-white">
-      <Link href="/app" className="mb-8 px-2">
+      <Link href="/app/creates" className="mb-8 px-2">
         <span className="font-display text-lg font-semibold leading-tight">
           Geek Content Creator
         </span>
@@ -22,9 +24,9 @@ export function AppSidebar() {
       <nav className="flex flex-col gap-0.5">
         {nav.map((item) => {
           const isActive =
-            "exact" in item && item.exact
+            item.match === "exact"
               ? pathname === item.href
-              : pathname.startsWith(item.href);
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}

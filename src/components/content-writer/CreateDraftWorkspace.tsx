@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { SiteContextBanner } from "@/components/SiteContextBanner";
+import ContentBriefPanel from "@/components/content-writer/ContentBriefPanel";
 import { ApiError } from "@/lib/content-writer/api";
 import {
   approveGccVersion,
+  generateGccCreate,
   getGccCreateDetail,
   listGccVersions,
+  parseSiteSectionJson,
   polishGccVersion,
   previewBodyDocument,
   reviseGccVersion,
@@ -26,6 +30,10 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [briefFormComplete, setBriefFormComplete] = useState(false);
+  const [briefSavedOnServer, setBriefSavedOnServer] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateMsg, setGenerateMsg] = useState<string | null>(null);
 
   const [feedback, setFeedback] = useState("");
   const [scope, setScope] = useState<"full" | "section">("full");
@@ -38,6 +46,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
     try {
       const d = await getGccCreateDetail(createId);
       setDetail(d);
+      setBriefSavedOnServer(!!d.briefJson);
       const primary =
         d.artifacts.find((a) =>
           ["blog", "pillar", "techarticle", "technicalarticle"].includes(
@@ -106,14 +115,47 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
     );
   }
 
-  const briefReady = !!detail.briefJson;
+  const briefReady = !!detail.briefJson || briefSavedOnServer;
   const researchReady = !!detail.researchJson;
   const approved = artifact?.status?.toLowerCase() === "approved";
+  const siteSection = parseSiteSectionJson(detail.siteSectionJson);
+  const canGenerate = briefFormComplete && briefReady;
+  const saMissingPages =
+    !!detail.siteAnalysisId && (!siteSection || !siteSection.relatedPages.length);
+
+  async function runGenerate() {
+    if (!canGenerate || saMissingPages) return;
+    setGenerateMsg(null);
+    setGenerating(true);
+    try {
+      const result = await generateGccCreate(createId);
+      if (result.artifact && result.version) {
+        setGenerateMsg(
+          `Created ${result.artifact.type} “${result.artifact.name}” v${result.version.versionNumber}.`,
+        );
+      } else if (result.created?.length) {
+        setGenerateMsg(`Generated ${result.created.length} artifact(s).`);
+      } else {
+        setGenerateMsg("Generate finished.");
+      }
+      await reload();
+    } catch (err) {
+      setGenerateMsg(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Generate failed",
+      );
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-      <Link href="/app" className="text-sm text-brand hover:underline">
-        &larr; Back to dashboard
+      <Link href="/app/creates" className="text-sm text-brand hover:underline">
+        &larr; Back to creates
       </Link>
 
       <div className="mb-8 mt-2">
@@ -125,14 +167,61 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
           Create {detail.id}
           {briefReady ? " · brief saved" : " · brief missing"}
           {researchReady ? " · research saved" : ""}
+          {detail.siteAnalysisId ? " · Site Analyzer" : ""}
         </p>
+      </div>
+
+      <div className="mb-6 flex flex-col gap-6">
+        {siteSection ? <SiteContextBanner siteSection={siteSection} /> : null}
+        {saMissingPages ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            Site Analyzer create is missing related pages — Generate stays blocked
+            (no keyword-only path).
+          </p>
+        ) : null}
+
+        <ContentBriefPanel
+          clientId={detail.clientId}
+          targetKeyword={detail.topic}
+          createId={createId}
+          startingContentType={detail.startingContentType}
+          onBriefValidityChange={setBriefFormComplete}
+          onBriefSaved={(_id, ok) => {
+            setBriefSavedOnServer(ok);
+            void reload();
+          }}
+        />
+
+        <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground">
+            Generate (Content Creator)
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Reads persisted BriefJson / ResearchJson (and site section) from the
+            database only.
+          </p>
+          <button
+            type="button"
+            disabled={!canGenerate || saMissingPages || generating}
+            onClick={() => void runGenerate()}
+            className="mt-4 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {generating ? "Generating…" : "Generate starting content"}
+          </button>
+          {!canGenerate ? (
+            <p className="mt-2 text-xs text-muted">
+              Disabled until Content Brief is saved — inline required markers above.
+            </p>
+          ) : null}
+          {generateMsg ? (
+            <p className="mt-2 text-sm whitespace-pre-wrap">{generateMsg}</p>
+          ) : null}
+        </section>
       </div>
 
       {!version ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          No draft artifact yet. Save the Content Brief and run{" "}
-          <strong>Generate (Content Creator)</strong> from the project page — Generate
-          stays disabled until the brief is saved (no redirect, no soft path).
+          No draft artifact yet. Save the Content Brief, then Generate above.
         </div>
       ) : (
         <div className="flex flex-col gap-6">

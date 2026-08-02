@@ -5,6 +5,8 @@
 
 import type { ContentBrief } from "@/lib/content-writer/brief-catalog";
 import { ApiError } from "@/lib/content-writer/api";
+import type { SiteSectionContext } from "@/lib/types";
+import { siteSectionForApi } from "@/lib/site-section-storage";
 
 const API_BASE = "/api/cw";
 
@@ -60,7 +62,16 @@ export function createGccCreate(input: {
   topic: string;
   notes?: string | null;
   siteAnalysisId?: string | null;
+  siteSection?: SiteSectionContext | null;
 }): Promise<GccCreate> {
+  const siteAnalysisId = input.siteAnalysisId ?? null;
+  const siteSection = input.siteSection ?? null;
+  if (siteAnalysisId && (!siteSection || !siteSection.relatedPages?.length)) {
+    throw new ApiError(
+      "Site Analyzer create requires non-empty relatedPages in site section context.",
+      400,
+    );
+  }
   return gccRequest<GccCreate>("/api/geek-content-creator/creates", {
     method: "POST",
     body: JSON.stringify({
@@ -68,14 +79,34 @@ export function createGccCreate(input: {
       startingContentType: input.startingContentType,
       topic: input.topic,
       notes: input.notes ?? null,
-      siteAnalysisId: input.siteAnalysisId ?? null,
-      siteSection: null,
+      siteAnalysisId,
+      siteSection: siteSection ? siteSectionForApi(siteSection) : null,
     }),
   });
 }
 
+export function listGccCreates(clientId?: string | null): Promise<GccCreate[]> {
+  const q = clientId
+    ? `?clientId=${encodeURIComponent(clientId)}`
+    : "";
+  return gccRequest<GccCreate[]>(`/api/geek-content-creator/creates${q}`);
+}
+
 export function getGccCreate(id: string): Promise<GccCreate> {
   return gccRequest<GccCreate>(`/api/geek-content-creator/creates/${id}`);
+}
+
+export function parseSiteSectionJson(
+  json: string | null | undefined,
+): SiteSectionContext | null {
+  if (!json?.trim()) return null;
+  try {
+    const parsed = JSON.parse(json) as SiteSectionContext;
+    if (!parsed.relatedPages?.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export function patchBriefResearch(

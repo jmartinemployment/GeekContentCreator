@@ -66,16 +66,26 @@ function DashboardInner() {
         </p>
         <h1 className="mt-1 text-3xl font-bold text-foreground">Projects</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Content Writer v2 workflow: client → project → crawl → generate. Site
-          Analyzer and post-draft tools are additions on this base.
+          Legacy Content Writer v2 projects (clients / crawl). Happy path for
+          writing is{" "}
+          <a href="/app/creates" className="font-semibold text-brand hover:underline">
+            Creates
+          </a>{" "}
+          — Site Analyzer starts a Content Creator create with site section context.
         </p>
       </div>
 
       {gapTopic ? (
-        <p className="mb-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-muted">
-          Site Analyzer gap prefilled. Confirm client/department, then create —
-          related site pages upload as a research file for Generate (after Crawl).
-          The form below shows how many related pages are attached.
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          Prefer{" "}
+          <a
+            href={`/app/create?topic=${encodeURIComponent(gapTopic)}${suggestPillar ? "&suggestPillar=1" : ""}`}
+            className="font-semibold underline"
+          >
+            Start create
+          </a>{" "}
+          for Site Analyzer gaps (site section on the create). This project form
+          is the legacy path.
           {suggestPillar ? " Pillar suggested for this gap." : ""}
         </p>
       ) : null}

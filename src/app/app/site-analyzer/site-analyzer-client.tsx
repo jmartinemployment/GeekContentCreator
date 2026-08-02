@@ -11,7 +11,8 @@ type Gap = {
   suggestPillar: boolean;
 };
 
-import { SITE_SECTION_STORAGE_KEY } from "@/lib/site-section-storage";
+import { writeSiteSectionHandoff } from "@/lib/site-section-storage";
+import type { SiteSectionContext } from "@/lib/types";
 
 function toAbsoluteSiteUrl(domain: string): string {
   const d = domain.trim().replace(/\/$/, "");
@@ -73,18 +74,27 @@ export function SiteAnalyzerClient() {
         }
 
         const projectUrl = toAbsoluteSiteUrl(domain);
-        try {
-          sessionStorage.setItem(
-            SITE_SECTION_STORAGE_KEY,
-            JSON.stringify({
-              siteAnalysisId: analysisId,
-              gapTopic: gap.topic,
-              projectUrl,
-              section,
-            }),
+        const siteSection = section as SiteSectionContext;
+        if (!siteSection.relatedPages?.length) {
+          throw new Error(
+            "Site section context missing related pages — cannot start keyword-only.",
           );
+        }
+        try {
+          writeSiteSectionHandoff({
+            siteAnalysisId: analysisId,
+            gapTopic: gap.topic,
+            projectUrl,
+            section: {
+              ...siteSection,
+              siteAnalysisId: siteSection.siteAnalysisId || analysisId,
+              gapTopic: siteSection.gapTopic || gap.topic,
+            },
+          });
         } catch {
-          /* private mode — still navigate with query prefs */
+          throw new Error(
+            "Could not store site section context. Allow session storage and try again.",
+          );
         }
 
         const q = new URLSearchParams({
@@ -94,9 +104,9 @@ export function SiteAnalyzerClient() {
         if (projectUrl) q.set("projectUrl", projectUrl);
         if (gap.suggestPillar) q.set("suggestPillar", "1");
 
-        router.push(`/app?${q.toString()}`);
+        router.push(`/app/create?${q.toString()}`);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to start project");
+        setError(e instanceof Error ? e.message : "Failed to start create");
       }
     });
   }
@@ -160,7 +170,7 @@ export function SiteAnalyzerClient() {
                 onClick={() => pickGap(g)}
                 className="shrink-0 rounded-md border border-[var(--gcc-teal)] px-3 py-1.5 text-sm font-semibold text-[var(--gcc-teal-deep)]"
               >
-                Start project
+                Start create
               </button>
             </li>
           ))}

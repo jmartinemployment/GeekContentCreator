@@ -34,27 +34,40 @@ import {
   patchBriefResearch,
   serpIndexFromBrief,
 } from "@/lib/gcc-api";
+import {
+  clearSiteSectionHandoff,
+  readSiteSectionHandoff,
+} from "@/lib/site-section-storage";
 
 export default function ContentBriefPanel({
   clientId,
   targetKeyword,
+  createId: createIdProp,
+  startingContentType = "blog",
   onBriefSaved,
   onBriefValidityChange,
 }: {
   clientId: string;
   targetKeyword: string;
+  /** When set, brief saves onto this create (does not open a second create). */
+  createId?: string | null;
+  startingContentType?: string;
   /** Called when brief is persisted on a Content Creator create (server). */
   onBriefSaved: (createId: string, complete: boolean) => void;
   onBriefValidityChange: (complete: boolean) => void;
 }) {
   const [brief, setBrief] = useState<ContentBrief>(() => emptyContentBrief());
-  const [createId, setCreateId] = useState<string | null>(null);
+  const [createId, setCreateId] = useState<string | null>(createIdProp ?? null);
   const [hydrated, setHydrated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [researchMsg, setResearchMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (createIdProp) setCreateId(createIdProp);
+  }, [createIdProp]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,11 +77,13 @@ export default function ContentBriefPanel({
     setBrief(localBrief);
 
     (async () => {
-      let cid: string | null = null;
-      try {
-        cid = localStorage.getItem(GCC_CREATE_STORAGE_PREFIX + targetKeyword);
-      } catch {
-        /* ignore */
+      let cid: string | null = createIdProp ?? null;
+      if (!cid) {
+        try {
+          cid = localStorage.getItem(GCC_CREATE_STORAGE_PREFIX + targetKeyword);
+        } catch {
+          /* ignore */
+        }
       }
       if (cid) {
         setCreateId(cid);
@@ -99,7 +114,7 @@ export default function ContentBriefPanel({
     };
     // onBriefSaved is stable enough from parent; avoid re-hydrate loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetKeyword]);
+  }, [targetKeyword, createIdProp]);
 
   const missing = useMemo(() => contentBriefMissingFields(brief), [brief]);
   const complete = missing.length === 0;
@@ -153,11 +168,21 @@ export default function ContentBriefPanel({
 
   async function ensureCreateId(): Promise<string> {
     if (createId) return createId;
+    const handoff = readSiteSectionHandoff();
+    if (handoff && !handoff.section.relatedPages?.length) {
+      throw new ApiError(
+        "Site Analyzer create requires non-empty relatedPages in site section context.",
+        400,
+      );
+    }
     const created = await createGccCreate({
       clientId,
-      startingContentType: "blog",
+      startingContentType,
       topic: targetKeyword.trim() || "untitled",
+      siteAnalysisId: handoff?.siteAnalysisId ?? null,
+      siteSection: handoff?.section ?? null,
     });
+    if (handoff) clearSiteSectionHandoff();
     setCreateId(created.id);
     try {
       localStorage.setItem(GCC_CREATE_STORAGE_PREFIX + targetKeyword, created.id);
