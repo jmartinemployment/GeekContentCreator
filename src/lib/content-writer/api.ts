@@ -70,14 +70,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-/** Drop smoke/demo clients that should never appear in the product UI. */
-function isPhonyClientName(name: string): boolean {
-  return /\b(smoke|demo)\b|\(demo\)/i.test(name.trim());
-}
-
-export async function getClients(): Promise<Client[]> {
-  const clients = await request<Client[]>("/api/clients");
-  return clients.filter((c) => !isPhonyClientName(c.name));
+export function getClients(): Promise<Client[]> {
+  return request<Client[]>("/api/clients");
 }
 
 export function createClient(input: {
