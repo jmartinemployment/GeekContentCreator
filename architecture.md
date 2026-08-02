@@ -31,14 +31,14 @@ flowchart LR
   api[GeekAPI]
   repo[GeekRepository]
   engine[CWV2_Generate_Engine]
-  niche[GeekSEO_Niche]
+  geekSeo[GeekSEO_SiteAnalyzer]
 
   browser --> next
   next --> oauth
   next --> api
   api --> repo
   api --> engine
-  api --> niche
+  api --> geekSeo
 ```
 
 | Layer | System | Path / notes | Use for |
@@ -47,7 +47,7 @@ flowchart LR
 | HTTP API | **GeekAPI** | `/Users/jeffmartin/development/GeekBackend/GeekAPI` | Facades Content Creator will call; hosts generate services |
 | Data | **GeekRepository** | GeekBackend repository layer behind GeekAPI | Persist creates, versions, approvals, packs |
 | Writing engine | **Content Writer v2 generate stack** | Orchestrator, prompt builders, length rules, image-prompt builders | Long-form / social / tools / image-prompt **generation** |
-| Site understanding | **Geek-SEO / Niche analyzer** | `/Users/jeffmartin/development/Geek-SEO` | Site model, gaps, **site section context** for Generate |
+| Site understanding | **Geek-SEO / site analyzer** | `/Users/jeffmartin/development/Geek-SEO` | Site model, gaps, **site section context** for Generate |
 | Reference UX only | **Geek Content Workflow** | `/Users/jeffmartin/development/GeekContentWorkflow` | Revise / SEO / polish / pack patterns — not the product shell |
 
 ### Deploy / hosting (not in question)
@@ -79,7 +79,7 @@ Secrets and LLM keys stay on **GeekAPI** (or platform secret store) — **not** 
 |---------|--------|
 | OpenAI / Claude API keys | GeekAPI environment |
 | `REPO_URL` / repository API key | GeekAPI → GeekRepository |
-| SEO / Niche upstream URLs | GeekAPI or Geek-SEO service config |
+| SEO / Site Analyzer upstream URLs | GeekAPI or Geek-SEO service config |
 
 Exact variable names: copy from Geek Content Workflow’s `.env.example` / Vercel env when wiring auth, then add Content Creator–specific ones only if needed.
 
@@ -155,7 +155,7 @@ UI must show **running / failed / ready** and not double-submit. Prefer GeekAPI 
   - optional freeform notes
   - **`SiteSectionContext`** when create started from Site Analyzer — **required** if site analysis is attached (`ValidateSiteSectionGate`: non-empty `relatedPages`)
   - tool names + brief when generating AI Tools
-- Reuse Niche / Geek-SEO gap signals behind a **new** Site Analyzer UI.
+- Reuse Geek-SEO site analysis gap signals behind a **new** Site Analyzer UI.
 - **Correctness over expediency.** Copied CWV2 code becomes canonical Content Creator code when CWV2 retires — no upstream sync ceremony.
 
 ### Do not
@@ -210,7 +210,7 @@ Open at wire-up only: extract shared writing package vs existing in-process serv
 |-------|--------|
 | Orchestrator, prompts, validation, image-prompt JSON, tool body+metadata (~2 calls/tool) | Old UI; keyword-from-home with zero site section context |
 
-### Geek-SEO / Niche (Site Analyzer capability)
+### Geek-SEO Site Analyzer capability
 
 Gaps + existing page titles/headings/excerpts → Generate **site section context**. Product name stays Content Creator.
 

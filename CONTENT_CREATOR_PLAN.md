@@ -24,7 +24,7 @@
 | Content Creator | OK short name in UI copy when clear |
 | Content Writer v2 | CWV2, CW2, CW |
 | Geek Content Workflow | GCW |
-| Site Analyzer (UI) | Niche (UI); Niche OK only as legacy code name |
+| Site Analyzer (UI) | retired product name (do not use) |
 | **Starting content** / **What to write** | Calling create-time selection “Mix” |
 | **Repurpose** / **Repurpose chooser** | “Mix” without defining it |
 | **Revise** | “Revise chat” (implies a message thread) |
@@ -68,7 +68,7 @@ Same platform family as Geek Content Workflow — not a new auth/API island.
 7. **Repurpose (Mix):** after **content approval** only. Human chooses types + counts; no auto full suite.  
 8. **Revise:** feedback **textarea**; human chooses **Full** or **Section**; all content types; **new version** each time. Not a multi-turn chat thread.  
 9. **SEO (first release):** on-page / structural only (draft + target keyword) — Geek Content Workflow analyzer class. Panel beside draft, on demand — not keystroke-realtime, not SERP coverage. Does **not** require a research dossier.  
-10. **Site Analyzer — day one:** capability inside Content Creator (not the product name). **Understand the site** → topical map → **identify content gaps** → human picks a gap → **start a create**. Additionally, **existing site content** from that analysis (pages, headings, summaries, related pillars already on the site) **feeds into Generate** as creation context so new drafts align with what the site already says — not gap topic alone. Reuse Niche analyzer / Geek-SEO site model + gap signals; new usable UI.  
+10. **Site Analyzer — day one:** capability inside Content Creator (not the product name). **Understand the site** → topical map → **identify content gaps** → human picks a gap → **start a create**. Additionally, **existing site content** from that analysis (pages, headings, summaries, related pillars already on the site) **feeds into Generate** as creation context so new drafts align with what the site already says — not gap topic alone. Reuse site analyzer / Geek-SEO site model + gap signals; new usable UI.  
     **Fixes a Content Writer v2 gap:** entering a keyword from “home” / project setup did **not** pull reference content from the site **section** where that keyword or content gap lives. Content Creator **must not** repeat that — Generate for a Site Analyzer–started create is grounded in the **relevant site section** (related pages, headings, excerpts), not keyword-alone.  
 11. **Research dossier (“Research Packet”)** — **descoped** to later phase **after application approval**. Includes formal packet, AI deep research, manual SERP/competitor uploads, research-backed coverage scoring. Site Analyzer site context in day one is **not** that dossier; it is the analyzed site model / excerpts available from Site Analyzer.  
 12. **Calendar** later (after content-approval path works).  
@@ -183,7 +183,7 @@ ToolGenerateRequest:
 
 | Step | What happens |
 |------|----------------|
-| 1. Connect / analyze site | Crawl or load site model (Niche analyzer / Geek-SEO backed) |
+| 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed) |
 | 2. Topical map | Topics and headings the site covers (or should cover) |
 | 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars |
 | 4. Human picks a gap | Operator chooses one gap from the list |
@@ -261,7 +261,7 @@ Self-contained on-page checks: draft document + target keyword (lede/heading pre
 - Content Writer v2’s old interface  
 - Shipping inside Geek Content Workflow  
 - Content Writer v3 / v4  
-- Product branded Niche or Site Analyzer  
+- Product branded Site Analyzer  
 - Research Packet / research dossier  
 - AI deep research pipeline  
 - Formal manual research upload pipeline  
@@ -315,7 +315,7 @@ flowchart TD
 | System | Role |
 |--------|------|
 | Content Writer v2 | Job framing; shared generate / image-prompt **engine** — **not** UI to clone |
-| Niche analyzer / Geek-SEO | **Site Analyzer** capability: site model, topical map, **content gaps**, and **existing page/content context for Generate** — not Niche UI |
+| site analyzer / Geek-SEO | **Site Analyzer** capability: site model, topical map, **content gaps**, and **existing page/content context for Generate** — not a separate SEO-only UI |
 | Geek Content Workflow | Feature inventory (revise textarea, on-page SEO, polish, approval, packs) to **re-home** — not the product shell |
 | GeekOAuth + GeekAPI | Auth and API infrastructure (assumed) |
 | Content Writer v3 / v4 | Ignore |
