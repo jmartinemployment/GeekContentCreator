@@ -17,6 +17,23 @@ import type { SiteSectionContext } from "@/lib/types";
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
 
+async function downloadSitemap(analysisId: string): Promise<void> {
+  const response = await fetch(
+    `/api/site-analyzer/${encodeURIComponent(analysisId)}/sitemap`,
+  );
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || "Sitemap download failed.");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "sitemap.xml";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function toAbsoluteSiteUrl(domain: string): string {
   const d = domain.trim().replace(/\/$/, "");
   if (!d) return "";
@@ -236,7 +253,20 @@ export function SiteAnalyzerClient() {
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
       {analysisId ? (
-        <p className="text-xs text-[var(--gcc-muted)]">Analysis {analysisId}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs text-[var(--gcc-muted)]">Analysis {analysisId}</p>
+          <button
+            type="button"
+            onClick={() => {
+              downloadSitemap(analysisId).catch((err) => {
+                setError(err instanceof Error ? err.message : "Sitemap download failed.");
+              });
+            }}
+            className="rounded-md border border-[var(--gcc-line)] px-3 py-1 text-xs font-semibold"
+          >
+            Download sitemap
+          </button>
+        </div>
       ) : null}
 
       {gaps.length > 0 ? (

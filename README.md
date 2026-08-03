@@ -5,7 +5,8 @@
 Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator/...`. Content Writer v2 **projects** remain as a legacy surface only.
 
 **Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
-**Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).
+**Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).  
+**Site Analyzer sitemap step-1 (implemented, unverified live):** [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md) · [plan](./docs/plans/sitemap-generator-step1.plan.md)
 
 ## Stack
 
@@ -26,7 +27,9 @@ npm run dev
 
 Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`).
 
-**Site Analyzer:** Enter a domain already analyzed in Geek-SEO (same signed-in user). Analyze fails closed if Geek-SEO is unset, unauthorized, or has no project/analysis — it does not invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL`.
+**Site Analyzer:** Enter a domain → **Analyze** runs Geek-SEO ThroughCoverage behind GeekAPI (OAuth Bearer). Fail closed if Geek-SEO is unset, unauthorized, or analysis fails — never invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL`.
+
+**Sitemap step 1 (code complete, not yet live-verified):** Analyze step 1 now always regenerates a crawl-based sitemap inventory + downloadable `sitemap.xml` (unlimited discovery; inventory-complete crawl; fail-closed throw on empty/incomplete). Download sitemap button added to Site Analyzer UI. Unit-tested (191/191 in Geek-SEO) and compiles clean in all three repos (Geek-SEO, GeekAPI, GeekContentCreator); **not yet run end-to-end against a live domain**, not committed/pushed. See [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md).
 
 ## Operator smoke (day one)
 

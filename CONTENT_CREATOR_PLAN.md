@@ -1,12 +1,28 @@
-# Geek Content Creator — Plan (ready for automated review)
+# Geek Content Creator — Plan
 
 | | |
 |--|--|
-| **Status** | Ready for automated review (pass 2) |
-| **Review focus** | Consistency of locks; scope boundaries; LLM budgets; naming |
-| **New repo** | `/Users/jeffmartin/development/GeekContentCreator` (Next.js scaffolded) |
+| **Status** | **Day-one first release: COMPLETE** (acceptance §13 all checked). Full document ≠ 100% — later phases and open items remain. |
+| **Day-one** | Shipped — create/brief/research/generate, Site Analyzer gaps → create + site section context, revise / on-page SEO / polish / approve / repurpose, AI Tools, image prompts |
+| **Later (not started)** | Research dossier, calendar, pixel render (§8) |
+| **Open / optional** | Shared writing package extract; Repurpose presets; search provider when dossier phase starts (§14) |
+| **Follow-on (code complete, not this plan’s §13)** | Geek-SEO sitemap generate as Analyze step 1 — implemented + unit-tested across Geek-SEO/GeekAPI/GeekContentCreator, **not yet live-verified or committed** — [docs/plans/sitemap-generator-step1.plan.md](./docs/plans/sitemap-generator-step1.plan.md) · [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md) |
+| **New repo** | `/Users/jeffmartin/development/GeekContentCreator` |
 | **Copies (same content)** | This file · `/Users/jeffmartin/development/CONTENT_CREATOR_PLAN.md` |
-| **Last locked** | 2026-08-02 (Content Brief + deep research + generate on creates) |
+| **Last status update** | 2026-08-03 |
+
+---
+
+## Completion summary
+
+| Scope | Status |
+|-------|--------|
+| First-release happy path (§5, §13) | **Complete** |
+| Build sequence §12.1–5 | **Shipped** |
+| Build sequence §12.6 smoke | Operator process — re-run as needed; not a code deliverable |
+| Build sequence §12.7–8 / §8 later | **Not started** (after application approval) |
+| §14 open items | **Open** (allowed after day-one) |
+| Sitemap step-1 / uncapped crawl (Geek-SEO) | **Code complete** — separate handoff; not a §13 checkbox; not yet live-verified or committed |
 
 ---
 
@@ -183,8 +199,8 @@ ToolGenerateRequest:
 
 | Step | What happens |
 |------|----------------|
-| 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed) |
-| 2. Topical map | Topics and headings the site covers (or should cover) |
+| 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed). **Implemented (code complete, not yet live-verified):** every Analyze runs **sitemap generate as step 1** (uncapped discovery → URL inventory + auto-updated `sitemap.xml` artifact + Download); then **inventory-complete** site crawl. Fail closed on empty inventory or incomplete crawl — never empty soft-success. See [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md). |
+| 2. Topical map | Topics and headings the site covers (or should cover). **Utility pages** (`about`, `contact`, `faq`, …) are **excluded from topics**; they are still crawled for inventory / future Site Audit. |
 | 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars |
 | 4. Human picks a gap | Operator chooses one gap from the list |
 | 5. Start create | Prefill topic / keyword / starting-content from that gap |
@@ -245,14 +261,16 @@ Self-contained on-page checks: draft document + target keyword (lede/heading pre
 
 ---
 
-## 8. Explicitly later (after **application** approval)
+## 8. Explicitly later (after **application** approval) — **not started**
 
-- Research dossier (Research Packet)  
-- AI deep research agent (search + fetch + cite)  
-- Manual SERP / competitor / People Also Ask upload pipeline  
-- Research-backed (Surfer-class) coverage SEO  
-- Calendar  
-- Pixel render of image prompts via image-generator  
+| Item | Status |
+|------|--------|
+| Research dossier (Research Packet) | Not started |
+| AI deep research agent (search + fetch + cite) | Not started |
+| Manual SERP / competitor / People Also Ask upload pipeline | Not started |
+| Research-backed (Surfer-class) coverage SEO | Not started |
+| Calendar | Not started |
+| Pixel render of image prompts via image-generator | Not started |
 
 ---
 
@@ -325,19 +343,23 @@ flowchart TD
 
 ## 12. Build sequence
 
-1. Scaffold done at `/Users/jeffmartin/development/GeekContentCreator`. GeekOAuth + GeekAPI + starting-content chooser.  
-1b. **Content Brief + deep research + generate on creates** (BriefJson / ResearchJson; Next → `/api/geek-content-creator/...`). Shipped.  
-2. Generate + Revise (Full/Section) + on-page SEO + Polish + Content approval on **create workspace** (`/app/creates/{id}`). Shipped.  
-3. Standalone image prompt (human context required) via Start create `type=imagePrompt` + attached/Mix image prompts.  
-4. **Site Analyzer day one:** pick gap → `/app/create` with **site section on the create** (non-empty relatedPages); Generate blocked if missing. Shipped.  
-5. Repurpose chooser after content approval on create artifact (`/app/creates/{id}/repurpose`).  
-6. Smoke: Blog-only (no pillar); **Site Analyzer gap → create with site context in Generate**; standalone image prompt; AI Tools from human names; Mix image prompts; Revise; approve → Repurpose.  
-7. **After application approval:** Research dossier + AI deep research + manual uploads + coverage SEO.  
-8. Calendar / pixel render via image-generator.
+| # | Item | Status |
+|---|------|--------|
+| 1 | Scaffold + GeekOAuth + GeekAPI + starting-content chooser | **Shipped** |
+| 1b | Content Brief + deep research + generate on creates | **Shipped** |
+| 2 | Generate + Revise + on-page SEO + Polish + Content approval on create workspace | **Shipped** |
+| 3 | Standalone image prompt via Start create `type=imagePrompt` + attached/Mix | **Shipped** |
+| 4 | Site Analyzer day one: gap → create with site section; Generate blocked if missing | **Shipped** |
+| 5 | Repurpose chooser after content approval | **Shipped** |
+| 6 | Smoke (Blog-only; SA gap → create; image prompt; AI Tools; Mix; Revise; approve → Repurpose) | **Process** — re-run as needed |
+| 7 | After application approval: Research dossier + AI deep research + manual uploads + coverage SEO | **Not started** |
+| 8 | Calendar / pixel render via image-generator | **Not started** |
 
 ---
 
-## 13. Acceptance criteria (review / smoke)
+## 13. Acceptance criteria (review / smoke) — **day-one COMPLETE**
+
+All items below are done for first release:
 
 - [x] Create Blog (or Email/Social) without a pillar.  
 - [x] Pillar available when wanted.  
@@ -364,14 +386,18 @@ flowchart TD
 - [x] Deep research follows ≤3 URLs with extract caps; any failure / empty extract fails the whole op.  
 - [x] Content Writer v2 **repo** not edited for this feature (copy into GeekAPI Content Creator).  
 
+**Not part of §13 (track separately):** sitemap generate as Geek-SEO Analyze step 1 — [docs/plans/sitemap-generator-step1.plan.md](./docs/plans/sitemap-generator-step1.plan.md) (**code complete + unit-tested; not yet live-verified or committed**).
+
 ---
 
-## 14. Open items (allowed after this review)
+## 14. Open items (allowed after day-one) — **still open**
 
-- Extract shared writing package vs GeekAPI in-process services first (same engine contract).  
-- Auth/hosting details confirmed at scaffold.  
-- Optional Repurpose presets (pre-fill only; still require Generate).  
-- Search provider — only when Research dossier phase starts (after application approval).
+| Item | Status |
+|------|--------|
+| Extract shared writing package vs GeekAPI in-process services first (same engine contract) | Open |
+| Auth/hosting details confirmed at scaffold | Done (GeekOAuth + GeekAPI; Railway/Vercel as siblings) |
+| Optional Repurpose presets (pre-fill only; still require Generate) | Open |
+| Search provider — only when Research dossier phase starts (after application approval) | Not started (blocked on §8) |
 
 ---
 
