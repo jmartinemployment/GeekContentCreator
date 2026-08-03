@@ -7,6 +7,7 @@
 | **Later (not started)** | Research dossier, calendar, pixel render (§8) |
 | **Open / optional** | Shared writing package extract; Repurpose presets; search provider when dossier phase starts (§14) |
 | **Follow-on (code complete, not this plan’s §13)** | Geek-SEO sitemap generate as Analyze step 1 — implemented, unit-tested, and pushed to `main` across Geek-SEO/GeekAPI/GeekContentCreator, **not yet live-verified against a real domain**. Planning/handoff docs for this item were deleted post-merge; see commit history (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`) for detail. |
+| **Next up (not started)** | Fallback elimination — [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) · [inventory](./docs/FALLBACK_INVENTORY.md). Replaces Site Analyzer's fabricated content-gap fallback (5 hardcoded generic subtopics) with real heading-based gap detection; eliminates silent provider auto-switching (SERP/AI/geocode) and swallowed exceptions in Geek-SEO/GeekAPI; ports Content Writer v2's existing `.html`/`.txt` git export. |
 | **New repo** | `/Users/jeffmartin/development/GeekContentCreator` |
 | **Copies (same content)** | This file · `/Users/jeffmartin/development/CONTENT_CREATOR_PLAN.md` |
 | **Last status update** | 2026-08-03 |
@@ -23,6 +24,7 @@
 | Build sequence §12.7–8 / §8 later | **Not started** (after application approval) |
 | §14 open items | **Open** (allowed after day-one) |
 | Sitemap step-1 / uncapped crawl (Geek-SEO) | **Deployed** — separate handoff; not a §13 checkbox; not yet live-verified against a real domain |
+| Fallback elimination (Geek-SEO/GeekAPI) | **Not started** — [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md); not a §13 checkbox |
 
 ---
 
@@ -201,7 +203,7 @@ ToolGenerateRequest:
 |------|----------------|
 | 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed). **Implemented, pushed to main (not yet live-verified against a real domain):** every Analyze runs **sitemap generate as step 1** (uncapped discovery → URL inventory + auto-updated `sitemap.xml` artifact + Download); then **inventory-complete** site crawl. Fail closed on empty inventory or incomplete crawl — never empty soft-success. See Geek-SEO commit `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`. |
 | 2. Topical map | Topics and headings the site covers (or should cover). **Utility pages** (`about`, `contact`, `faq`, …) are **excluded from topics**; they are still crawled for inventory / future Site Audit. |
-| 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars |
+| 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars. **Known issue (not yet fixed):** when a pillar has <3 real crawled child pages, current code fabricates 5 hardcoded generic subtopics instead of finding real gaps — see [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) items 1–2 for the real heading-based-detection fix (not yet implemented). |
 | 4. Human picks a gap | Operator chooses one gap from the list |
 | 5. Start create | Prefill topic / keyword / starting-content from that gap |
 | 6. **Feed existing site content into Generate** | Pass site context into the writing engine: related existing pages (titles, headings, short excerpts/summaries), topical neighbors, voice/structure cues from the site model — so the draft fits the site, avoids duplicating pages, and can cross-link sensibly |

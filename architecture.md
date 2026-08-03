@@ -218,6 +218,8 @@ Gaps + existing page titles/headings/excerpts → Generate **site section contex
 
 **Not yet done:** end-to-end verification against a live domain (requires a real OAuth session — see `scripts/smoke-site-analyzer.mjs`). Everything else is complete: committed, pushed, and deployed live in all three Railway services (Geek-SEO `281ec37`, GeekAPI/GeekRepository `7ef3c61`, GeekContentCreator `efc2f23`). No UNIQUE-constraint migration was needed — `(SiteAnalysisProfileId, Url, SourceType)` already existed. Planning/handoff docs for this item were removed post-merge; see commit history for detail.
 
+**Known issue, fix scoped but not started:** content-gap detection currently fabricates gaps — a pillar with <3 real crawled child pages gets padded with 5 hardcoded generic subtopic templates instead of real findings. Full fix (real heading-based gap detection, reusing `SiteAnalysisContentCoverageMatcher`'s slug-matching) plus a broader elimination of silent fallback/soft-success patterns across Geek-SEO and GeekAPI (provider auto-switching, swallowed exceptions) is in [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) ([inventory](./docs/FALLBACK_INVENTORY.md)).
+
 ### Geek Content Workflow (reference)
 
 Revise textarea → new version; on-page SEO heuristics; polish; one-call repurpose pack JSON.
