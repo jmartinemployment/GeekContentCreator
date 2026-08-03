@@ -22,7 +22,7 @@
 | Build sequence §12.6 smoke | Operator process — re-run as needed; not a code deliverable |
 | Build sequence §12.7–8 / §8 later | **Not started** (after application approval) |
 | §14 open items | **Open** (allowed after day-one) |
-| Sitemap step-1 / uncapped crawl (Geek-SEO) | **Code complete** — separate handoff; not a §13 checkbox; not yet live-verified or committed |
+| Sitemap step-1 / uncapped crawl (Geek-SEO) | **Deployed** — separate handoff; not a §13 checkbox; not yet live-verified against a real domain |
 
 ---
 

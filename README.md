@@ -6,7 +6,7 @@ Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator
 
 **Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
 **Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).  
-**Site Analyzer sitemap step-1 (implemented, unverified live):** [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md) · [plan](./docs/plans/sitemap-generator-step1.plan.md)
+**Site Analyzer sitemap step-1:** implemented, deployed, live in production — not yet verified end-to-end against a real domain. Planning docs removed post-merge; see commit history (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`).
 
 ## Stack
 
@@ -29,7 +29,7 @@ Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted**
 
 **Site Analyzer:** Enter a domain → **Analyze** runs Geek-SEO ThroughCoverage behind GeekAPI (OAuth Bearer). Fail closed if Geek-SEO is unset, unauthorized, or analysis fails — never invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL`.
 
-**Sitemap step 1 (code complete, not yet live-verified):** Analyze step 1 now always regenerates a crawl-based sitemap inventory + downloadable `sitemap.xml` (unlimited discovery; inventory-complete crawl; fail-closed throw on empty/incomplete). Download sitemap button added to Site Analyzer UI. Unit-tested (191/191 in Geek-SEO) and compiles clean in all three repos (Geek-SEO, GeekAPI, GeekContentCreator); **not yet run end-to-end against a live domain**, not committed/pushed. See [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md).
+**Sitemap step 1 (deployed, not yet live-verified):** Analyze step 1 now always regenerates a crawl-based sitemap inventory + downloadable `sitemap.xml` (unlimited discovery; inventory-complete crawl; fail-closed throw on empty/incomplete). Download sitemap button added to Site Analyzer UI. Unit-tested (191/191 in Geek-SEO), pushed to `main`, and deployed live in all three Railway services (Geek-SEO, GeekAPI, GeekContentCreator); **not yet run end-to-end against a live domain** (requires a real OAuth session to exercise — see `scripts/smoke-site-analyzer.mjs`).
 
 ## Operator smoke (day one)
 

@@ -216,9 +216,7 @@ Gaps + existing page titles/headings/excerpts → Generate **site section contex
 
 **Engine (Geek-SEO):** `RunThroughCoverageAsync` runs the site-model spine. **Implemented:** step 1 = `SitemapGenerator` (unlimited same-origin BFS crawl + public sitemap merge; always regenerates; persists `site_analysis_profile_discovered_urls` with `SourceType` `sitemap`|`generated`; auto-updates XML artifact, rebuilt on demand rather than stored as a blob; Download wired through GeekAPI → GeekContentCreator). Crawl is unlimited and must fetch the **full** inventory or throw. Completeness is **delegated** to each step (throw → pipeline failed). Empty XML strings or soft-empty inventories are never treated as success — code enforces this (unit-tested, 191/191 in Geek-SEO).
 
-**Not yet done:** end-to-end verification against a live domain, and a commit/push (code is staged/unstaged for review in all three repos). No UNIQUE-constraint migration was needed — `(SiteAnalysisProfileId, Url, SourceType)` already existed.
-
-Handoff: [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md). Plan: [docs/plans/sitemap-generator-step1.plan.md](./docs/plans/sitemap-generator-step1.plan.md).
+**Not yet done:** end-to-end verification against a live domain (requires a real OAuth session — see `scripts/smoke-site-analyzer.mjs`). Everything else is complete: committed, pushed, and deployed live in all three Railway services (Geek-SEO `281ec37`, GeekAPI/GeekRepository `7ef3c61`, GeekContentCreator `efc2f23`). No UNIQUE-constraint migration was needed — `(SiteAnalysisProfileId, Url, SourceType)` already existed. Planning/handoff docs for this item were removed post-merge; see commit history for detail.
 
 ### Geek Content Workflow (reference)
 
