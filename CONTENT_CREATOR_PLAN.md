@@ -6,7 +6,7 @@
 | **Day-one** | Shipped — create/brief/research/generate, Site Analyzer gaps → create + site section context, revise / on-page SEO / polish / approve / repurpose, AI Tools, image prompts |
 | **Later (not started)** | Research dossier, calendar, pixel render (§8) |
 | **Open / optional** | Shared writing package extract; Repurpose presets; search provider when dossier phase starts (§14) |
-| **Follow-on (code complete, not this plan’s §13)** | Geek-SEO sitemap generate as Analyze step 1 — implemented + unit-tested across Geek-SEO/GeekAPI/GeekContentCreator, **not yet live-verified or committed** — [docs/plans/sitemap-generator-step1.plan.md](./docs/plans/sitemap-generator-step1.plan.md) · [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md) |
+| **Follow-on (code complete, not this plan’s §13)** | Geek-SEO sitemap generate as Analyze step 1 — implemented, unit-tested, and pushed to `main` across Geek-SEO/GeekAPI/GeekContentCreator, **not yet live-verified against a real domain**. Planning/handoff docs for this item were deleted post-merge; see commit history (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`) for detail. |
 | **New repo** | `/Users/jeffmartin/development/GeekContentCreator` |
 | **Copies (same content)** | This file · `/Users/jeffmartin/development/CONTENT_CREATOR_PLAN.md` |
 | **Last status update** | 2026-08-03 |
@@ -199,7 +199,7 @@ ToolGenerateRequest:
 
 | Step | What happens |
 |------|----------------|
-| 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed). **Implemented (code complete, not yet live-verified):** every Analyze runs **sitemap generate as step 1** (uncapped discovery → URL inventory + auto-updated `sitemap.xml` artifact + Download); then **inventory-complete** site crawl. Fail closed on empty inventory or incomplete crawl — never empty soft-success. See [docs/HANDOFF-site-analyzer-sitemap-step1.md](./docs/HANDOFF-site-analyzer-sitemap-step1.md). |
+| 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed). **Implemented, pushed to main (not yet live-verified against a real domain):** every Analyze runs **sitemap generate as step 1** (uncapped discovery → URL inventory + auto-updated `sitemap.xml` artifact + Download); then **inventory-complete** site crawl. Fail closed on empty inventory or incomplete crawl — never empty soft-success. See Geek-SEO commit `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`. |
 | 2. Topical map | Topics and headings the site covers (or should cover). **Utility pages** (`about`, `contact`, `faq`, …) are **excluded from topics**; they are still crawled for inventory / future Site Audit. |
 | 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars |
 | 4. Human picks a gap | Operator chooses one gap from the list |
@@ -386,7 +386,7 @@ All items below are done for first release:
 - [x] Deep research follows ≤3 URLs with extract caps; any failure / empty extract fails the whole op.  
 - [x] Content Writer v2 **repo** not edited for this feature (copy into GeekAPI Content Creator).  
 
-**Not part of §13 (track separately):** sitemap generate as Geek-SEO Analyze step 1 — [docs/plans/sitemap-generator-step1.plan.md](./docs/plans/sitemap-generator-step1.plan.md) (**code complete + unit-tested; not yet live-verified or committed**).
+**Not part of §13 (track separately):** sitemap generate as Geek-SEO Analyze step 1 — code complete, unit-tested, pushed to `main` (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`); **not yet live-verified against a real domain**.
 
 ---
 
