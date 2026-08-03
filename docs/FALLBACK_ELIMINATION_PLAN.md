@@ -72,15 +72,20 @@ Make these **throw/surface** (they currently swallow real exceptions):
 
 `NavMenuExtractor.cs:51` labels the source `"fallback"` when links<2 but the pillars are really extracted. No behavior change; optionally rename the label for clarity.
 
-## 18 — Export content data via git (copy Content Writer v2's existing implementation)
+## 18 — Export content data via git — RESOLVED: already fully implemented, no work needed
 
-Operators need generated content exported as files (`.html` for articles/blog/tool/social/email; `.txt` for image-prompt content and inline per-section image prompts), zipped and/or committed to the geekatyourspot git repo so they can `git pull` the output. **This already exists, fully implemented, in Content Writer v2 — copy it, don't rewrite.**
+**Investigated 2026-08-03. Conclusion: nothing to port. This item is done and was already done before this plan was written.**
 
-**Source to copy (`/Users/jeffmartin/development/content-writer-v2`):**
-- `backend/src/ContentWriter.Api/Controllers/ExportController.cs` — `GET /api/projects/{projectId}/export/html` (zip) and `POST .../export/html/commit` (commit to geekatyourspot via `IGeekatyourspotCommitService`).
-- `backend/src/ContentWriter.Application/Services/Export/HtmlExportService.cs` — the generator: `.html` per document via `SectionHtmlRenderer` (~`:127`), `.txt` for image-prompt content (~`:85`) and `CollectImagePrompts` per-section `image-prompts/sections/{slug}-{sectionIndex}.txt`.
-- `ExportedHtmlDocument.cs` — the `(FileName, Content)` record shared by both formats.
-- The `IGeekatyourspotCommitService` implementation (the git-commit side — this is the "export via git pull" mechanism).
+Original assumption was wrong: earlier research (this session) grepped only GeekAPI's own directory for `ExportController`/`HtmlExportService`/etc. and found nothing, leading to the belief the feature never survived the CWV2→GeekAPI merge. That grep missed the real answer — `GeekAPI.csproj` has direct `ProjectReference`s to all four CWV2 projects (`ContentWriter.Domain`, `.Application`, `.Infrastructure`, `.Api`), so `ExportController`, `HtmlExportService`, `ExportedHtmlDocument`, and `GeekatyourspotCommitService` are compiled directly into the GeekAPI binary — they were never missing, just living in a referenced assembly instead of GeekAPI's own folder.
+
+**Verified directly, not assumed:**
+- `Program.cs:39` — `AddApplicationPart(typeof(ContentWriter.Api.Controllers.ProjectsController).Assembly)` registers the whole `ContentWriter.Api` assembly with MVC, so `ExportController`'s routes (`GET .../export/html`, `POST .../export/html/commit`) are live and reachable.
+- `Program.cs:138` — `AddContentWriter(...)` is called with a `GeekRepositoryPersistenceStore` factory (real persistence via the shared `GeekRepository` HttpClient) — **not** the in-memory store `HtmlExportService.cs`'s `using ContentWriter.Infrastructure.InMemory;` import might have suggested.
+- `ContentWriterServiceRegistration.cs:86,88` — `IHtmlExportService`→`HtmlExportService` and `IGeekatyourspotCommitService`→`GeekatyourspotCommitService` are both registered inside `AddContentWriter`.
+- Frontend already calls it: `src/lib/content-writer/api.ts:423,459` (`downloadHtmlExport()`, `commitHtmlExportToGitHub()`), wired to `ReviewPublishPanel.tsx`'s export button.
+- `dotnet build` on GeekAPI succeeds, 0 errors.
+
+**No code changed.** No follow-up needed unless a live end-to-end test (actually clicking Export in the UI against a real project) surfaces a runtime bug — that would be a new, separate finding, not a continuation of this item.
 
 **Where it goes:** GeekAPI (`/Users/jeffmartin/development/GeekBackend/GeekAPI`) — CWV2's backend was merged here per the `ContentWriterV2.commit` pin ("Phase 1 of retiring the standalone service").
 
