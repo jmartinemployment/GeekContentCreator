@@ -7,7 +7,7 @@ Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator
 **Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
 **Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).  
 **Site Analyzer sitemap step-1:** implemented, deployed, live in production — not yet verified end-to-end against a real domain. Planning docs removed post-merge; see commit history (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`).  
-**Fallback elimination plan (next up, not started):** [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) · [inventory](./docs/FALLBACK_INVENTORY.md) — replaces Site Analyzer's fabricated content-gap fallback with real heading-based detection, eliminates silent provider auto-switching and swallowed exceptions across Geek-SEO/GeekAPI, and ports Content Writer v2's `.html`/`.txt` git export.
+**Fallback elimination plan (implemented):** [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) · [inventory](./docs/FALLBACK_INVENTORY.md) — replaced Site Analyzer's fabricated content-gap fallback with real heading-based detection, eliminated silent provider auto-switching and swallowed exceptions across Geek-SEO/GeekAPI. CWV2's `.html`/`.txt` git export turned out to already be fully implemented, no change needed. 195/195 Geek-SEO tests pass; not yet live-verified against a real domain.
 
 ## Stack
 
@@ -32,7 +32,7 @@ Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted**
 
 **Sitemap step 1 (deployed, not yet live-verified):** Analyze step 1 now always regenerates a crawl-based sitemap inventory + downloadable `sitemap.xml` (unlimited discovery; inventory-complete crawl; fail-closed throw on empty/incomplete). Download sitemap button added to Site Analyzer UI. Unit-tested (191/191 in Geek-SEO), pushed to `main`, and deployed live in all three Railway services (Geek-SEO, GeekAPI, GeekContentCreator); **not yet run end-to-end against a live domain** (requires a real OAuth session to exercise — see `scripts/smoke-site-analyzer.mjs`).
 
-**Known issue (not yet fixed):** Site Analyzer's content-gap detection currently fabricates gaps — when a pillar has fewer than 3 real crawled child pages, it fills in 5 hardcoded generic subtopics instead of finding real ones. Fix + a full inventory of other fallback/soft-success patterns across Geek-SEO and GeekAPI (silent provider auto-switching, swallowed exceptions, etc.) are scoped in [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) — not yet implemented.
+**Fixed:** Site Analyzer's content-gap detection previously fabricated gaps — when a pillar had fewer than 3 real crawled child pages, it filled in 5 hardcoded generic subtopics instead of finding real ones. Now replaced with real heading-based detection (headings found on crawled pages with no matching URL become gaps; a pillar with none shows zero gaps, never invented filler). See [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) for this and the other fallback/soft-success patterns eliminated across Geek-SEO and GeekAPI.
 
 ## Operator smoke (day one)
 
