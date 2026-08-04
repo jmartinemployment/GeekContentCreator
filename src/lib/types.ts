@@ -11,6 +11,13 @@ export type SiteSectionContext = {
   gapSectionPath: string | null;
   relatedPages: RelatedPage[];
   topicalNeighbors: string[];
+  informationGain?: InformationGainNote | null;
+};
+
+export type InformationGainNote = {
+  thisSiteCovers: string[];
+  competitorOpens: string[];
+  summary: string;
 };
 
 export type GccCreate = {

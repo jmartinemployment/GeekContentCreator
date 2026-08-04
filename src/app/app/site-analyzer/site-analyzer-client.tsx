@@ -2,17 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-
-type Gap = {
-  id: string;
-  topic: string;
-  sectionPath: string | null;
-  reason: string;
-  suggestPillar: boolean;
-};
-
 import { writeSiteSectionHandoff } from "@/lib/site-section-storage";
-import type { SiteSectionContext } from "@/lib/types";
+import type { ContentGap, SiteSectionContext } from "@/lib/types";
+import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
+import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
@@ -46,12 +39,17 @@ export function SiteAnalyzerClient() {
   const [domain, setDomain] = useState("");
   const [seedTopic, setSeedTopic] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [gaps, setGaps] = useState<Gap[]>([]);
+  const [gaps, setGaps] = useState<ContentGap[]>([]);
+  const [selectedGapId, setSelectedGapId] = useState<string | null>(null);
+  const [section, setSection] = useState<SiteSectionContext | null>(null);
+  const [curatedSerp, setCuratedSerp] = useState<CuratedSerpSeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stepLabel, setStepLabel] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [pending, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
+
+  const selectedGap = gaps.find((g) => g.id === selectedGapId) ?? null;
 
   useEffect(() => {
     return () => {
@@ -105,6 +103,9 @@ export function SiteAnalyzerClient() {
   function analyze() {
     setError(null);
     setGaps([]);
+    setSelectedGapId(null);
+    setSection(null);
+    setCuratedSerp(null);
     setAnalysisId(null);
     setStepLabel(null);
     abortRef.current?.abort();
@@ -155,49 +156,67 @@ export function SiteAnalyzerClient() {
     setError("Analysis cancelled.");
   }
 
-  function pickGap(gap: Gap) {
+  function openGapDetail(gap: ContentGap) {
     setError(null);
+    setSelectedGapId(gap.id);
+    setSection(null);
+    setCuratedSerp(null);
+    if (!analysisId) return;
     startTransition(async () => {
       try {
-        if (!analysisId) return;
         const res = await fetch(
           `/api/site-analyzer/section-context?analysisId=${encodeURIComponent(analysisId)}&gapTopic=${encodeURIComponent(gap.topic)}`,
         );
-        const section = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(section.error || "Section context failed");
-        if (!section.relatedPages?.length) {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || "Section context failed");
+        if (!body.relatedPages?.length) {
           throw new Error("Site section context missing related pages");
         }
+        setSection(body as SiteSectionContext);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load gap detail");
+        setSelectedGapId(null);
+      }
+    });
+  }
 
+  function startCreate() {
+    if (!analysisId || !selectedGap || !section) return;
+    setError(null);
+    startTransition(() => {
+      try {
         const projectUrl = toAbsoluteSiteUrl(domain);
-        const siteSection = section as SiteSectionContext;
-        try {
-          writeSiteSectionHandoff({
-            siteAnalysisId: analysisId,
-            gapTopic: gap.topic,
-            projectUrl,
-            section: {
-              ...siteSection,
-              siteAnalysisId: siteSection.siteAnalysisId || analysisId,
-              gapTopic: siteSection.gapTopic || gap.topic,
-            },
-          });
-        } catch {
-          throw new Error(
-            "Could not store site section context. Allow session storage and try again.",
-          );
-        }
+        const gapSectionPath =
+          selectedGap.sectionPath ?? section.gapSectionPath ?? null;
+        writeSiteSectionHandoff({
+          siteAnalysisId: analysisId,
+          gapTopic: selectedGap.topic,
+          gapReason: selectedGap.reason,
+          gapSectionPath,
+          projectUrl,
+          section: {
+            ...section,
+            siteAnalysisId: section.siteAnalysisId || analysisId,
+            gapTopic: section.gapTopic || selectedGap.topic,
+            gapSectionPath: section.gapSectionPath ?? gapSectionPath,
+          },
+          curatedSerp,
+        });
 
         const q = new URLSearchParams({
-          topic: gap.topic,
+          topic: selectedGap.topic,
           siteAnalysisId: analysisId,
         });
         if (projectUrl) q.set("projectUrl", projectUrl);
-        if (gap.suggestPillar) q.set("suggestPillar", "1");
+        if (selectedGap.suggestPillar) q.set("suggestPillar", "1");
+        if (gapSectionPath) q.set("sectionPath", gapSectionPath);
+        if (selectedGap.reason) q.set("gapReason", selectedGap.reason);
 
         router.push(`/app/create?${q.toString()}`);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to start create");
+      } catch {
+        setError(
+          "Could not store site section context. Allow session storage and try again.",
+        );
       }
     });
   }
@@ -241,9 +260,9 @@ export function SiteAnalyzerClient() {
           ) : null}
         </div>
         <p className="text-xs text-[var(--gcc-muted)]">
-          Enter a site domain and click Analyze. Analysis runs here and lists content
-          gaps when ready. Pick a gap to start a create with related pages from that
-          site section.
+          Enter a site domain and click Analyze. Pick a gap to review SERP shape, PAA,
+          and Information Gain, then start a create with related pages from that site
+          section.
         </p>
         {stepLabel ? (
           <p className="text-xs text-[var(--gcc-muted)]">{stepLabel}</p>
@@ -272,26 +291,66 @@ export function SiteAnalyzerClient() {
       {gaps.length > 0 ? (
         <ul className="divide-y divide-[var(--gcc-line)] border border-[var(--gcc-line)] bg-white">
           {gaps.map((g) => (
-            <li
-              key={g.id}
-              className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="font-medium">{g.topic}</p>
-                <p className="text-xs text-[var(--gcc-muted)]">
-                  {g.sectionPath ? `${g.sectionPath} · ` : ""}
-                  {g.reason}
-                  {g.suggestPillar ? " · suggest pillar" : ""}
-                </p>
+            <li key={g.id} className="px-4 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">{g.topic}</p>
+                  <p className="text-xs text-[var(--gcc-muted)]">
+                    {g.sectionPath ? `${g.sectionPath} · ` : ""}
+                    {g.reason}
+                    {g.suggestPillar ? " · suggest pillar" : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => openGapDetail(g)}
+                  className="shrink-0 rounded-md border border-[var(--gcc-teal)] px-3 py-1.5 text-sm font-semibold text-[var(--gcc-teal-deep)]"
+                >
+                  {selectedGapId === g.id ? "Selected" : "Review gap"}
+                </button>
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => pickGap(g)}
-                className="shrink-0 rounded-md border border-[var(--gcc-teal)] px-3 py-1.5 text-sm font-semibold text-[var(--gcc-teal-deep)]"
-              >
-                Start create
-              </button>
+
+              {selectedGapId === g.id ? (
+                <div className="mt-4 border-t border-[var(--gcc-line)] pt-4">
+                  {!section ? (
+                    <p className="text-xs text-[var(--gcc-muted)]">Loading section context…</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-[var(--gcc-muted)]">
+                        {section.relatedPages.length} related page
+                        {section.relatedPages.length === 1 ? "" : "s"}
+                        {section.informationGain
+                          ? ` · ${section.informationGain.summary}`
+                          : ""}
+                      </p>
+                      <SerpIngestPanel
+                        gapTopic={g.topic}
+                        informationGain={section.informationGain}
+                        onCurated={setCuratedSerp}
+                      />
+                      {curatedSerp ? (
+                        <p className="mt-2 text-xs text-green-700">
+                          SERP shortlist confirmed — will seed the Content Brief on create.
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-xs text-[var(--gcc-muted)]">
+                          SERP ingest is optional but recommended. You can start create without
+                          it and hand-enter SERP fields later.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={startCreate}
+                        className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        Start create
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

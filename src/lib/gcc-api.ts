@@ -7,6 +7,7 @@ import type { ContentBrief } from "@/lib/content-writer/brief-catalog";
 import { ApiError } from "@/lib/content-writer/api";
 import type { SiteSectionContext } from "@/lib/types";
 import { siteSectionForApi } from "@/lib/site-section-storage";
+import type { SavedSerpParseResult } from "@/lib/content-writer/serp-lens";
 
 const API_BASE = "/api/cw";
 
@@ -388,6 +389,19 @@ export function serpIndexFromBrief(brief: ContentBrief): GccSerpIndex {
     peopleAlsoAsk: lines(brief.paaQuestions),
     relatedSearches: lines(brief.relatedSearches),
   };
+}
+
+export function parseSavedSerp(
+  content: string,
+  targetKeyword?: string | null,
+): Promise<SavedSerpParseResult> {
+  return gccRequest<SavedSerpParseResult>("/api/geek-content-creator/serp/parse", {
+    method: "POST",
+    body: JSON.stringify({
+      content,
+      targetKeyword: targetKeyword?.trim() || null,
+    }),
+  });
 }
 
 export function organicUrlsFromBrief(brief: ContentBrief): string[] {

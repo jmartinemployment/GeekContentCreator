@@ -2,25 +2,26 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AUDIENCE_MODIFIERS,
-  AUDIENCE_PRIMARIES,
-  BUYING_STAGE_GROUPS,
-  BUYING_STAGE_HELPER,
+  AUDIENCE_DETAILS,
+  AUDIENCE_SEGMENTS,
+  BUYING_STAGES,
   CONTENT_ANGLES,
   CTA_TYPES,
-  SEARCH_INTENTS,
-  TOV_PRESETS,
-  TOV_SCALES,
-  buildToneOfVoiceSummary,
+  EEAT_SIGNALS,
+  PRIMARY_INTENTS,
+  SECONDARY_INTENTS,
+  TONES_OF_VOICE,
   contentBriefMissingFields,
   emptyContentBrief,
   isContentBriefComplete,
   loadBriefFromStorage,
+  migrateBrief,
   saveBriefToStorage,
-  type AudienceModifier,
+  toneAllowed,
+  type AudienceDetail,
   type ContentBrief,
+  type EeatSignal,
   type LengthBandKey,
-  type TovScaleKey,
 } from "@/lib/content-writer/brief-catalog";
 import { LENGTH_BAND_OPTIONS } from "@/lib/content-writer/types";
 import { ApiError } from "@/lib/content-writer/api";
@@ -38,6 +39,7 @@ import {
   clearSiteSectionHandoff,
   readSiteSectionHandoff,
 } from "@/lib/site-section-storage";
+import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
 
 export default function ContentBriefPanel({
   clientId,
@@ -73,8 +75,51 @@ export default function ContentBriefPanel({
     let cancelled = false;
     const stored = loadBriefFromStorage(targetKeyword || "draft");
     const fromKw = loadBriefFromStorage(`kw:${targetKeyword}`);
-    const localBrief = fromKw ?? stored ?? emptyContentBrief();
+    let localBrief = fromKw ?? stored ?? emptyContentBrief();
+
+    // Seed from Site Analyzer handoff (gap reason + curated SERP) once — only fill empty fields.
+    try {
+      const handoff = readSiteSectionHandoff();
+      if (handoff) {
+        const seedNotes: string[] = [];
+        if (handoff.gapReason?.trim()) {
+          seedNotes.push(`Gap reason: ${handoff.gapReason.trim()}`);
+        }
+        if (handoff.gapSectionPath?.trim()) {
+          seedNotes.push(`Section path: ${handoff.gapSectionPath.trim()}`);
+        }
+        if (handoff.curatedSerp?.shapeGuidance?.trim()) {
+          seedNotes.push(`SERP shape: ${handoff.curatedSerp.shapeGuidance.trim()}`);
+        }
+        if (handoff.curatedSerp?.informationGainSummary?.trim()) {
+          seedNotes.push(
+            `Information Gain: ${handoff.curatedSerp.informationGainSummary.trim()}`,
+          );
+        }
+        if (seedNotes.length && !localBrief.writingNotes.trim()) {
+          localBrief = {
+            ...localBrief,
+            writingNotes: seedNotes.join("\n"),
+          };
+        }
+        const serp = handoff.curatedSerp;
+        if (serp) {
+          localBrief = {
+            ...localBrief,
+            serpTitles: localBrief.serpTitles.trim() || serp.serpTitles,
+            serpUrls: localBrief.serpUrls.trim() || serp.serpUrls,
+            paaQuestions: localBrief.paaQuestions.trim() || serp.paaQuestions,
+            relatedSearches:
+              localBrief.relatedSearches.trim() || serp.relatedSearches,
+          };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
     setBrief(localBrief);
+    saveBriefToStorage(`kw:${targetKeyword}`, localBrief);
 
     (async () => {
       let cid: string | null = createIdProp ?? null;
@@ -92,14 +137,25 @@ export default function ContentBriefPanel({
           if (cancelled) return;
           if (create.briefJson) {
             try {
-              const parsed = JSON.parse(create.briefJson) as ContentBrief;
-              setBrief(parsed);
-              saveBriefToStorage(`kw:${targetKeyword}`, parsed);
+              const parsed = migrateBrief(JSON.parse(create.briefJson));
+              // Prefer server brief, but keep locally seeded SERP/notes if server fields are empty.
+              const merged = {
+                ...parsed,
+                serpTitles: parsed.serpTitles.trim() || localBrief.serpTitles,
+                serpUrls: parsed.serpUrls.trim() || localBrief.serpUrls,
+                paaQuestions: parsed.paaQuestions.trim() || localBrief.paaQuestions,
+                relatedSearches:
+                  parsed.relatedSearches.trim() || localBrief.relatedSearches,
+                writingNotes: parsed.writingNotes.trim() || localBrief.writingNotes,
+              };
+              setBrief(merged);
+              saveBriefToStorage(`kw:${targetKeyword}`, merged);
             } catch {
               /* keep local brief */
             }
             onBriefSaved(cid, true);
           } else {
+            // No server brief yet — keep Site Analyzer–seeded local brief.
             onBriefSaved(cid, false);
           }
         } catch {
@@ -118,10 +174,6 @@ export default function ContentBriefPanel({
 
   const missing = useMemo(() => contentBriefMissingFields(brief), [brief]);
   const complete = missing.length === 0;
-  const tovSummary = useMemo(
-    () => buildToneOfVoiceSummary(brief.toneOfVoice),
-    [brief.toneOfVoice],
-  );
 
   useEffect(() => {
     if (!hydrated) return;
@@ -134,32 +186,41 @@ export default function ContentBriefPanel({
 
   function patch(partial: Partial<ContentBrief>) {
     setBrief((prev) => {
-      const next = { ...prev, ...partial };
+      let next = { ...prev, ...partial };
+      // If a newly chosen intent/angle disqualifies the current tone, clear it.
+      if (
+        (partial.primaryIntent !== undefined || partial.angle !== undefined) &&
+        next.toneOfVoice &&
+        !toneAllowed(next.toneOfVoice, next.primaryIntent, next.angle)
+      ) {
+        next = { ...next, toneOfVoice: "" };
+      }
       persistLocal(next);
       return next;
     });
     setSavedMsg(null);
   }
 
-  function toggleModifier(value: AudienceModifier) {
+  function toggleDetail(value: AudienceDetail) {
     setBrief((prev) => {
-      const has = prev.audienceModifiers.includes(value);
-      const audienceModifiers = has
-        ? prev.audienceModifiers.filter((m) => m !== value)
-        : [...prev.audienceModifiers, value];
-      const next = { ...prev, audienceModifiers };
+      const has = prev.audienceDetails.includes(value);
+      const audienceDetails = has
+        ? prev.audienceDetails.filter((m) => m !== value)
+        : [...prev.audienceDetails, value];
+      const next = { ...prev, audienceDetails };
       persistLocal(next);
       return next;
     });
     setSavedMsg(null);
   }
 
-  function setTov(key: TovScaleKey, value: number) {
+  function toggleEeat(value: EeatSignal) {
     setBrief((prev) => {
-      const next = {
-        ...prev,
-        toneOfVoice: { ...prev.toneOfVoice, [key]: value },
-      };
+      const has = prev.eeatSignals.includes(value);
+      const eeatSignals = has
+        ? prev.eeatSignals.filter((s) => s !== value)
+        : [...prev.eeatSignals, value];
+      const next = { ...prev, eeatSignals };
       persistLocal(next);
       return next;
     });
@@ -275,22 +336,23 @@ export default function ContentBriefPanel({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">Content Brief</h2>
       <p className="mt-1 text-sm text-muted">
-        Saved on the Content Creator create (GeekAPI). Generate reads server state only — not
-        local drafts. Fail closed: Generate stays disabled until required fields are saved.
+        Controls aligned to Google Search &amp; Ads terminology. Saved on the Content Creator
+        create (GeekAPI); Generate reads server state only. Fail closed: Generate stays disabled
+        until required fields are saved.
       </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>
-          Intent{requiredMark(!!brief.intent)}
+          Primary intent{requiredMark(!!brief.primaryIntent)}
           <select
-            value={brief.intent}
+            value={brief.primaryIntent}
             onChange={(e) =>
-              patch({ intent: e.target.value as ContentBrief["intent"] })
+              patch({ primaryIntent: e.target.value as ContentBrief["primaryIntent"] })
             }
             className={fieldClass}
           >
-            <option value="">Select intent</option>
-            {SEARCH_INTENTS.map((o) => (
+            <option value="">Select primary intent</option>
+            {PRIMARY_INTENTS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -299,7 +361,25 @@ export default function ContentBriefPanel({
         </label>
 
         <label className={labelClass}>
-          Buying stage{requiredMark(!!brief.buyingStage)}
+          Secondary intent (optional)
+          <select
+            value={brief.secondaryIntent}
+            onChange={(e) =>
+              patch({ secondaryIntent: e.target.value as ContentBrief["secondaryIntent"] })
+            }
+            className={fieldClass}
+          >
+            <option value="">None</option>
+            {SECONDARY_INTENTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className={labelClass}>
+          Buying stage (Full Funnel){requiredMark(!!brief.buyingStage)}
           <select
             value={brief.buyingStage}
             onChange={(e) =>
@@ -308,49 +388,48 @@ export default function ContentBriefPanel({
             className={fieldClass}
           >
             <option value="">Select buying stage</option>
-            {BUYING_STAGE_GROUPS.map((g) => (
-              <optgroup key={g.label} label={g.label}>
-                {g.options.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <span className="text-xs font-normal text-muted">{BUYING_STAGE_HELPER}</span>
-        </label>
-
-        <label className={labelClass}>
-          Audience{requiredMark(!!brief.audiencePrimary)}
-          <select
-            value={brief.audiencePrimary}
-            onChange={(e) =>
-              patch({
-                audiencePrimary: e.target.value as ContentBrief["audiencePrimary"],
-              })
-            }
-            className={fieldClass}
-          >
-            <option value="">Select audience</option>
-            {AUDIENCE_PRIMARIES.map((o) => (
+            {BUYING_STAGES.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
+          <span className="text-xs font-normal text-muted">
+            Google Ads Full-Funnel objective.
+          </span>
+        </label>
+
+        <label className={labelClass}>
+          Audience segment{requiredMark(!!brief.audienceSegment)}
+          <select
+            value={brief.audienceSegment}
+            onChange={(e) =>
+              patch({
+                audienceSegment: e.target.value as ContentBrief["audienceSegment"],
+              })
+            }
+            className={fieldClass}
+          >
+            <option value="">Select audience segment</option>
+            {AUDIENCE_SEGMENTS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs font-normal text-muted">Google Ads audience segments.</span>
         </label>
 
         <div className="sm:col-span-2">
-          <p className="text-sm font-medium text-foreground">Audience modifiers (optional)</p>
+          <p className="text-sm font-medium text-foreground">Audience details (optional)</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {AUDIENCE_MODIFIERS.map((m) => {
-              const on = brief.audienceModifiers.includes(m.value);
+            {AUDIENCE_DETAILS.map((m) => {
+              const on = brief.audienceDetails.includes(m.value);
               return (
                 <button
                   key={m.value}
                   type="button"
-                  onClick={() => toggleModifier(m.value)}
+                  onClick={() => toggleDetail(m.value)}
                   className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
                     on
                       ? "border-brand bg-brand/10 text-brand"
@@ -365,27 +444,18 @@ export default function ContentBriefPanel({
         </div>
 
         <label className={`${labelClass} sm:col-span-2`}>
-          Audience detail{requiredMark(!!brief.audienceDetail.trim())}
+          Audience notes{requiredMark(!!brief.audienceNotes.trim())}
           <textarea
-            value={brief.audienceDetail}
-            onChange={(e) => patch({ audienceDetail: e.target.value })}
+            value={brief.audienceNotes}
+            onChange={(e) => patch({ audienceNotes: e.target.value })}
             rows={2}
-            placeholder="Concrete segment — detail wins if it conflicts with primary"
-            className={fieldClass}
-          />
-        </label>
-
-        <label className={`${labelClass} sm:col-span-2`}>
-          Audience exclude (optional)
-          <input
-            value={brief.audienceExclude}
-            onChange={(e) => patch({ audienceExclude: e.target.value })}
+            placeholder="Concrete audience notes — these win if they conflict with the segment"
             className={fieldClass}
           />
         </label>
 
         <label className={labelClass}>
-          Angle{requiredMark(!!brief.angle)}
+          Angle for SEO{requiredMark(!!brief.angle)}
           <select
             value={brief.angle}
             onChange={(e) =>
@@ -400,10 +470,13 @@ export default function ContentBriefPanel({
               </option>
             ))}
           </select>
+          <span className="text-xs font-normal text-muted">
+            Editorial choice — match the dominant SERP format.
+          </span>
         </label>
 
         <label className={labelClass}>
-          Call to action{requiredMark(!!brief.ctaType)}
+          Discovery CTA type{requiredMark(!!brief.ctaType)}
           <select
             value={brief.ctaType}
             onChange={(e) =>
@@ -449,41 +522,59 @@ export default function ContentBriefPanel({
       </div>
 
       <div className="mt-6 border-t border-border pt-5">
-        <p className="text-sm font-medium text-foreground">Tone of voice</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {TOV_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => patch({ toneOfVoice: { ...p.scales } })}
-              className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium"
-            >
-              {p.label}
-            </button>
-          ))}
+        <label className={labelClass}>
+          Tone of voice{requiredMark(!!brief.toneOfVoice)}
+          <select
+            value={brief.toneOfVoice}
+            onChange={(e) =>
+              patch({ toneOfVoice: e.target.value as ContentBrief["toneOfVoice"] })
+            }
+            className={fieldClass}
+          >
+            <option value="">Select tone</option>
+            {TONES_OF_VOICE.map((o) => {
+              const allowed = toneAllowed(o.value, brief.primaryIntent, brief.angle);
+              return (
+                <option key={o.value} value={o.value} disabled={!allowed}>
+                  {o.label}
+                  {allowed ? "" : " — not compatible with this intent/angle"}
+                </option>
+              );
+            })}
+          </select>
+          <span className="text-xs font-normal text-muted">
+            Internal editorial control (not a Google attribute). Options gated by primary intent
+            and angle.
+          </span>
+        </label>
+
+        <div className="mt-4">
+          <p className="text-sm font-medium text-foreground">
+            E-E-A-T signals{requiredMark(brief.eeatSignals.length > 0)}
+          </p>
+          <p className="text-xs text-muted">
+            Google Search Quality framework — pick at least one.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {EEAT_SIGNALS.map((s) => {
+              const on = brief.eeatSignals.includes(s.value);
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => toggleEeat(s.value)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                    on
+                      ? "border-brand bg-brand/10 text-brand"
+                      : "border-border bg-white text-muted"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="mt-4 space-y-4">
-          {TOV_SCALES.map((scale) => (
-            <label key={scale.key} className="block text-xs text-muted">
-              <span className="flex justify-between font-medium text-foreground">
-                <span>{scale.left}</span>
-                <span>{scale.right}</span>
-              </span>
-              <input
-                type="range"
-                min={1}
-                max={5}
-                step={1}
-                value={brief.toneOfVoice[scale.key]}
-                onChange={(e) => setTov(scale.key, Number(e.target.value))}
-                className="mt-1 w-full accent-brand"
-              />
-            </label>
-          ))}
-        </div>
-        <p className="mt-3 text-sm">
-          Summary: <span className="font-medium">{tovSummary}</span>
-        </p>
       </div>
 
       <div className="mt-6 border-t border-border pt-5">
@@ -491,9 +582,39 @@ export default function ContentBriefPanel({
           SERP index + deep research (follow destination URLs)
         </p>
         <p className="mt-1 text-xs text-muted">
-          Do not upload Google results HTML. Hand-enter titles/URLs/PAA. Follow ≤3 URLs — any
-          fetch/empty extract fails the whole research op.
+          Prefer uploading a saved Google results page (page 1 for PAA) via Site Analyzer gap
+          review, or use the ingest panel below. Textareas remain a manual fallback. Follow ≤3
+          organic URLs — any fetch/empty extract fails the whole research op.
         </p>
+        <div className="mt-3">
+          <SerpIngestPanel
+            gapTopic={targetKeyword}
+            onCurated={(seed) => {
+              if (!seed) return;
+              setBrief((prev) => {
+                const next = {
+                  ...prev,
+                  serpTitles: seed.serpTitles || prev.serpTitles,
+                  serpUrls: seed.serpUrls || prev.serpUrls,
+                  paaQuestions: seed.paaQuestions || prev.paaQuestions,
+                  relatedSearches: seed.relatedSearches || prev.relatedSearches,
+                  writingNotes: [
+                    prev.writingNotes.trim(),
+                    seed.shapeGuidance ? `SERP shape: ${seed.shapeGuidance}` : "",
+                    seed.informationGainSummary
+                      ? `Information Gain: ${seed.informationGainSummary}`
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join("\n"),
+                };
+                persistLocal(next);
+                return next;
+              });
+              setSavedMsg(null);
+            }}
+          />
+        </div>
         <label className={`${labelClass} mt-3`}>
           Organic titles (one per line)
           <textarea

@@ -5,12 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SiteContextBanner } from "@/components/SiteContextBanner";
 import { getClients, ApiError } from "@/lib/content-writer/api";
 import type { Client } from "@/lib/content-writer/types";
+import {
+  emptyContentBrief,
+  loadBriefFromStorage,
+  saveBriefToStorage,
+} from "@/lib/content-writer/brief-catalog";
 import { createGccCreate } from "@/lib/gcc-api";
 import {
   clearSiteSectionHandoff,
   readSiteSectionHandoff,
   type SiteSectionHandoff,
 } from "@/lib/site-section-storage";
+import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 
 const STARTING_TYPES = [
   { value: "blog", label: "Blog post" },
@@ -79,6 +85,14 @@ export default function CreateStartForm() {
   useEffect(() => {
     const h = readSiteSectionHandoff();
     setHandoff(h);
+    if (h?.gapReason?.trim()) {
+      setNotes((prev) => {
+        if (prev.trim()) return prev;
+        const bits = [`Gap reason: ${h.gapReason!.trim()}`];
+        if (h.gapSectionPath?.trim()) bits.push(`Section path: ${h.gapSectionPath.trim()}`);
+        return bits.join("\n");
+      });
+    }
     if (siteAnalysisIdQuery && !h) {
       setError(
         "Site Analyzer create is missing site section context (related pages). Go back to Site Analyzer and pick the gap again.",
@@ -109,10 +123,16 @@ export default function CreateStartForm() {
     }
     startTransition(async () => {
       try {
+        const topicTrimmed = topic.trim();
+        // Persist curated SERP + gap metadata into local brief storage BEFORE clearing
+        // handoff — CreateStartForm clears sessionStorage, so ContentBriefPanel would
+        // otherwise never see curatedSerp.
+        seedBriefFromHandoff(topicTrimmed, handoff, notes.trim());
+
         const created = await createGccCreate({
           clientId,
           startingContentType,
-          topic: topic.trim(),
+          topic: topicTrimmed,
           notes: notes.trim() || null,
           siteAnalysisId:
             handoff?.siteAnalysisId || siteAnalysisIdQuery || null,
@@ -227,4 +247,47 @@ export default function CreateStartForm() {
       </div>
     </div>
   );
+}
+
+/** Merge Site Analyzer handoff into local brief storage so ContentBriefPanel can load it. */
+function seedBriefFromHandoff(
+  topic: string,
+  handoff: SiteSectionHandoff | null,
+  createNotes: string,
+): void {
+  if (!topic) return;
+  const existing = loadBriefFromStorage(`kw:${topic}`) ?? emptyContentBrief();
+  const noteParts: string[] = [];
+  if (existing.writingNotes.trim()) noteParts.push(existing.writingNotes.trim());
+  if (createNotes && !noteParts.some((n) => n.includes(createNotes))) {
+    noteParts.push(createNotes);
+  }
+  if (handoff?.gapReason?.trim()) {
+    const line = `Gap reason: ${handoff.gapReason.trim()}`;
+    if (!noteParts.some((n) => n.includes(line))) noteParts.push(line);
+  }
+  if (handoff?.gapSectionPath?.trim()) {
+    const line = `Section path: ${handoff.gapSectionPath.trim()}`;
+    if (!noteParts.some((n) => n.includes(line))) noteParts.push(line);
+  }
+
+  const serp: CuratedSerpSeed | null | undefined = handoff?.curatedSerp;
+  if (serp?.shapeGuidance?.trim()) {
+    const line = `SERP shape: ${serp.shapeGuidance.trim()}`;
+    if (!noteParts.some((n) => n.includes("SERP shape:"))) noteParts.push(line);
+  }
+  if (serp?.informationGainSummary?.trim()) {
+    const line = `Information Gain: ${serp.informationGainSummary.trim()}`;
+    if (!noteParts.some((n) => n.includes("Information Gain:"))) noteParts.push(line);
+  }
+
+  const next = {
+    ...existing,
+    writingNotes: noteParts.join("\n"),
+    serpTitles: existing.serpTitles.trim() || serp?.serpTitles || "",
+    serpUrls: existing.serpUrls.trim() || serp?.serpUrls || "",
+    paaQuestions: existing.paaQuestions.trim() || serp?.paaQuestions || "",
+    relatedSearches: existing.relatedSearches.trim() || serp?.relatedSearches || "",
+  };
+  saveBriefToStorage(`kw:${topic}`, next);
 }

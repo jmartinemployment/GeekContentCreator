@@ -1,181 +1,179 @@
 /**
- * Locked Content Brief catalogs for Geek Content Creator.
- * Human-selected controls — not inferred from SERP HTML.
+ * Content Brief catalogs for Geek Content Creator — aligned to Google's
+ * documented Search & Ads terminology.
+ *
+ * Google-grounded fields cite their source; Tone of Voice and Content Angle
+ * are internal editorial controls (Google publishes no such taxonomy) and are
+ * marked as such. Human-selected controls — not inferred from SERP HTML.
  */
 
-export const SEARCH_INTENTS = [
+/** Bump when the ContentBrief shape or catalog values change (drives migration). */
+export const BRIEF_VERSION = 2;
+
+/* ------------------------------------------------------------------ *
+ * 1.A  Search intent (SEO-standard taxonomy; not a live Google enum)  *
+ * ------------------------------------------------------------------ */
+
+export const PRIMARY_INTENTS = [
   { value: "informational", label: "Informational" },
+  { value: "navigational", label: "Navigational" },
   { value: "commercial_investigation", label: "Commercial investigation" },
   { value: "transactional", label: "Transactional" },
-  { value: "navigational", label: "Navigational" },
+] as const;
+
+export type PrimaryIntent = (typeof PRIMARY_INTENTS)[number]["value"];
+
+export const SECONDARY_INTENTS = [
   { value: "local", label: "Local" },
+  { value: "freebies", label: "Freebies" },
   { value: "comparison", label: "Comparison" },
 ] as const;
 
-export type SearchIntent = (typeof SEARCH_INTENTS)[number]["value"];
+export type SecondaryIntent = (typeof SECONDARY_INTENTS)[number]["value"];
 
-/** Single-select buying stage: Funnel + Analytics groups (pick exactly one). */
-export const BUYING_STAGE_GROUPS = [
-  {
-    label: "Funnel",
-    options: [
-      { value: "awareness", label: "Awareness" },
-      { value: "consideration", label: "Consideration (Research / Evaluation)" },
-      { value: "decision", label: "Decision (Conversion / Purchase)" },
-      { value: "retention", label: "Retention" },
-      { value: "advocacy", label: "Advocacy / Loyalty" },
-    ],
-  },
-  {
-    label: "Analytics / Tag Manager",
-    options: [
-      { value: "tof_interest", label: "Top of funnel (Interest)" },
-      { value: "mof_consideration", label: "Middle of funnel (Consideration)" },
-      { value: "bof_actions", label: "Bottom of funnel (Actions)" },
-    ],
-  },
+/* ------------------------------------------------------------------ *
+ * 1.B  Buying stage → Google Ads Full-Funnel objectives              *
+ * ------------------------------------------------------------------ */
+
+export const BUYING_STAGES = [
+  { value: "awareness", label: "Awareness (Top of Funnel)" },
+  { value: "consideration", label: "Consideration (Middle of Funnel)" },
+  { value: "action", label: "Action / Conversion (Bottom of Funnel)" },
 ] as const;
 
-export type BuyingStage =
-  (typeof BUYING_STAGE_GROUPS)[number]["options"][number]["value"];
+export type BuyingStage = (typeof BUYING_STAGES)[number]["value"];
 
-export const BUYING_STAGE_HELPER =
-  "Top / Middle / Bottom of funnel are Analytics naming for Awareness / Consideration / Decision. Pick one stage — do not treat Analytics labels as a second independent stage.";
+/* ------------------------------------------------------------------ *
+ * 1.C  Audience Segments (verbatim Google Ads audience segments)     *
+ *      https://support.google.com/google-ads/answer/2497941          *
+ * ------------------------------------------------------------------ */
 
-export const AUDIENCE_PRIMARIES = [
-  { value: "cold_prospect", label: "Cold prospect" },
-  { value: "engaged_visitor", label: "Engaged visitor" },
-  { value: "in_market", label: "In-market / high intent" },
-  { value: "lead", label: "Lead" },
-  { value: "customer", label: "Customer" },
-  { value: "lapsed", label: "Lapsed" },
-  { value: "lookalike", label: "Lookalike of customers" },
-  { value: "account_based", label: "Account-based (named accounts)" },
-  { value: "interest_affinity", label: "Interest / affinity" },
-  { value: "local_geo", label: "Local / geo-radius" },
+export const AUDIENCE_SEGMENTS = [
+  { value: "affinity", label: "Affinity Segments" },
+  { value: "in_market", label: "In-Market Segments" },
+  { value: "life_events", label: "Life Events" },
+  { value: "detailed_demographics", label: "Detailed Demographics" },
+  { value: "your_data", label: "Your Data Segments (formerly Remarketing)" },
+  { value: "custom", label: "Custom Segments" },
 ] as const;
 
-export type AudiencePrimary = (typeof AUDIENCE_PRIMARIES)[number]["value"];
+export type AudienceSegment = (typeof AUDIENCE_SEGMENTS)[number]["value"];
 
-export const AUDIENCE_MODIFIERS = [
-  { value: "demographic", label: "Demographic" },
-  { value: "firmographic", label: "Firmographic" },
-  { value: "buying_committee", label: "Buying-committee role" },
-  { value: "life_event", label: "Life event" },
-  { value: "list_match", label: "List match" },
+/** Optional multi-select chips describing how the segment is refined. */
+export const AUDIENCE_DETAILS = [
+  { value: "demographic_attributes", label: "Demographic Attributes" },
+  { value: "behavioral_triggers", label: "Behavioral Data Triggers" },
+  { value: "boolean_combination", label: "Boolean Combination Logic" },
 ] as const;
 
-export type AudienceModifier = (typeof AUDIENCE_MODIFIERS)[number]["value"];
+export type AudienceDetail = (typeof AUDIENCE_DETAILS)[number]["value"];
+
+/* ------------------------------------------------------------------ *
+ * 1.D  Angle for SEO (internal editorial control — NOT a Google      *
+ *      attribute; choose to match the dominant SERP intent/format)   *
+ * ------------------------------------------------------------------ */
 
 export const CONTENT_ANGLES = [
-  { value: "howto_workflow", label: "How-to / workflow" },
-  { value: "explainer", label: "Explainer / definition" },
-  { value: "comparison", label: "Comparison" },
-  { value: "listicle", label: "Listicle / roundup" },
-  { value: "case_study", label: "Case study / proof" },
-  { value: "problem_solution", label: "Problem → solution" },
-  { value: "objection_faq", label: "Objection-handling / FAQ-led" },
+  { value: "comparative", label: 'The Comparative Angle ("Versus")' },
+  { value: "problem_solution", label: "The Problem-Solution Angle" },
+  { value: "case_study_data", label: "The Case Study / Data-Driven Angle" },
+  { value: "ultimate_guide", label: 'The Comprehensive "Ultimate Guide" Angle' },
 ] as const;
 
 export type ContentAngle = (typeof CONTENT_ANGLES)[number]["value"];
 
+/* ------------------------------------------------------------------ *
+ * 1.E  Discovery CTA Types (Google Ads CallToActionTypeEnum)         *
+ *      developers.google.com/google-ads/api/reference/rpc/v21/CallToActionTypeEnum
+ * ------------------------------------------------------------------ */
+
 export const CTA_TYPES = [
-  { value: "book_demo", label: "Book a demo / call" },
-  { value: "start_trial", label: "Start free trial / signup" },
-  { value: "download", label: "Download resource" },
-  { value: "contact_quote", label: "Contact / get a quote" },
-  { value: "read_related", label: "Read related guide" },
-  { value: "subscribe", label: "Subscribe / join list" },
-  { value: "buy", label: "Buy / checkout" },
+  { value: "sign_up", label: "Sign Up" },
+  { value: "contact_us", label: "Contact Us" },
+  { value: "book_now", label: "Book Now" },
+  { value: "download", label: "Download" },
+  { value: "learn_more", label: "Learn More" },
+  { value: "apply_now", label: "Apply Now" },
+  { value: "get_quote", label: "Get Quote" },
 ] as const;
 
 export type CtaType = (typeof CTA_TYPES)[number]["value"];
 
-/** Bipolar ToV scales: 1 = left, 3 = neutral, 5 = right. */
-export const TOV_SCALES = [
-  { key: "formalCasual", left: "Formal", right: "Casual" },
-  { key: "seriousPlayful", left: "Serious", right: "Playful" },
-  { key: "matterEnthusiastic", left: "Matter-of-fact", right: "Enthusiastic" },
-  { key: "technicalPlain", left: "Technical", right: "Plain-language" },
-  { key: "authoritativePeer", left: "Authoritative", right: "Peer / humble" },
-  { key: "warmDetached", left: "Warm / empathetic", right: "Detached / clinical" },
+/* ------------------------------------------------------------------ *
+ * 1.F  Tone of Voice + E-E-A-T                                       *
+ * ------------------------------------------------------------------ */
+
+/** Method 1 — internal editorial control (Google publishes no tone taxonomy). */
+export const TONES_OF_VOICE = [
+  { value: "consultant_professional", label: "Consultant / Professional Tone" },
+  { value: "informational_instructional", label: "Informational / Instructional Tone" },
+  { value: "commercial_balanced", label: "Commercial / Balanced Tone" },
 ] as const;
 
-export type TovScaleKey = (typeof TOV_SCALES)[number]["key"];
+export type ToneOfVoice = (typeof TONES_OF_VOICE)[number]["value"];
 
-export type ToneOfVoiceScales = Record<TovScaleKey, number>;
+/**
+ * Method 2 — E-E-A-T, Google Search Quality Rater framework (four signals).
+ * https://developers.google.com/search/blog/2022/12/google-raters-guidelines-e-e-a-t
+ */
+export const EEAT_SIGNALS = [
+  { value: "first_hand_experience", label: "First-Hand Experience" },
+  { value: "expertise", label: "Expertise" },
+  { value: "authoritativeness", label: "Authoritativeness" },
+  { value: "trustworthiness", label: "Trustworthiness" },
+] as const;
 
-export const TOV_NEUTRAL: ToneOfVoiceScales = {
-  formalCasual: 3,
-  seriousPlayful: 3,
-  matterEnthusiastic: 3,
-  technicalPlain: 3,
-  authoritativePeer: 3,
-  warmDetached: 3,
+export type EeatSignal = (typeof EEAT_SIGNALS)[number]["value"];
+
+/**
+ * Tone availability gated by Primary Intent ∩ Angle for SEO.
+ * Empty intersection → fall back to intent-allow only (see toneAllowed).
+ * Secondary intent does not gate voice.
+ */
+export const TONE_COMPATIBILITY: Record<
+  ToneOfVoice,
+  { intents: PrimaryIntent[]; angles: ContentAngle[] }
+> = {
+  consultant_professional: {
+    intents: ["informational", "commercial_investigation", "navigational"],
+    angles: ["problem_solution", "case_study_data", "ultimate_guide"],
+  },
+  informational_instructional: {
+    intents: ["informational", "navigational"],
+    angles: ["problem_solution", "ultimate_guide"],
+  },
+  commercial_balanced: {
+    intents: ["commercial_investigation", "transactional"],
+    angles: ["comparative", "case_study_data"],
+  },
 };
 
-export const TOV_PRESETS: { id: string; label: string; scales: ToneOfVoiceScales }[] = [
-  {
-    id: "professional",
-    label: "Professional",
-    scales: {
-      formalCasual: 2,
-      seriousPlayful: 2,
-      matterEnthusiastic: 2,
-      technicalPlain: 4,
-      authoritativePeer: 2,
-      warmDetached: 3,
-    },
-  },
-  {
-    id: "punchy",
-    label: "Punchy",
-    scales: {
-      formalCasual: 4,
-      seriousPlayful: 4,
-      matterEnthusiastic: 5,
-      technicalPlain: 4,
-      authoritativePeer: 3,
-      warmDetached: 3,
-    },
-  },
-  {
-    id: "technical",
-    label: "Technical",
-    scales: {
-      formalCasual: 2,
-      seriousPlayful: 2,
-      matterEnthusiastic: 2,
-      technicalPlain: 1,
-      authoritativePeer: 2,
-      warmDetached: 4,
-    },
-  },
-  {
-    id: "warm",
-    label: "Warm",
-    scales: {
-      formalCasual: 3,
-      seriousPlayful: 3,
-      matterEnthusiastic: 3,
-      technicalPlain: 4,
-      authoritativePeer: 4,
-      warmDetached: 1,
-    },
-  },
-  {
-    id: "formal",
-    label: "Formal",
-    scales: {
-      formalCasual: 1,
-      seriousPlayful: 1,
-      matterEnthusiastic: 2,
-      technicalPlain: 3,
-      authoritativePeer: 2,
-      warmDetached: 4,
-    },
-  },
-];
+/**
+ * Is `tone` allowed given the chosen primary intent and angle?
+ * With both set we require intent ∩ angle; if that intersection would be empty
+ * for every tone we relax to intent-only so the operator is never fully blocked.
+ */
+export function toneAllowed(
+  tone: ToneOfVoice,
+  primaryIntent: PrimaryIntent | "",
+  angle: ContentAngle | "",
+): boolean {
+  const rule = TONE_COMPATIBILITY[tone];
+  const intentOk = !primaryIntent || rule.intents.includes(primaryIntent);
+  const angleOk = !angle || rule.angles.includes(angle);
+  if (intentOk && angleOk) return true;
+  // Fallback: if no tone satisfies both for this intent, allow on intent alone.
+  const anyToneSatisfiesBoth = (Object.keys(TONE_COMPATIBILITY) as ToneOfVoice[]).some((t) => {
+    const r = TONE_COMPATIBILITY[t];
+    return (
+      (!primaryIntent || r.intents.includes(primaryIntent)) &&
+      (!angle || r.angles.includes(angle))
+    );
+  });
+  return anyToneSatisfiesBoth ? false : intentOk;
+}
+
+/* ------------------------------------------------------------------ */
 
 /** Max quoteable wiki/.edu/.gov (or tool page) research docs per project. */
 export const MAX_QUOTEABLE_RESEARCH_DOCS = 3;
@@ -195,16 +193,18 @@ export type LengthBandKey =
   | "imagePrompt";
 
 export interface ContentBrief {
-  intent: SearchIntent | "";
+  briefVersion: number;
+  primaryIntent: PrimaryIntent | "";
+  secondaryIntent: SecondaryIntent | "";
   buyingStage: BuyingStage | "";
-  audiencePrimary: AudiencePrimary | "";
-  audienceModifiers: AudienceModifier[];
-  audienceDetail: string;
-  audienceExclude: string;
+  audienceSegment: AudienceSegment | "";
+  audienceDetails: AudienceDetail[];
+  audienceNotes: string;
   angle: ContentAngle | "";
   ctaType: CtaType | "";
   ctaLabel: string;
-  toneOfVoice: ToneOfVoiceScales;
+  toneOfVoice: ToneOfVoice | "";
+  eeatSignals: EeatSignal[];
   lengthBand: LengthBandKey | "";
   writingNotes: string;
   /** One organic title per line (hand-entered SERP notes). */
@@ -219,16 +219,18 @@ export interface ContentBrief {
 
 export function emptyContentBrief(): ContentBrief {
   return {
-    intent: "",
+    briefVersion: BRIEF_VERSION,
+    primaryIntent: "",
+    secondaryIntent: "",
     buyingStage: "",
-    audiencePrimary: "",
-    audienceModifiers: [],
-    audienceDetail: "",
-    audienceExclude: "",
+    audienceSegment: "",
+    audienceDetails: [],
+    audienceNotes: "",
     angle: "",
     ctaType: "",
     ctaLabel: "",
-    toneOfVoice: { ...TOV_NEUTRAL },
+    toneOfVoice: "",
+    eeatSignals: [],
     lengthBand: "",
     writingNotes: "",
     serpTitles: "",
@@ -238,21 +240,156 @@ export function emptyContentBrief(): ContentBrief {
   };
 }
 
+/* --------------------------- legacy migration --------------------------- */
+
+const PRIMARY_INTENT_VALUES = PRIMARY_INTENTS.map((o) => o.value) as string[];
+const SECONDARY_INTENT_VALUES = SECONDARY_INTENTS.map((o) => o.value) as string[];
+
+const LEGACY_BUYING_STAGE: Record<string, BuyingStage> = {
+  awareness: "awareness",
+  tof_interest: "awareness",
+  consideration: "consideration",
+  mof_consideration: "consideration",
+  action: "action",
+  decision: "action",
+  bof_actions: "action",
+  retention: "action",
+  advocacy: "action",
+};
+
+const LEGACY_AUDIENCE_SEGMENT: Record<string, AudienceSegment> = {
+  affinity: "affinity",
+  interest_affinity: "affinity",
+  cold_prospect: "affinity",
+  in_market: "in_market",
+  life_events: "life_events",
+  detailed_demographics: "detailed_demographics",
+  your_data: "your_data",
+  engaged_visitor: "your_data",
+  lead: "your_data",
+  customer: "your_data",
+  lapsed: "your_data",
+  lookalike: "your_data",
+  custom: "custom",
+  account_based: "custom",
+  local_geo: "custom",
+};
+
+const LEGACY_AUDIENCE_DETAIL: Record<string, AudienceDetail> = {
+  demographic_attributes: "demographic_attributes",
+  demographic: "demographic_attributes",
+  firmographic: "demographic_attributes",
+  behavioral_triggers: "behavioral_triggers",
+  list_match: "behavioral_triggers",
+  boolean_combination: "boolean_combination",
+  life_event: "boolean_combination",
+  buying_committee: "boolean_combination",
+};
+
+const LEGACY_ANGLE: Record<string, ContentAngle> = {
+  comparative: "comparative",
+  comparison: "comparative",
+  problem_solution: "problem_solution",
+  case_study_data: "case_study_data",
+  case_study: "case_study_data",
+  ultimate_guide: "ultimate_guide",
+  howto_workflow: "ultimate_guide",
+  explainer: "ultimate_guide",
+  listicle: "ultimate_guide",
+  objection_faq: "ultimate_guide",
+};
+
+const LEGACY_CTA: Record<string, CtaType> = {
+  sign_up: "sign_up",
+  start_trial: "sign_up",
+  subscribe: "sign_up",
+  contact_us: "contact_us",
+  book_now: "book_now",
+  book_demo: "book_now",
+  download: "download",
+  learn_more: "learn_more",
+  read_related: "learn_more",
+  apply_now: "apply_now",
+  get_quote: "get_quote",
+  contact_quote: "get_quote",
+  buy: "get_quote",
+};
+
+const TONE_VALUES = TONES_OF_VOICE.map((o) => o.value) as string[];
+const EEAT_VALUES = EEAT_SIGNALS.map((o) => o.value) as string[];
+
 /**
- * Auto ToV summary for UI + BRIEF block.
- * value === 3 → omit; &lt; 3 → left adjective; &gt; 3 → right adjective.
- * All neutral → "(brand default — no ToV lean)".
+ * Normalize any persisted brief (legacy or current) into the canonical shape.
+ * Runs on every read (localStorage load and server-JSON parse) so stale values
+ * never reach the prompt.
  */
-export function buildToneOfVoiceSummary(scales: ToneOfVoiceScales): string {
-  const parts: string[] = [];
-  for (const scale of TOV_SCALES) {
-    const v = scales[scale.key];
-    if (v === 3 || v == null) continue;
-    parts.push(v < 3 ? scale.left : scale.right);
+export function migrateBrief(raw: unknown): ContentBrief {
+  const base = emptyContentBrief();
+  if (!raw || typeof raw !== "object") return base;
+  const p = raw as Record<string, unknown>;
+  const str = (v: unknown): string => (typeof v === "string" ? v : "");
+  const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+
+  // Intent: split legacy single `intent` into primary/secondary.
+  const legacyIntent = str(p.intent);
+  let primaryIntent = str(p.primaryIntent);
+  let secondaryIntent = str(p.secondaryIntent);
+  if (!primaryIntent && legacyIntent) {
+    if (PRIMARY_INTENT_VALUES.includes(legacyIntent)) primaryIntent = legacyIntent;
+    else if (SECONDARY_INTENT_VALUES.includes(legacyIntent) && !secondaryIntent)
+      secondaryIntent = legacyIntent;
   }
-  if (parts.length === 0) return "(brand default — no ToV lean)";
-  return parts.join(" · ");
+  base.primaryIntent = PRIMARY_INTENT_VALUES.includes(primaryIntent)
+    ? (primaryIntent as PrimaryIntent)
+    : "";
+  base.secondaryIntent = SECONDARY_INTENT_VALUES.includes(secondaryIntent)
+    ? (secondaryIntent as SecondaryIntent)
+    : "";
+
+  base.buyingStage = LEGACY_BUYING_STAGE[str(p.buyingStage)] ?? "";
+
+  const seg = str(p.audienceSegment) || str(p.audiencePrimary);
+  base.audienceSegment = LEGACY_AUDIENCE_SEGMENT[seg] ?? "";
+
+  const detailsSource = arr(p.audienceDetails).length ? arr(p.audienceDetails) : arr(p.audienceModifiers);
+  base.audienceDetails = Array.from(
+    new Set(detailsSource.map((d) => LEGACY_AUDIENCE_DETAIL[d]).filter(Boolean) as AudienceDetail[]),
+  );
+
+  // Notes: prefer new field; fold legacy detail + exclude in on load.
+  const notes = str(p.audienceNotes) || str(p.audienceDetail);
+  const exclude = str(p.audienceExclude).trim();
+  base.audienceNotes = exclude
+    ? `${notes}${notes ? "\n" : ""}Exclude: ${exclude}`.trim()
+    : notes;
+
+  base.angle = LEGACY_ANGLE[str(p.angle)] ?? "";
+  base.ctaType = LEGACY_CTA[str(p.ctaType)] ?? "";
+  base.ctaLabel = str(p.ctaLabel);
+
+  // Tone: legacy was a numeric Record; unknown/object → commercial_balanced.
+  const toneRaw = p.toneOfVoice;
+  base.toneOfVoice = typeof toneRaw === "string" && TONE_VALUES.includes(toneRaw)
+    ? (toneRaw as ToneOfVoice)
+    : toneRaw && typeof toneRaw === "object"
+      ? "commercial_balanced"
+      : "";
+
+  base.eeatSignals = Array.from(
+    new Set(arr(p.eeatSignals).filter((s) => EEAT_VALUES.includes(s)) as EeatSignal[]),
+  );
+
+  base.lengthBand = (str(p.lengthBand) as LengthBandKey) || "";
+  base.writingNotes = str(p.writingNotes);
+  base.serpTitles = str(p.serpTitles);
+  base.serpUrls = str(p.serpUrls);
+  base.paaQuestions = str(p.paaQuestions);
+  base.relatedSearches = str(p.relatedSearches);
+  base.briefVersion = BRIEF_VERSION;
+  return base;
 }
+
+/* ------------------------- summaries / labels ------------------------- */
 
 function labelFor(
   options: readonly { value: string; label: string }[],
@@ -261,23 +398,17 @@ function labelFor(
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
-function buyingStageLabel(value: string): string {
-  for (const g of BUYING_STAGE_GROUPS) {
-    const hit = g.options.find((o) => o.value === value);
-    if (hit) return hit.label;
-  }
-  return value;
-}
-
 /** Required fields for fail-closed Generate (inline validation). */
 export function contentBriefMissingFields(brief: ContentBrief): string[] {
   const missing: string[] = [];
-  if (!brief.intent) missing.push("Intent");
+  if (!brief.primaryIntent) missing.push("Primary intent");
   if (!brief.buyingStage) missing.push("Buying stage");
-  if (!brief.audiencePrimary) missing.push("Audience");
-  if (!brief.audienceDetail.trim()) missing.push("Audience detail");
+  if (!brief.audienceSegment) missing.push("Audience segment");
+  if (!brief.audienceNotes.trim()) missing.push("Audience notes");
   if (!brief.angle) missing.push("Angle");
   if (!brief.ctaType) missing.push("Call to action");
+  if (!brief.toneOfVoice) missing.push("Tone of voice");
+  if (brief.eeatSignals.length === 0) missing.push("E-E-A-T signal");
   if (!brief.lengthBand) missing.push("Length");
   return missing;
 }
@@ -288,36 +419,40 @@ export function isContentBriefComplete(brief: ContentBrief): boolean {
 
 /** Structured BRIEF block for prompts / research upload. */
 export function buildBriefBlock(brief: ContentBrief, targetKeyword: string): string {
-  const tov = buildToneOfVoiceSummary(brief.toneOfVoice);
-  const audienceLabel = labelFor(AUDIENCE_PRIMARIES, brief.audiencePrimary);
-  const modifiers =
-    brief.audienceModifiers.length > 0
-      ? brief.audienceModifiers
-          .map((m) => labelFor(AUDIENCE_MODIFIERS, m))
-          .join(", ")
+  const details =
+    brief.audienceDetails.length > 0
+      ? brief.audienceDetails.map((m) => labelFor(AUDIENCE_DETAILS, m)).join(", ")
+      : "(none)";
+  const eeat =
+    brief.eeatSignals.length > 0
+      ? brief.eeatSignals.map((s) => labelFor(EEAT_SIGNALS, s)).join(", ")
       : "(none)";
 
   const lines = [
     "=== BRIEF ===",
     `Target keyword: ${targetKeyword.trim()}`,
-    `Intent: ${labelFor(SEARCH_INTENTS, brief.intent)}`,
-    `Buying stage: ${buyingStageLabel(brief.buyingStage)}`,
-    `Audience primary: ${audienceLabel}`,
-    `Audience modifiers: ${modifiers}`,
-    `Audience detail: ${brief.audienceDetail.trim()}`,
-    "If detail conflicts with primary, follow detail.",
+    `Primary intent: ${labelFor(PRIMARY_INTENTS, brief.primaryIntent)}`,
   ];
-  if (brief.audienceExclude.trim()) {
-    lines.push(`Audience exclude: ${brief.audienceExclude.trim()}`);
+  if (brief.secondaryIntent) {
+    lines.push(`Secondary intent: ${labelFor(SECONDARY_INTENTS, brief.secondaryIntent)}`);
   }
   lines.push(
+    `Buying stage (Full Funnel): ${labelFor(BUYING_STAGES, brief.buyingStage)}`,
+    `Audience segment: ${labelFor(AUDIENCE_SEGMENTS, brief.audienceSegment)}`,
+    `Audience details: ${details}`,
+    `Audience notes: ${brief.audienceNotes.trim()}`,
+    "If notes conflict with segment, follow notes.",
     `Angle: ${labelFor(CONTENT_ANGLES, brief.angle)}`,
     `CTA type: ${labelFor(CTA_TYPES, brief.ctaType)}`,
   );
   if (brief.ctaLabel.trim()) {
     lines.push(`CTA label: ${brief.ctaLabel.trim()}`);
   }
-  lines.push(`Tone of voice: ${tov}`, `Length band: ${brief.lengthBand}`);
+  lines.push(
+    `Tone of voice: ${labelFor(TONES_OF_VOICE, brief.toneOfVoice)}`,
+    `E-E-A-T signals: ${eeat}`,
+    `Length band: ${brief.lengthBand}`,
+  );
   if (brief.writingNotes.trim()) {
     lines.push(`Writing notes: ${brief.writingNotes.trim()}`);
   }
@@ -384,15 +519,7 @@ export function loadBriefFromStorage(projectId: string): ContentBrief | null {
   try {
     const raw = localStorage.getItem(CONTENT_BRIEF_STORAGE_PREFIX + projectId);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as ContentBrief;
-    return {
-      ...emptyContentBrief(),
-      ...parsed,
-      toneOfVoice: { ...TOV_NEUTRAL, ...parsed.toneOfVoice },
-      audienceModifiers: Array.isArray(parsed.audienceModifiers)
-        ? parsed.audienceModifiers
-        : [],
-    };
+    return migrateBrief(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -400,8 +527,9 @@ export function loadBriefFromStorage(projectId: string): ContentBrief | null {
 
 export function saveBriefToStorage(projectId: string, brief: ContentBrief): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(
-    CONTENT_BRIEF_STORAGE_PREFIX + projectId,
-    JSON.stringify(brief),
-  );
+  try {
+    localStorage.setItem(CONTENT_BRIEF_STORAGE_PREFIX + projectId, JSON.stringify(brief));
+  } catch {
+    /* ignore quota / disabled storage */
+  }
 }

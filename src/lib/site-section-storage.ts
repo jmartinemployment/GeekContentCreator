@@ -1,4 +1,5 @@
 import type { SiteSectionContext } from "@/lib/types";
+import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 
 /** sessionStorage key for Site Analyzer → Content Creator create handoff. */
 export const SITE_SECTION_STORAGE_KEY = "gcc.siteSectionContext";
@@ -6,8 +7,14 @@ export const SITE_SECTION_STORAGE_KEY = "gcc.siteSectionContext";
 export type SiteSectionHandoff = {
   siteAnalysisId: string;
   gapTopic: string;
+  /** Gap reason from Site Analyzer (seeds brief notes). */
+  gapReason?: string | null;
+  /** Gap section path (also on section.gapSectionPath). */
+  gapSectionPath?: string | null;
   projectUrl?: string;
   section: SiteSectionContext;
+  /** Operator-curated SERP seed for Content Brief fields. */
+  curatedSerp?: CuratedSerpSeed | null;
 };
 
 export function readSiteSectionHandoff(): SiteSectionHandoff | null {
@@ -22,14 +29,20 @@ export function readSiteSectionHandoff(): SiteSectionHandoff | null {
       parsed.siteAnalysisId || section?.siteAnalysisId || "";
     if (!section || !siteAnalysisId) return null;
     if (!section.relatedPages?.length) return null;
+    const gapSectionPath =
+      parsed.gapSectionPath ?? section.gapSectionPath ?? null;
     return {
       siteAnalysisId,
       gapTopic: parsed.gapTopic || section.gapTopic || "",
+      gapReason: parsed.gapReason ?? null,
+      gapSectionPath,
       projectUrl: parsed.projectUrl,
       section: {
         ...section,
         siteAnalysisId: section.siteAnalysisId || siteAnalysisId,
+        gapSectionPath: section.gapSectionPath ?? gapSectionPath,
       },
+      curatedSerp: parsed.curatedSerp ?? null,
     };
   } catch {
     return null;
@@ -61,5 +74,6 @@ export function siteSectionForApi(section: SiteSectionContext) {
       excerpt: p.excerpt ?? "",
     })),
     topicalNeighbors: section.topicalNeighbors ?? [],
+    informationGain: section.informationGain ?? null,
   };
 }
