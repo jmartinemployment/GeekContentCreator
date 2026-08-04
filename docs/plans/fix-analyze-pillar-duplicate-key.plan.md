@@ -1,6 +1,6 @@
 # Fix live Analyze failure: duplicate-key crash on pillar re-insert
 
-**Status:** Planned, not implemented. **Date:** 2026-08-04.
+**Status:** Implemented. **Date:** 2026-08-04.
 
 ## Context
 
