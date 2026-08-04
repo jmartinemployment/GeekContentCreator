@@ -1,5 +1,7 @@
 # Plan: Eliminate fallbacks + real heading-based gap detection
 
+**Status: implemented 2026-08-04.** All 18 items done (or resolved as not-applicable, #18) across Geek-SEO and GeekAPI. Commits: `54c8092`, `81fde8d`, `7fce2f0`, `008c804` (Geek-SEO), `159618a` (GeekAPI). 195/195 Geek-SEO tests pass (190 pre-existing + 5 new for the heading-gap detection logic). Not yet live-verified against a real domain — same standing caveat as the sitemap-generator-step1 work.
+
 ## Context
 
 Site Analyzer fabricates content gaps (5 hardcoded generic templates) instead of finding real ones, and the codebase carries a range of other fallbacks that mask failures or silently substitute data/providers without the operator's knowledge. Per the user's rule — never fabricate, never silently degrade, surface failures — this plan replaces the gap fabrication with real heading-based detection and eliminates the fallbacks the user selected. Scope and per-item failure behavior were verified by direct code exploration (file:line anchors below); three items differed from their surface read and were resolved with the user.
@@ -87,10 +89,6 @@ Original assumption was wrong: earlier research (this session) grepped only Geek
 
 **No code changed.** No follow-up needed unless a live end-to-end test (actually clicking Export in the UI against a real project) surfaces a runtime bug — that would be a new, separate finding, not a continuation of this item.
 
-**Where it goes:** GeekAPI (`/Users/jeffmartin/development/GeekBackend/GeekAPI`) — CWV2's backend was merged here per the `ContentWriterV2.commit` pin ("Phase 1 of retiring the standalone service").
-
-**First step = verify, then copy only what's missing:** the GeekContentCreator frontend already calls this — `src/lib/content-writer/api.ts:423` `downloadHtmlExport()` (zip) and `:459` `commitHtmlExportToGitHub()`, wired to `ReviewPublishPanel.tsx`'s "Export .html files" button. So the frontend + endpoint path already exist. **Confirm the GeekAPI backend behind `/export/html` actually implements the full `HtmlExportService` — specifically the `.txt` branch for image-prompt content and the git-commit service — and copy over whatever was dropped/simplified during the CWV2→GeekAPI merge.** Do not assume it's intact (flagged unverified in earlier research); if the `.txt` branch or the commit service is missing, port them verbatim from CWV2.
-
 ## Out of scope (product decisions, not fallback bugs)
 - #5 `AnalyticsController.cs:36` empty analytics, #6 `NotificationService.cs` SendGrid/Slack/GA4/WordPress stubs — honest not-implemented stubs; left for a separate product decision.
 
@@ -112,3 +110,15 @@ Original assumption was wrong: earlier research (this session) grepped only Geek
 1. Server-side transactional/batch persist endpoint (real fix behind #13).
 2. Optional relational `Title`/`MetaDescription` columns (preserve fields dropped by #14).
 3. Pipeline-stage gating verification for `NavMenuExtractor` empty (#16 note).
+
+## Implementation notes (2026-08-04)
+
+All items verified done against real code, not assumed:
+
+- **#16 deviation from literal plan text:** the plan's original wording said to eliminate the `SitemapExtractor` robots.txt and per-candidate-path catches outright. Implementing that literally would have broken normal sitemap discovery on nearly every real site — a 404 on any single candidate path (`/sitemap.xml`, `/sitemap_index.xml`, etc.) is completely normal, and the catch is what lets the loop try the next candidate. Refined instead: catch only the expected "this candidate doesn't exist" `HttpRequestException`, let genuine bugs (malformed XML on a 200 response) propagate. Same treatment for robots.txt.
+- **#12 turned out to have a bigger real bug than expected:** the actual silent-degrade mechanism wasn't per-request try/catch in the three extractors alone — `Program.cs` caught Playwright's *startup launch failure* and silently continued with the whole subsystem disabled, logging only a warning. That's now removed (an explicit `DISABLE_PLAYWRIGHT=true` opt-out is preserved as a deliberate config choice, distinct from an unexpected launch failure).
+- **#14 required distinguishing "step ran, found nothing" (legitimate) from "step never ran" (real bug)** for both schema and headings — a literal "throw whenever relational rows are empty" would have broken analysis for the very common case of a site with no JSON-LD or no headings at all. Fixed by checking step-log entry existence (already tracked independently of data content) rather than row count.
+- **#1/#2 implementation:** heading extraction now happens inline in `RunSiteCrawlAsync` (the only place raw HTML exists before it's stripped), persisted per-page via the existing `SiteAnalysisProfileHeading` schema, and matched against crawled/sitemap URLs via new `SiteContentCoverageMatcher.HasNoMatchingPage`/`UrlBelongsToPillarSlug` helpers. Added 5 unit tests. Both fabrication sites (live + dead duplicate) deleted.
+- **#18 needed no code** — already fully implemented via GeekAPI's direct `ProjectReference`s to CWV2's projects (see item 18's own section above for detail); confirmed via `Program.cs` inspection and a clean build, not assumed.
+
+All work committed and pushed: Geek-SEO `54c8092`, `81fde8d`, `7fce2f0`, `008c804`; GeekAPI `159618a`. Nothing left uncommitted.
