@@ -1,13 +1,15 @@
 # Handoff — Railway hosting incident + live pillar-insert bug
 
-**Date:** 2026-08-04
-**Status:** Item 1 (Railway hosting) — code/docs cleanup **done**; the actual Railway service deletion is the only manual step left. Item 2 (pillar-insert bug) — diagnosed and root-caused, fix **not yet executed**.
+**Date:** 2026-08-04 (last updated end of session, ~99% budget)
+**Status:** Item 1 (Railway hosting) — **FULLY DONE** (code, docs, and the Railway service itself deleted). Item 2 (pillar-insert bug) — diagnosed, root-caused, and a repo plan written; **fix NOT yet implemented** — this is the top open item for the next session.
+
+**Next session, start here:** implement `docs/plans/fix-analyze-pillar-duplicate-key.plan.md` (the full, verified fix plan). One-method change in `GeekBackend/GeekRepository/Repositories/Seo/SiteAnalysisProfileRepository.cs`. See Item 2 below for the summary.
 
 ---
 
-## 1. Railway hosting incident — RESOLVED (code + docs), service deletion pending manual step
+## 1. Railway hosting incident — FULLY RESOLVED
 
-**Resolution (2026-08-04):** Investigation confirmed there were **no backend services trapped in the Next.js app to migrate** — the only server-side code is OAuth/session BFF + a thin proxy layer, both of which correctly belong with the frontend; the real Content Creator backend already lives natively in GeekAPI (`Controllers/ContentCreator/GccController.cs`, `Services/ContentCreator/Gcc*`). So "incorporate its services into the backend" was already satisfied. The vestigial container-build artifacts (`Dockerfile`, `.dockerignore`, `DOCKER_BUILD` branch in `next.config.ts`) were removed — unused by both Vercel (builds natively) and the Railway service (used Railpack). `npm run build` verified green after removal; committed/pushed. **Only remaining step: manually delete the Railway service** (dashboard steps below).
+**Resolution (2026-08-04):** Investigation confirmed there were **no backend services trapped in the Next.js app to migrate** — the only server-side code is OAuth/session BFF + a thin proxy layer, both of which correctly belong with the frontend; the real Content Creator backend already lives natively in GeekAPI (`Controllers/ContentCreator/GccController.cs`, `Services/ContentCreator/Gcc*`). So "incorporate its services into the backend" was already satisfied — nothing migrated. The vestigial container-build artifacts (`Dockerfile`, `.dockerignore`, `DOCKER_BUILD` branch in `next.config.ts`) were removed — unused by both Vercel (builds natively) and the Railway service (used Railpack); removal committed/pushed as `c661f80`, Vercel redeployed green. **The redundant Railway `geek-content-creator` service was then deleted by the user — verified via `list-services`: the project now has zero services.** Vercel is the sole UI host. This item needs no further action.
 
 ### What happened
 GeekContentCreator's UI has been running on **two separate hosting platforms simultaneously**: Railway (`geek-content-creator-production.up.railway.app`) and Vercel (`geek-content-creator.vercel.app`). Only Vercel was ever supposed to host it.
@@ -43,17 +45,19 @@ After deletion, verify (read-only `list-services` on that project) it's gone and
 
 ---
 
-## 2. Live bug: duplicate-key crash on Analyze re-run (fix planned, not implemented)
+## 2. Live bug: duplicate-key crash on Analyze re-run — TOP OPEN ITEM (fix planned, NOT implemented)
 
-### How it was found
-User ran a real Analyze at `geek-content-creator.vercel.app/app/site-analyzer` → got "Site analysis failed," browser console showed `null`. This is the first real end-to-end live verification of the sitemap-generator-step1 and fallback-elimination work from earlier in this project's history — and it surfaced a genuine, previously unknown, unrelated bug.
+**➡ Full fix plan (verified, ready to implement): [`docs/plans/fix-analyze-pillar-duplicate-key.plan.md`](./plans/fix-analyze-pillar-duplicate-key.plan.md).** The section below is the background; the plan doc is the authoritative, corrected fix. Where they differ, trust the plan doc — it supersedes the earlier "Planned fix" text kept below for history.
+
+### How it was found (and re-confirmed still live)
+User ran Analyze at `geek-content-creator.vercel.app/app/site-analyzer` → "Site analysis failed," empty/`null` browser console. Re-confirmed still live via Railway logs on 2026-08-04 12:58–13:01 UTC (same `RunCoverageAsync:764` → `POST .../pillars` failure, same profile `2688c73a-283e-4bde-843c-48db2f219d1f` the user re-analyzed). First-time analyses succeed; **re-Analyze of an already-analyzed profile is what crashes** — which is why the user keeps hitting it on the same domain.
 
 ### Root cause, confirmed via Railway logs (not guessed)
 - **GeekSeoBackend** logs: `RunCoverageAsync` (`SiteAnalysisStepExecutionService.cs:764`) threw `InvalidOperationException` because `profileRepo.BulkInsertPillarsAsync` returned a failure `Result`.
 - **GeekRepository** logs (same request, same timestamp): the actual DB error is `Npgsql.PostgresException: 23505: duplicate key value violates unique constraint "PK_niche_pillars"`.
 - Source (`GeekBackend/GeekRepository/Repositories/Seo/SiteAnalysisProfileRepository.cs:1031-1053`): `BulkInsertPillarsAsync` and `BulkInsertSubtopicsAsync` **always insert, never delete prior rows first** (`AddRange` + `SaveChangesAsync`, no cleanup). `SiteAnalysisStepExecutionService.RunCoverageAsync` deliberately **reuses the same `Id`** for a pillar it recognizes as already existing (`existing?.Id ?? Guid.NewGuid()`), which collides with the still-present row from the previous Analyze run — i.e., **any re-Analyze of an existing profile crashes.**
-- **Same missing-delete bug also present in `BulkInsertEntitiesAsync` (line 1105) and `BulkInsertPillarPagesAsync` (line 1117)** — untriggered so far only because the pipeline throws at the pillars step first.
-- The correct pattern already exists in the same file, `BulkInsertCompetitorsAsync` (line 1055-1073): `ExecuteDeleteAsync` scoped to the profile, then insert. But that pattern is **not transactional** — delete and insert are two separate, non-atomic operations (verified: only one unrelated method in this whole file uses `BeginTransactionAsync`). Do not just copy that pattern forward uncritically.
+- **Correction to an earlier assumption:** `BulkInsertEntitiesAsync` (line 1105) and `BulkInsertPillarPagesAsync` (line 1117) share the missing-delete shape but have **zero callers anywhere** (dead code) — they are NOT implicated in the crash and are out of scope for the fix. Verified: the only live callers of any `BulkInsert*` are `SiteAnalysisStepExecutionService.cs:762,766` and `SiteAnalysisStepRerunService.cs:458,459`, and both call only `BulkInsertPillarsAsync` then `BulkInsertSubtopicsAsync`.
+- The correct pattern already exists in the same file, `BulkInsertCompetitorsAsync` (line 1055-1073): derive `profileId` from `list[0].SiteAnalysisProfileId`, `ExecuteDeleteAsync` scoped to it, then insert — **no signature change needed** (`SiteAnalysisPillar` carries `SiteAnalysisProfileId`). The plan wraps delete+insert in an explicit transaction (pattern already used at line 848) for atomicity, which the competitors method does not.
 
 **Naming note (informational, not in scope to fix):** the constraint is named `PK_niche_pillars` — a leftover from the incomplete Niche→SiteAnalysis rename flagged earlier in this project's `docs/FALLBACK_INVENTORY.md`. Renaming the physical table/constraint is separate, riskier migration work.
 
@@ -64,12 +68,8 @@ User ran a real Analyze at `geek-content-creator.vercel.app/app/site-analyzer` �
 
 **This means:** deleting a profile's old pillars automatically cascades away their old subtopics and pillar-pages at the DB level. Only `BulkInsertPillarsAsync` and `BulkInsertEntitiesAsync` need their own explicit delete step; `BulkInsertSubtopicsAsync`/`BulkInsertPillarPagesAsync` are fine as plain inserts **as long as pillars are always refreshed first** in the call sequence (confirmed for pillars→subtopics: `SiteAnalysisStepExecutionService.cs:748-766`; pillar-pages' call site still needs to be spot-checked for the same ordering, not assumed).
 
-### Planned fix (not yet implemented)
-In `GeekBackend/GeekRepository/Repositories/Seo/SiteAnalysisProfileRepository.cs`:
-1. **`BulkInsertPillarsAsync`** (line 1031): wrap in `await using var tx = await db.Database.BeginTransactionAsync(ct);`, add `await db.SiteAnalysisPillars.Where(p => p.SiteAnalysisProfileId == profileId).ExecuteDeleteAsync(ct);` before `AddRange`, `await tx.CommitAsync(ct);` after `SaveChangesAsync`. Needs `profileId` added as an explicit parameter (caller `RunCoverageAsync` already has it in scope).
-2. **`BulkInsertEntitiesAsync`** (line 1105): same pattern, delete `WHERE SiteAnalysisProfileId == profileId` first, wrapped in a transaction. Same signature-change note.
-3. **`BulkInsertSubtopicsAsync`** / **`BulkInsertPillarPagesAsync`**: no code change needed — but add a comment noting the ordering dependency on pillars being refreshed first, so a future reader doesn't "fix" these independently and break the assumption.
-4. Before shipping: confirm `BulkInsertPillarPagesAsync`'s actual call site(s) run after pillars are freshly reinserted in the same request — verify, don't assume symmetry with subtopics.
+### Fix — FINALIZED (see the plan doc for the exact code)
+**The entire fix is one method.** Rewrite `BulkInsertPillarsAsync` (line 1031) in `GeekBackend/GeekRepository/Repositories/Seo/SiteAnalysisProfileRepository.cs` to delete-then-insert, scoped to `profileId` derived from `list[0].SiteAnalysisProfileId`, wrapped in a `BeginTransactionAsync`/`CommitAsync` so the cascade-delete of old pillars (which cascades their old subtopics away) + the re-insert are atomic. Early-return on empty list. **No signature change**, so no ripple to the interface / `HttpSiteAnalysisProfileRepository` / GeekAPI internal controller. `BulkInsertSubtopicsAsync` needs no delete (it's covered by the pillar cascade + the pillars-first call ordering) — just a comment noting that dependency. `BulkInsertEntitiesAsync`/`BulkInsertPillarPagesAsync` are dead code, left untouched. Exact code block is in `docs/plans/fix-analyze-pillar-duplicate-key.plan.md`.
 
 ### Also needs investigating (separate, smaller): the "console → null" symptom
 Once Analyze actually completes or fails with a real surfaced error after the fix above, check whether the frontend still shows a bare `null` on any failure path. Trace `analysis.ErrorMessage` / the GCC error-propagation chain (`GccController`, `content_creator.gcc_site_analyses.ErrorMessage` column) for a path where a failure is recorded but the message string itself ends up null. May resolve itself once the primary bug is fixed (nothing left to fail), or may be a distinct small bug.
