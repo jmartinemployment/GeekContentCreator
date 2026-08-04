@@ -67,7 +67,7 @@ Same platform family as Geek Content Workflow — not a new auth/API island.
 | Auth | GeekOAuth |
 | API / persistence | GeekAPI + GeekRepository; Content Creator owns its document/version/approval domain |
 | Writing | Shared Content Writer v2 **generate engine** (orchestrator, prompt builders, image-prompt builders) as **in-process library and/or GeekAPI internal services** |
-| Hosting | Confirm at scaffold (expect same Geek / Railway-class pattern as sibling apps) |
+| Hosting | **Vercel** (UI) — confirmed 2026-08-04, see "Known incident" in README.md. Backend (GeekAPI/GeekRepository/GeekOAuth/Geek-SEO) is Railway, shared platform infra, unaffected by this. |
 
 **Infrastructure today:** GeekOAuth, GeekAPI, Content Writer v2 on GeekAPI, and Geek Content Workflow facades are live. Content Creator GeekAPI surface (`/api/geek-content-creator/...`) owns creates, brief/research persistence, Site Analyzer gates, and generate. Next talks to **GeekAPI only** for that path.
 
@@ -397,7 +397,8 @@ All items below are done for first release:
 | Item | Status |
 |------|--------|
 | Extract shared writing package vs GeekAPI in-process services first (same engine contract) | Open |
-| Auth/hosting details confirmed at scaffold | Done (GeekOAuth + GeekAPI; Railway/Vercel as siblings) |
+| Auth/hosting details confirmed at scaffold | Done (GeekOAuth + GeekAPI). Hosting corrected 2026-08-04: UI is **Vercel-only**. A mistaken parallel Railway UI deployment was removed — vestigial Docker artifacts deleted from the repo; only the manual Railway service deletion remains. **No backend services needed migrating** — they already live in GeekAPI (`GccController` + `Gcc*` services); the Next.js app is only a frontend + BFF-auth proxy. See README.md "Resolved incident" and `docs/HANDOFF-railway-incident-and-pillar-bug.md`. |
+| **New (2026-08-04):** duplicate-key crash on Analyze re-run | **Open, root-caused, fix planned, not yet implemented** — see `docs/HANDOFF-railway-incident-and-pillar-bug.md` |
 | Optional Repurpose presets (pre-fill only; still require Generate) | Open |
 | Search provider — only when Research dossier phase starts (after application approval) | Not started (blocked on §8) |
 
