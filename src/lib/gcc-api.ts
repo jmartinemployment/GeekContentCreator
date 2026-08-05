@@ -250,7 +250,7 @@ export type GccKeywordSource = {
 
 /** HTML research categories that persist as quoteables (feed Generate). */
 export const GCC_KEYWORD_CATEGORIES: { value: string; label: string }[] = [
-  { value: "KeywordResult", label: "Keyword result page" },
+  { value: "KeywordResult", label: "Ranking article page" },
   { value: "Wikipedia", label: "Wikipedia" },
   { value: "EduDomain", label: ".edu page" },
   { value: "GovDomain", label: ".gov page" },

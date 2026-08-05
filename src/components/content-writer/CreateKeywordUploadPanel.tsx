@@ -79,10 +79,11 @@ export function CreateKeywordUploadPanel({
 
   return (
     <div className="rounded-md border border-border bg-white p-4">
-      <p className="text-sm font-medium text-foreground">Research files</p>
+      <p className="text-sm font-medium text-foreground">Research files (article HTML)</p>
       <p className="mt-1 text-xs text-muted">
-        Upload saved keyword-result / Wikipedia / .edu / .gov pages. Each file is parsed and used
-        by Generate automatically — no cap, no extra step.
+        Upload saved ranking-article / Wikipedia / .edu / .gov pages (real headings and
+        paragraphs). Each file feeds Generate as quoteable research — no cap, no extra step.
+        Do not upload Google search-results HTML here — use SERP ingest below.
       </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-3">
