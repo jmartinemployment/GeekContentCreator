@@ -126,20 +126,6 @@ export function patchBriefResearch(
   );
 }
 
-export function followResearchUrls(
-  createId: string,
-  urls: string[],
-  serpIndex?: GccSerpIndex | null,
-): Promise<GccCreate> {
-  return gccRequest<GccCreate>(
-    `/api/geek-content-creator/creates/${createId}/research/follow`,
-    {
-      method: "POST",
-      body: JSON.stringify({ urls, serpIndex: serpIndex ?? null }),
-    },
-  );
-}
-
 export interface GccArtifact {
   id: string;
   createId: string;
@@ -239,6 +225,27 @@ export function generateGccCreate(
 
 /* ------------------- create keyword-source uploads ------------------- */
 
+export type GccSerpOrganic = { title: string; url: string; position: number };
+
+export type GccSerpShape = {
+  dominantFormats: string[];
+  titlePatterns: string[];
+  guidance: string;
+  hasPeopleAlsoAsk: boolean;
+  organicCount: number;
+  pageHint: string | null;
+};
+
+/** A parsed Keyword (Google SERP) upload — present only for category "KeywordResult". */
+export type GccParsedSerpPage = {
+  id: string;
+  fileName: string;
+  organics: GccSerpOrganic[];
+  relatedSearches: string[];
+  shape: GccSerpShape;
+  parseWarning: string | null;
+};
+
 export type GccKeywordSource = {
   id: string;
   fileName: string;
@@ -246,11 +253,13 @@ export type GccKeywordSource = {
   headingCount: number;
   paragraphCount: number;
   questionCount: number;
+  /** Only set for category "KeywordResult" — organics/related/shape from GccSavedSerpParser. */
+  serpPage: GccParsedSerpPage | null;
 };
 
-/** HTML research categories that persist as quoteables (feed Generate). */
+/** Upload categories: Keyword result (SERP) parses via GccSavedSerpParser; the rest are articles. */
 export const GCC_KEYWORD_CATEGORIES: { value: string; label: string }[] = [
-  { value: "KeywordResult", label: "Ranking article page" },
+  { value: "KeywordResult", label: "Keyword result page" },
   { value: "Wikipedia", label: "Wikipedia" },
   { value: "EduDomain", label: ".edu page" },
   { value: "GovDomain", label: ".gov page" },
@@ -586,20 +595,6 @@ export function briefToJson(brief: ContentBrief): string {
   return JSON.stringify(brief);
 }
 
-export function serpIndexFromBrief(brief: ContentBrief): GccSerpIndex {
-  const lines = (text: string) =>
-    text
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  return {
-    organicTitles: lines(brief.serpTitles),
-    organicUrls: lines(brief.serpUrls),
-    peopleAlsoAsk: lines(brief.paaQuestions),
-    relatedSearches: lines(brief.relatedSearches),
-  };
-}
-
 export function parseSavedSerp(
   content: string,
   targetKeyword?: string | null,
@@ -611,14 +606,6 @@ export function parseSavedSerp(
       targetKeyword: targetKeyword?.trim() || null,
     }),
   });
-}
-
-export function organicUrlsFromBrief(brief: ContentBrief): string[] {
-  return brief.serpUrls
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 3);
 }
 
 export const GCC_CREATE_STORAGE_PREFIX = "gcc-create-id:";

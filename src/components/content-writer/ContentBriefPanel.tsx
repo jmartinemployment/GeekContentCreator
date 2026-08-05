@@ -37,8 +37,6 @@ import {
   readSiteSectionHandoff,
 } from "@/lib/site-section-storage";
 import { CreateKeywordUploadPanel } from "@/components/content-writer/CreateKeywordUploadPanel";
-import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
-import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 
 export default function ContentBriefPanel({
   clientId,
@@ -539,45 +537,28 @@ export default function ContentBriefPanel({
       <div className="mt-6 border-t border-border pt-5">
         <p className="text-sm font-medium text-foreground">Research &amp; SERP index</p>
         <p className="mt-1 text-xs text-muted">
-          Two uploads: (1) article HTML for Generate quoteables, (2) saved Google results for
-          SERP fields. Textareas below stay editable after ingest confirm.
+          Upload your saved research below — it feeds Generate automatically, no extra step. The
+          text fields are optional hand-entered SERP notes; PAA stays hand-entered.
         </p>
 
         <div className="mt-3">
           <CreateKeywordUploadPanel
             createId={createId}
             ensureCreateId={ensureCreateId}
+            onAddToNotes={(text) => {
+              setBrief((prev) => {
+                if (prev.writingNotes.includes(text)) return prev;
+                const next: ContentBrief = {
+                  ...prev,
+                  writingNotes: [prev.writingNotes.trim(), text].filter(Boolean).join("\n"),
+                };
+                persistLocal(next);
+                return next;
+              });
+              setSavedMsg(null);
+            }}
           />
         </div>
-
-        <SerpIngestPanel
-          gapTopic={targetKeyword.trim() || "draft"}
-          onCurated={(seed: CuratedSerpSeed | null) => {
-            if (!seed) return;
-            const noteBits: string[] = [];
-            if (seed.shapeGuidance?.trim()) {
-              noteBits.push(`SERP shape: ${seed.shapeGuidance.trim()}`);
-            }
-            if (seed.informationGainSummary?.trim()) {
-              noteBits.push(`Information Gain: ${seed.informationGainSummary.trim()}`);
-            }
-            setBrief((prev) => {
-              const next: ContentBrief = {
-                ...prev,
-                serpTitles: seed.serpTitles,
-                serpUrls: seed.serpUrls,
-                paaQuestions: seed.paaQuestions,
-                relatedSearches: seed.relatedSearches,
-                writingNotes:
-                  prev.writingNotes.trim() ||
-                  (noteBits.length ? noteBits.join("\n") : prev.writingNotes),
-              };
-              persistLocal(next);
-              return next;
-            });
-            setSavedMsg(null);
-          }}
-        />
 
         <label className={`${labelClass} mt-4`}>
           Organic titles (one per line)
