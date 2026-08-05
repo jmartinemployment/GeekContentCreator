@@ -237,6 +237,71 @@ export function generateGccCreate(
   );
 }
 
+/* ------------------- create keyword-source uploads ------------------- */
+
+export type GccKeywordSource = {
+  id: string;
+  fileName: string;
+  category: string;
+  headingCount: number;
+  paragraphCount: number;
+  questionCount: number;
+};
+
+/** HTML research categories that persist as quoteables (feed Generate). */
+export const GCC_KEYWORD_CATEGORIES: { value: string; label: string }[] = [
+  { value: "KeywordResult", label: "Keyword result page" },
+  { value: "Wikipedia", label: "Wikipedia" },
+  { value: "EduDomain", label: ".edu page" },
+  { value: "GovDomain", label: ".gov page" },
+];
+
+/**
+ * Upload a research file to a create. Uploading is the research action — the file is parsed
+ * server-side into the create's ResearchJson, which Generate reads. Multipart (no JSON header).
+ */
+export async function uploadCreateKeywordSource(
+  createId: string,
+  category: string,
+  file: File,
+): Promise<GccKeywordSource> {
+  const form = new FormData();
+  form.append("category", category);
+  form.append("file", file);
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API_BASE}/api/geek-content-creator/creates/${createId}/keyword-sources`,
+      { method: "POST", body: form },
+    );
+  } catch {
+    throw new ApiError("Could not reach GeekAPI Content Creator.", 0);
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(detail || res.statusText, res.status);
+  }
+  return (await res.json()) as GccKeywordSource;
+}
+
+export function listCreateKeywordSources(
+  createId: string,
+): Promise<GccKeywordSource[]> {
+  return gccRequest<GccKeywordSource[]>(
+    `/api/geek-content-creator/creates/${createId}/keyword-sources`,
+  );
+}
+
+export function deleteCreateKeywordSource(
+  createId: string,
+  sourceId: string,
+): Promise<void> {
+  return gccRequest<void>(
+    `/api/geek-content-creator/creates/${createId}/keyword-sources/${sourceId}`,
+    { method: "DELETE" },
+  );
+}
+
 /** All content items the multi-output generate can produce. */
 export const GCC_OUTPUT_TYPES: { value: string; label: string }[] = [
   { value: "pillar", label: "Pillar" },

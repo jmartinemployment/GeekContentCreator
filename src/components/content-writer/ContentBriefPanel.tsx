@@ -30,16 +30,13 @@ import {
   briefToJson,
   createGccCreate,
   getGccCreate,
-  followResearchUrls,
-  organicUrlsFromBrief,
   patchBriefResearch,
-  serpIndexFromBrief,
 } from "@/lib/gcc-api";
 import {
   clearSiteSectionHandoff,
   readSiteSectionHandoff,
 } from "@/lib/site-section-storage";
-import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
+import { CreateKeywordUploadPanel } from "@/components/content-writer/CreateKeywordUploadPanel";
 
 export default function ContentBriefPanel({
   clientId,
@@ -62,10 +59,8 @@ export default function ContentBriefPanel({
   const [createId, setCreateId] = useState<string | null>(createIdProp ?? null);
   const [hydrated, setHydrated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
-  const [researchMsg, setResearchMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (createIdProp) setCreateId(createIdProp);
@@ -277,44 +272,6 @@ export default function ContentBriefPanel({
       onBriefSaved(createId ?? "", false);
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function handleFollowUrls() {
-    setError(null);
-    setResearchMsg(null);
-    const urls = organicUrlsFromBrief(brief);
-    if (urls.length === 0) {
-      setError("Add 1–3 organic URLs (one per line) before following.");
-      return;
-    }
-    setIsFollowing(true);
-    try {
-      const id = await ensureCreateId();
-      // Persist brief first if complete so create stays consistent
-      if (isContentBriefComplete(brief)) {
-        await patchBriefResearch(id, { briefJson: briefToJson(brief) });
-      }
-      const updated = await followResearchUrls(
-        id,
-        urls,
-        serpIndexFromBrief(brief),
-      );
-      setCreateId(updated.id);
-      setResearchMsg(
-        `Research saved (${urls.length} page${urls.length === 1 ? "" : "s"}).`,
-      );
-      if (isContentBriefComplete(brief)) onBriefSaved(id, true);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Research follow failed.",
-      );
-    } finally {
-      setIsFollowing(false);
     }
   }
 
@@ -578,59 +535,25 @@ export default function ContentBriefPanel({
       </div>
 
       <div className="mt-6 border-t border-border pt-5">
-        <p className="text-sm font-medium text-foreground">
-          SERP index + deep research (follow destination URLs)
-        </p>
+        <p className="text-sm font-medium text-foreground">Research &amp; SERP index</p>
         <p className="mt-1 text-xs text-muted">
-          Prefer uploading a saved Google results page (page 1 for PAA) via Site Analyzer gap
-          review, or use the ingest panel below. Textareas remain a manual fallback. Follow ≤3
-          organic URLs — any fetch/empty extract fails the whole research op.
+          Upload your saved research pages below — they feed Generate automatically. The text
+          fields are optional hand-entered SERP index notes.
         </p>
+
         <div className="mt-3">
-          <SerpIngestPanel
-            gapTopic={targetKeyword}
-            onCurated={(seed) => {
-              if (!seed) return;
-              setBrief((prev) => {
-                const next = {
-                  ...prev,
-                  serpTitles: seed.serpTitles || prev.serpTitles,
-                  serpUrls: seed.serpUrls || prev.serpUrls,
-                  paaQuestions: seed.paaQuestions || prev.paaQuestions,
-                  relatedSearches: seed.relatedSearches || prev.relatedSearches,
-                  writingNotes: [
-                    prev.writingNotes.trim(),
-                    seed.shapeGuidance ? `SERP shape: ${seed.shapeGuidance}` : "",
-                    seed.informationGainSummary
-                      ? `Information Gain: ${seed.informationGainSummary}`
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join("\n"),
-                };
-                persistLocal(next);
-                return next;
-              });
-              setSavedMsg(null);
-            }}
+          <CreateKeywordUploadPanel
+            createId={createId}
+            ensureCreateId={ensureCreateId}
           />
         </div>
-        <label className={`${labelClass} mt-3`}>
+
+        <label className={`${labelClass} mt-4`}>
           Organic titles (one per line)
           <textarea
             value={brief.serpTitles}
             onChange={(e) => patch({ serpTitles: e.target.value })}
             rows={2}
-            className={fieldClass}
-          />
-        </label>
-        <label className={`${labelClass} mt-3`}>
-          Organic URLs to follow (one per line, max 3)
-          <textarea
-            value={brief.serpUrls}
-            onChange={(e) => patch({ serpUrls: e.target.value })}
-            rows={3}
-            placeholder="https://example.com/article"
             className={fieldClass}
           />
         </label>
@@ -652,17 +575,6 @@ export default function ContentBriefPanel({
             className={fieldClass}
           />
         </label>
-        <button
-          type="button"
-          onClick={handleFollowUrls}
-          disabled={isFollowing}
-          className="mt-3 rounded-md border border-border bg-white px-4 py-2 text-sm font-semibold hover:bg-surface-muted disabled:opacity-50"
-        >
-          {isFollowing ? "Following URLs…" : "Follow URLs (deep research)"}
-        </button>
-        {researchMsg ? (
-          <p className="mt-2 text-sm text-green-700">{researchMsg}</p>
-        ) : null}
       </div>
 
       <label className={`${labelClass} mt-5`}>
