@@ -9,11 +9,13 @@ import { ApiError } from "@/lib/content-writer/api";
 import {
   approveGccVersion,
   generateGccCreate,
+  GCC_OUTPUT_TYPES,
   getGccCreateDetail,
   listGccVersions,
   parseSiteSectionJson,
   polishGccVersion,
   previewBodyDocument,
+  renderArtifactBody,
   reviseGccVersion,
   seoGccVersion,
   type GccArtifact,
@@ -35,6 +37,18 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
   const [briefSavedOnServer, setBriefSavedOnServer] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState<string | null>(null);
+  const [outputTypes, setOutputTypes] = useState<string[]>([]);
+
+  // Seed the checked set from the create's starting type once the detail loads;
+  // never clobber a selection the operator has already made.
+  useEffect(() => {
+    if (!detail) return;
+    setOutputTypes((prev) => {
+      if (prev.length) return prev;
+      const t = detail.startingContentType;
+      return GCC_OUTPUT_TYPES.some((o) => o.value === t) ? [t] : ["blog"];
+    });
+  }, [detail]);
 
   const [feedback, setFeedback] = useState("");
   const [scope, setScope] = useState<"full" | "section">("full");
@@ -129,7 +143,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
     setGenerateMsg(null);
     setGenerating(true);
     try {
-      const result = await generateGccCreate(createId);
+      const result = await generateGccCreate(createId, { outputTypes });
       if (result.artifact && result.version) {
         setGenerateMsg(
           `Created ${result.artifact.type} “${result.artifact.name}” v${result.version.versionNumber}.`,
@@ -199,15 +213,43 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
           </h2>
           <p className="mt-1 text-sm text-muted">
             Reads persisted BriefJson / ResearchJson (and site section) from the
-            database only.
+            database only. Check every content item to generate — one long-form is
+            produced, the rest are derived from it.
           </p>
+
+          <fieldset className="mt-4">
+            <legend className="text-sm font-medium text-foreground">Content items to generate</legend>
+            <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+              {GCC_OUTPUT_TYPES.map((o) => (
+                <label key={o.value} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={outputTypes.includes(o.value)}
+                    onChange={(e) =>
+                      setOutputTypes((prev) =>
+                        e.target.checked
+                          ? [...prev, o.value]
+                          : prev.filter((v) => v !== o.value),
+                      )
+                    }
+                  />
+                  {o.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           <button
             type="button"
-            disabled={!canGenerate || saMissingPages || generating}
+            disabled={!canGenerate || saMissingPages || generating || outputTypes.length === 0}
             onClick={() => void runGenerate()}
             className="mt-4 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {generating ? "Generating…" : "Generate starting content"}
+            {generating
+              ? "Generating…"
+              : outputTypes.length > 1
+                ? `Generate ${outputTypes.length} content items`
+                : "Generate content"}
           </button>
           {!canGenerate ? (
             <p className="mt-2 text-xs text-muted">
@@ -234,15 +276,12 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
         <div className="flex flex-col gap-6">
           <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-foreground">
-              Draft · v{version.versionNumber}
+              {artifact?.name || "Draft"}
+              {" · "}v{version.versionNumber}
               {approved ? " · approved" : ""}
             </h2>
-            <p className="mt-1 text-sm text-muted">
-              {artifact?.type} — {artifact?.name}
-            </p>
-            <pre className="mt-4 max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-white p-4 text-sm text-foreground">
-              {previewBodyDocument(version.bodyDocumentJson, 8000)}
-            </pre>
+            <p className="mt-1 text-sm text-muted">{artifact?.type}</p>
+            <ArtifactBody bodyDocumentJson={version.bodyDocumentJson} />
           </section>
 
           <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
@@ -440,6 +479,44 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
       ) : null}
       {actionMsg ? (
         <p className="mt-4 text-sm text-green-700">{actionMsg}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Render an artifact body as readable content (CWV2 ContentDocument → HTML, or labeled
+ * fields for image-prompt/tool artifacts). Raw JSON is available behind a collapsed toggle
+ * for debugging — never the default view.
+ */
+function ArtifactBody({ bodyDocumentJson }: { bodyDocumentJson: string }) {
+  const [showSource, setShowSource] = useState(false);
+  const html = renderArtifactBody(bodyDocumentJson);
+
+  return (
+    <div className="mt-4">
+      {html ? (
+        <div
+          className="gcc-doc max-h-[32rem] overflow-auto rounded-md border border-border bg-white p-5 text-sm text-foreground [&_a]:text-brand [&_a]:underline [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3 [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:mb-3 [&_p]:leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-white p-4 text-sm text-foreground">
+          {previewBodyDocument(bodyDocumentJson, 8000)}
+        </pre>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShowSource((v) => !v)}
+        className="mt-2 text-xs text-muted underline"
+      >
+        {showSource ? "Hide source" : "View source (JSON)"}
+      </button>
+      {showSource ? (
+        <pre className="mt-2 max-h-[20rem] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-surface-muted p-3 text-xs text-muted">
+          {bodyDocumentJson}
+        </pre>
       ) : null}
     </div>
   );

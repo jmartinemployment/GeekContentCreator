@@ -220,16 +220,37 @@ export function listGccVersions(artifactId: string): Promise<GccArtifactVersion[
 
 export function generateGccCreate(
   createId: string,
-  provider?: string,
+  opts?: { provider?: string; outputTypes?: string[] },
 ): Promise<GccGenerateResult> {
   return gccRequest<GccGenerateResult>(
     `/api/geek-content-creator/creates/${createId}/generate`,
     {
       method: "POST",
-      body: JSON.stringify({ provider: provider ?? "OpenAi" }),
+      body: JSON.stringify({
+        provider: opts?.provider ?? "OpenAi",
+        outputTypes:
+          opts?.outputTypes && opts.outputTypes.length > 0
+            ? opts.outputTypes
+            : null,
+      }),
     },
   );
 }
+
+/** All content items the multi-output generate can produce. */
+export const GCC_OUTPUT_TYPES: { value: string; label: string }[] = [
+  { value: "pillar", label: "Pillar" },
+  { value: "blog", label: "Blog post" },
+  { value: "techArticle", label: "TechArticle" },
+  { value: "imagePrompt", label: "Image prompts" },
+  { value: "email", label: "Email" },
+  { value: "linkedIn", label: "LinkedIn" },
+  { value: "x", label: "X" },
+  { value: "instagram", label: "Instagram" },
+  { value: "metaAds", label: "Meta ads" },
+  { value: "googleAds", label: "Google ads" },
+  { value: "aiTool", label: "AI Tool" },
+];
 
 export function reviseGccVersion(
   versionId: string,
@@ -343,6 +364,129 @@ export function repurposeGccVersion(
       provider: mix.provider ?? "OpenAi",
     }),
   });
+}
+
+/* --------------------- readable artifact rendering --------------------- */
+
+type SerpRun = { text?: string; bold?: boolean; italic?: boolean; href?: string };
+type SerpParagraph = { type?: string; runs?: SerpRun[]; ordered?: boolean; items?: SerpRun[][] };
+type DocSection = {
+  tag?: string;
+  heading?: string;
+  paragraphs?: SerpParagraph[];
+  href?: string;
+  children?: DocSection[];
+  imagePrompt?: string;
+};
+type WireDocument = { lede?: DocSection; sections?: DocSection[] };
+
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderRuns(runs: SerpRun[] | undefined): string {
+  return (runs ?? [])
+    .map((r) => {
+      let t = escHtml(r.text ?? "");
+      if (!t) return "";
+      if (r.bold) t = `<strong>${t}</strong>`;
+      if (r.italic) t = `<em>${t}</em>`;
+      if (r.href) {
+        t = `<a href="${escHtml(r.href)}" target="_blank" rel="noopener noreferrer">${t}</a>`;
+      }
+      return t;
+    })
+    .join("");
+}
+
+function renderParagraph(p: SerpParagraph): string {
+  if (p.type === "list" || Array.isArray(p.items)) {
+    const tag = p.ordered ? "ol" : "ul";
+    const items = (p.items ?? []).map((it) => `<li>${renderRuns(it)}</li>`).join("");
+    return `<${tag}>${items}</${tag}>`;
+  }
+  const inner = renderRuns(p.runs);
+  return inner ? `<p>${inner}</p>` : "";
+}
+
+function renderSection(s: DocSection, depth: number): string {
+  const level = s.tag && /^h[1-6]$/i.test(s.tag)
+    ? s.tag.toLowerCase()
+    : depth <= 0
+      ? "h2"
+      : "h3";
+  const parts: string[] = [];
+  if (s.heading?.trim()) parts.push(`<${level}>${escHtml(s.heading)}</${level}>`);
+  for (const p of s.paragraphs ?? []) {
+    const r = renderParagraph(p);
+    if (r) parts.push(r);
+  }
+  if (s.imagePrompt?.trim()) {
+    parts.push(`<p><em>Image prompt:</em> ${escHtml(s.imagePrompt)}</p>`);
+  }
+  for (const c of s.children ?? []) parts.push(renderSection(c, depth + 1));
+  return parts.join("\n");
+}
+
+function docToHtml(doc: WireDocument): string {
+  const blocks: string[] = [];
+  if (doc.lede) blocks.push(renderSection(doc.lede, 0));
+  for (const s of doc.sections ?? []) blocks.push(renderSection(s, 0));
+  return blocks.filter(Boolean).join("\n");
+}
+
+function isWireDocument(v: unknown): v is WireDocument {
+  return !!v && typeof v === "object" && ("lede" in v || "sections" in v);
+}
+
+/**
+ * Render a stored artifact body (CWV2 ContentDocument, image-prompt, or tool JSON) into
+ * readable HTML for `dangerouslySetInnerHTML`. Returns null when it can't produce a
+ * meaningful render (caller can fall back to a collapsed JSON view).
+ */
+export function renderArtifactBody(bodyDocumentJson: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bodyDocumentJson);
+  } catch {
+    return null;
+  }
+
+  // Long-form ContentDocument (top-level or nested under .body for tool pages).
+  if (isWireDocument(parsed)) return docToHtml(parsed);
+  if (parsed && typeof parsed === "object" && isWireDocument((parsed as Record<string, unknown>).body)) {
+    const p = parsed as Record<string, unknown>;
+    const rows: string[] = [];
+    if (typeof p.title === "string" && p.title.trim()) rows.push(`<h2>${escHtml(p.title)}</h2>`);
+    rows.push(docToHtml(p.body as WireDocument));
+    return rows.filter(Boolean).join("\n");
+  }
+
+  // Field-based artifacts (image prompt, metadata packs): labeled fields, never raw JSON.
+  if (parsed && typeof parsed === "object") {
+    const p = parsed as Record<string, unknown>;
+    const rows: string[] = [];
+    const field = (label: string, key: string) => {
+      const v = p[key];
+      if (typeof v === "string" && v.trim()) {
+        rows.push(`<p><strong>${escHtml(label)}:</strong> ${escHtml(v)}</p>`);
+      }
+    };
+    if (typeof p.title === "string" && p.title.trim()) rows.push(`<h2>${escHtml(p.title)}</h2>`);
+    field("Prompt", "prompt");
+    field("Image prompt", "imagePrompt");
+    field("Negative prompt", "negativePrompt");
+    field("Meta description", "metaDescription");
+    field("Summary", "summary");
+    if (typeof p.body === "string" && p.body.trim()) rows.push(p.body); // may already be HTML
+    if (rows.length) return rows.join("\n");
+  }
+
+  return null;
 }
 
 /** Best-effort plain preview from stored body JSON — fail closed to raw/pretty JSON. */
