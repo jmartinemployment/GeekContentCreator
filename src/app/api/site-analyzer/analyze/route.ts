@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         domain: body.domain,
         seedTopic: body.seedTopic ?? null,
+        force: body.force === true,
       }),
       cache: "no-store",
     },

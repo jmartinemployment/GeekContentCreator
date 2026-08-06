@@ -18,6 +18,7 @@ export interface GccCreate {
   startingContentType: string;
   topic: string;
   notes: string | null;
+  department?: string;
   siteAnalysisId: string | null;
   siteSectionJson: string | null;
   briefJson: string | null;
@@ -64,10 +65,13 @@ export function createGccCreate(input: {
   notes?: string | null;
   siteAnalysisId?: string | null;
   siteSection?: SiteSectionContext | null;
+  department?: string | null;
 }): Promise<GccCreate> {
   const siteAnalysisId = input.siteAnalysisId ?? null;
   const siteSection = input.siteSection ?? null;
-  if (siteAnalysisId && (!siteSection || !siteSection.relatedPages?.length)) {
+  // Site Analyzer handoff path requires relatedPages; domain-only grounding (analysis id,
+  // no section) is allowed — Generate uses trees for "must mention", not relatedPages.
+  if (siteSection && (!siteSection.relatedPages || siteSection.relatedPages.length === 0)) {
     throw new ApiError(
       "Site Analyzer create requires non-empty relatedPages in site section context.",
       400,
@@ -82,6 +86,7 @@ export function createGccCreate(input: {
       notes: input.notes ?? null,
       siteAnalysisId,
       siteSection: siteSection ? siteSectionForApi(siteSection) : null,
+      department: input.department?.trim() || "marketing",
     }),
   });
 }
@@ -148,6 +153,19 @@ export interface GccArtifactVersion {
 
 export interface GccCreateDetail extends GccCreate {
   artifacts: GccArtifact[];
+  lastAnalyzedAtUtc?: string | null;
+  analysisAgeDays?: number | null;
+  analysisStale?: boolean;
+}
+
+export interface GccStaleGroundingError {
+  error: "stale_site_analysis";
+  message: string;
+  lastAnalyzedAtUtc: string;
+  analysisAgeDays: number;
+  staleAfterDays: number;
+  domain: string;
+  siteAnalysisId: string;
 }
 
 export interface GccGenerateResult {
@@ -206,7 +224,11 @@ export function listGccVersions(artifactId: string): Promise<GccArtifactVersion[
 
 export function generateGccCreate(
   createId: string,
-  opts?: { provider?: string; outputTypes?: string[] },
+  opts?: {
+    provider?: string;
+    outputTypes?: string[];
+    acknowledgeStaleGrounding?: boolean;
+  },
 ): Promise<GccGenerateResult> {
   return gccRequest<GccGenerateResult>(
     `/api/geek-content-creator/creates/${createId}/generate`,
@@ -218,9 +240,22 @@ export function generateGccCreate(
           opts?.outputTypes && opts.outputTypes.length > 0
             ? opts.outputTypes
             : null,
+        acknowledgeStaleGrounding: opts?.acknowledgeStaleGrounding === true,
       }),
     },
   );
+}
+
+/** Parse a 409 Conflict body from Generate when site grounding is stale. */
+export function parseStaleGroundingError(err: unknown): GccStaleGroundingError | null {
+  if (!(err instanceof ApiError) || err.status !== 409) return null;
+  try {
+    const body = JSON.parse(err.message) as Partial<GccStaleGroundingError>;
+    if (body.error !== "stale_site_analysis") return null;
+    return body as GccStaleGroundingError;
+  } catch {
+    return null;
+  }
 }
 
 /* ------------------- create keyword-source uploads ------------------- */

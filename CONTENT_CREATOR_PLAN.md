@@ -7,7 +7,8 @@
 | **Later (not started)** | Research dossier, calendar, pixel render (§8) |
 | **Open / optional** | Shared writing package extract; Repurpose presets; search provider when dossier phase starts (§14) |
 | **Follow-on (code complete, not this plan’s §13)** | Geek-SEO sitemap generate as Analyze step 1 — implemented, unit-tested, and pushed to `main` across Geek-SEO/GeekAPI/GeekContentCreator, **not yet live-verified against a real domain**. Planning/handoff docs for this item were deleted post-merge; see commit history (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`) for detail. |
-| **Implemented 2026-08-04** | Fallback elimination — [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) · [inventory](./docs/FALLBACK_INVENTORY.md). Replaced Site Analyzer's fabricated content-gap fallback (5 hardcoded generic subtopics) with real heading-based gap detection; eliminated silent provider auto-switching (SERP/AI/geocode) and swallowed exceptions in Geek-SEO/GeekAPI. CWV2's `.html`/`.txt` git export was already fully implemented, no change needed. 195/195 tests pass; not yet live-verified against a real domain. |
+| **Implemented 2026-08-04** | Fallback elimination — plan doc removed post-completion, see [inventory](./docs/FALLBACK_INVENTORY.md) and §14 below for the 3 items it deferred. Replaced Site Analyzer's fabricated content-gap fallback (5 hardcoded generic subtopics) with real heading-based gap detection (later replaced again, see the h1–h6 row below); eliminated silent provider auto-switching (SERP/AI/geocode) and swallowed exceptions in Geek-SEO/GeekAPI. CWV2's `.html`/`.txt` git export was already fully implemented, no change needed. Not yet live-verified against a real domain. |
+| **Implemented 2026-08-06** | Real per-page **h1–h6 + paragraph tree** replacing the flat heading model, content-backed candidacy instead of the confidence gate, Generate "must mention" sub-topics, Generate-time staleness choice, `Department` on `GccCreate`, and retirement of the legacy `/app`/`Project` create pages. Plan doc (`site-content-tree-and-create-consolidation.plan.md`) deleted post-completion — see commit history. 207/207 Geek-SEO tests, 35/35 GeekBackend tests, GeekContentCreator builds clean. Not yet live-verified against a real domain. |
 | **New repo** | `/Users/jeffmartin/development/GeekContentCreator` |
 | **Copies (same content)** | This file · `/Users/jeffmartin/development/CONTENT_CREATOR_PLAN.md` |
 | **Last status update** | 2026-08-03 |
@@ -24,7 +25,7 @@
 | Build sequence §12.7–8 / §8 later | **Not started** (after application approval) |
 | §14 open items | **Open** (allowed after day-one) |
 | Sitemap step-1 / uncapped crawl (Geek-SEO) | **Deployed** — separate handoff; not a §13 checkbox; not yet live-verified against a real domain |
-| Fallback elimination (Geek-SEO/GeekAPI) | **Implemented** — [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md); not a §13 checkbox; not yet live-verified against a real domain |
+| Fallback elimination (Geek-SEO/GeekAPI) | **Implemented** — plan doc removed post-completion, see §14 for its 3 deferred items; not a §13 checkbox; not yet live-verified against a real domain |
 
 ---
 
@@ -203,7 +204,7 @@ ToolGenerateRequest:
 |------|----------------|
 | 1. Connect / analyze site | Crawl or load site model (site analyzer / Geek-SEO backed). **Implemented, pushed to main (not yet live-verified against a real domain):** every Analyze runs **sitemap generate as step 1** (uncapped discovery → URL inventory + auto-updated `sitemap.xml` artifact + Download); then **inventory-complete** site crawl. Fail closed on empty inventory or incomplete crawl — never empty soft-success. See Geek-SEO commit `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`. |
 | 2. Topical map | Topics and headings the site covers (or should cover). **Utility pages** (`about`, `contact`, `faq`, …) are **excluded from topics**; they are still crawled for inventory / future Site Audit. |
-| 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars. **Fixed:** previously, a pillar with <3 real crawled child pages fabricated 5 hardcoded generic subtopics instead of finding real gaps — now uses real heading-based detection (see [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) items 1–2). |
+| 3. **Identify gaps** | Topics/headings with **no page**; `suggest_pillar_page`-class; orphan pillars. **Fixed:** heading-based detection replaced fabricated templates (fallback-elimination work, plan doc removed post-completion). **Implemented 2026-08-06:** real per-page h1–h6 + paragraph tree, content-backed candidacy (replacing the synthetic confidence gate), tree-walked gaps. |
 | 4. Human picks a gap | Operator chooses one gap from the list |
 | 5. Start create | Prefill topic / keyword / starting-content from that gap |
 | 6. **Feed existing site content into Generate** | Pass site context into the writing engine: related existing pages (titles, headings, short excerpts/summaries), topical neighbors, voice/structure cues from the site model — so the draft fits the site, avoids duplicating pages, and can cross-link sensibly |
@@ -334,7 +335,7 @@ flowchart TD
 
 | System | Role |
 |--------|------|
-| Content Writer v2 | Job framing; shared generate / image-prompt **engine** — **not** UI to clone |
+| Content Writer v2 | Job framing; shared generate / image-prompt **engine** — **not** UI to clone. Legacy `/app`/`/app/projects/*` screens removed (2026-08-06); `Department` lives on `GccCreate`. Full CWV2 `Project` entity drop deferred until publish migrates off it (external repo, out of scope). |
 | site analyzer / Geek-SEO | **Site Analyzer** capability: site model, topical map, **content gaps**, and **existing page/content context for Generate** — not a separate SEO-only UI |
 | Geek Content Workflow | Feature inventory (revise textarea, on-page SEO, polish, approval, packs) to **re-home** — not the product shell |
 | GeekOAuth + GeekAPI | Auth and API infrastructure (assumed) |
@@ -397,10 +398,15 @@ All items below are done for first release:
 | Item | Status |
 |------|--------|
 | Extract shared writing package vs GeekAPI in-process services first (same engine contract) | Open |
-| Auth/hosting details confirmed at scaffold | Done (GeekOAuth + GeekAPI). Hosting corrected 2026-08-04: UI is **Vercel-only**. A mistaken parallel Railway UI deployment was removed — vestigial Docker artifacts deleted from the repo; only the manual Railway service deletion remains. **No backend services needed migrating** — they already live in GeekAPI (`GccController` + `Gcc*` services); the Next.js app is only a frontend + BFF-auth proxy. See README.md "Resolved incident" and `docs/HANDOFF-railway-incident-and-pillar-bug.md`. |
-| **New (2026-08-04):** duplicate-key crash on Analyze re-run | **Open, root-caused, fix planned, not yet implemented** — see `docs/HANDOFF-railway-incident-and-pillar-bug.md` |
+| Auth/hosting details confirmed at scaffold | Done (GeekOAuth + GeekAPI). Hosting corrected 2026-08-04: UI is **Vercel-only**. A mistaken parallel Railway UI deployment was removed — vestigial Docker artifacts deleted from the repo, the Railway service itself deleted by the user. **No backend services needed migrating** — they already live in GeekAPI (`GccController` + `Gcc*` services); the Next.js app is only a frontend + BFF-auth proxy. See README.md "Resolved incident". |
+| Duplicate-key crash on Analyze re-run | **Implemented** — `BulkInsertPillarsAsync` now delete-then-insert in a transaction, verified against real code. Plan doc deleted post-completion. |
+| **From the Railway/pillar-bug handoff (doc removed post-completion):** the "console → null" symptom — whether the frontend still shows a bare `null` on some Analyze failure path was never actually investigated after the pillar-insert fix landed; may have resolved itself or may be a distinct small bug | Open — unconfirmed either way |
 | Optional Repurpose presets (pre-fill only; still require Generate) | Open |
 | Search provider — only when Research dossier phase starts (after application approval) | Not started (blocked on §8) |
+| Real h1–h6 + paragraph content tree; Generate must-mention + staleness choice; `Department` on `GccCreate`; retire legacy `/app` create pages | **Implemented 2026-08-06** — deploy / live smoke against a real domain still pending |
+| **From the fallback-elimination work (plan doc removed post-completion):** server-side transactional/batch persist endpoint for Site Analysis (the real fix behind the monolithic-save fallback removal — 3 independent HTTP PATCHes via `HttpSiteAnalysisProfileRepository` are not atomic) | Open — explicitly deferred, not built |
+| Optional relational `Title`/`MetaDescription` columns on Site Analysis profiles (currently null on reload since they only live in a stripped artifact blob — accepted consequence, not a bug) | Open — optional, no urgency |
+| Pipeline-stage-gating verification for `NavMenuExtractor`'s "legitimate empty" assumption (only trustworthy if sitemap step + crawl completed first — never independently verified) | Open — verification task |
 
 ---
 

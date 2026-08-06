@@ -13,6 +13,7 @@ import {
   getGccCreateDetail,
   listGccVersions,
   parseSiteSectionJson,
+  parseStaleGroundingError,
   polishGccVersion,
   previewBodyDocument,
   renderArtifactBody,
@@ -23,6 +24,7 @@ import {
   type GccCreateDetail,
   type GccPolishReport,
   type GccSeoReport,
+  type GccStaleGroundingError,
 } from "@/lib/gcc-api";
 
 export default function CreateDraftWorkspace({ createId }: { createId: string }) {
@@ -38,6 +40,8 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState<string | null>(null);
   const [outputTypes, setOutputTypes] = useState<string[]>([]);
+  const [stalePrompt, setStalePrompt] = useState<GccStaleGroundingError | null>(null);
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   // Seed the checked set from the create's starting type once the detail loads;
   // never clobber a selection the operator has already made.
@@ -115,8 +119,8 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <p className="text-sm text-red-600">{loadError}</p>
-        <Link href="/app" className="mt-4 inline-block text-sm text-brand hover:underline">
-          &larr; Back to dashboard
+        <Link href="/app/creates" className="mt-4 inline-block text-sm text-brand hover:underline">
+          &larr; Back to creates
         </Link>
       </div>
     );
@@ -135,15 +139,22 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
   const approved = artifact?.status?.toLowerCase() === "approved";
   const siteSection = parseSiteSectionJson(detail.siteSectionJson);
   const canGenerate = briefFormComplete && briefReady;
+  // Site Analyzer handoff creates require relatedPages; domain-only grounding does not.
   const saMissingPages =
-    !!detail.siteAnalysisId && (!siteSection || !siteSection.relatedPages.length);
+    !!detail.siteAnalysisId &&
+    !!siteSection &&
+    !siteSection.relatedPages.length;
 
-  async function runGenerate() {
+  async function runGenerate(acknowledgeStale = false) {
     if (!canGenerate || saMissingPages) return;
     setGenerateMsg(null);
+    setStalePrompt(null);
     setGenerating(true);
     try {
-      const result = await generateGccCreate(createId, { outputTypes });
+      const result = await generateGccCreate(createId, {
+        outputTypes,
+        acknowledgeStaleGrounding: acknowledgeStale,
+      });
       if (result.artifact && result.version) {
         setGenerateMsg(
           `Created ${result.artifact.type} “${result.artifact.name}” v${result.version.versionNumber}.`,
@@ -155,15 +166,56 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
       }
       await reload();
     } catch (err) {
-      setGenerateMsg(
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
+      const stale = parseStaleGroundingError(err);
+      if (stale) {
+        setStalePrompt(stale);
+        setGenerateMsg(null);
+      } else {
+        setGenerateMsg(
+          err instanceof ApiError
             ? err.message
-            : "Generate failed",
-      );
+            : err instanceof Error
+              ? err.message
+              : "Generate failed",
+        );
+      }
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function reanalyzeThenGenerate() {
+    if (!stalePrompt?.domain) return;
+    setReanalyzing(true);
+    setGenerateMsg(null);
+    try {
+      const res = await fetch("/api/site-analyzer/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: stalePrompt.domain, force: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Re-analyze failed");
+
+      let status = String(body.status || "").toLowerCase();
+      const deadline = Date.now() + 5 * 60_000;
+      while (status === "processing" && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const pollRes = await fetch(`/api/site-analyzer/${body.id}`);
+        const pollBody = await pollRes.json().catch(() => ({}));
+        if (!pollRes.ok) throw new Error(pollBody.error || "Site analysis check failed");
+        status = String(pollBody.status || "").toLowerCase();
+      }
+      if (status !== "ready") {
+        throw new Error(status === "failed" ? "Re-analyze failed" : "Re-analyze still running — try Generate again shortly");
+      }
+      setStalePrompt(null);
+      await reload();
+      await runGenerate(false);
+    } catch (err) {
+      setGenerateMsg(err instanceof Error ? err.message : "Re-analyze failed");
+    } finally {
+      setReanalyzing(false);
     }
   }
 
@@ -241,8 +293,8 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
 
           <button
             type="button"
-            disabled={!canGenerate || saMissingPages || generating || outputTypes.length === 0}
-            onClick={() => void runGenerate()}
+            disabled={!canGenerate || saMissingPages || generating || reanalyzing || outputTypes.length === 0}
+            onClick={() => void runGenerate(false)}
             className="mt-4 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {generating
@@ -251,6 +303,35 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
                 ? `Generate ${outputTypes.length} content items`
                 : "Generate content"}
           </button>
+          {stalePrompt ? (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-950">
+              <p className="font-medium">{stalePrompt.message}</p>
+              <p className="mt-1 text-amber-800">
+                Last analyzed {new Date(stalePrompt.lastAnalyzedAtUtc).toLocaleString()} (
+                {stalePrompt.analysisAgeDays} day
+                {stalePrompt.analysisAgeDays === 1 ? "" : "s"} ago). Threshold:{" "}
+                {stalePrompt.staleAfterDays} days.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={generating || reanalyzing}
+                  onClick={() => void reanalyzeThenGenerate()}
+                  className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand/90 disabled:opacity-50"
+                >
+                  {reanalyzing ? "Re-analyzing…" : "Re-analyze now"}
+                </button>
+                <button
+                  type="button"
+                  disabled={generating || reanalyzing}
+                  onClick={() => void runGenerate(true)}
+                  className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                >
+                  Proceed with stale grounding
+                </button>
+              </div>
+            </div>
+          ) : null}
           {!canGenerate ? (
             <p className="mt-2 text-xs text-muted">
               Disabled until Content Brief is saved — inline required markers above.

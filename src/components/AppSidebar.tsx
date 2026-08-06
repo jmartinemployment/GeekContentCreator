@@ -7,7 +7,6 @@ const nav: { href: string; label: string; match: "exact" | "prefix" }[] = [
   { href: "/app/creates", label: "Creates", match: "prefix" },
   { href: "/app/create", label: "Start create", match: "exact" },
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
-  { href: "/app", label: "Projects", match: "exact" },
 ];
 
 export function AppSidebar() {

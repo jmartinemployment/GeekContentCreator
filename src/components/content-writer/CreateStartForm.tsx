@@ -55,6 +55,18 @@ export default function CreateStartForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // Manually-typed-topic domain association (Site Analyzer handoff path already carries its own
+  // siteAnalysisId and skips all of this). No silent fallback either way: the operator explicitly
+  // analyzes or explicitly proceeds without grounding — Generate never silently decides.
+  const [domain, setDomain] = useState("");
+  const [domainAnalysisId, setDomainAnalysisId] = useState<string | null>(null);
+  const [domainAnalysisStatus, setDomainAnalysisStatus] = useState<string | null>(null);
+  const [lastAnalyzedAtUtc, setLastAnalyzedAtUtc] = useState<string | null>(null);
+  const [domainChecking, setDomainChecking] = useState(false);
+  const [domainError, setDomainError] = useState<string | null>(null);
+  const [proceedWithoutGrounding, setProceedWithoutGrounding] = useState(false);
+  const [department, setDepartment] = useState("marketing");
+
   useEffect(() => {
     getClients()
       .then((list) => {
@@ -107,18 +119,67 @@ export default function CreateStartForm() {
   const saRequired = !!siteAnalysisIdQuery || !!handoff;
   const sectionOk = !!handoff?.section.relatedPages?.length;
 
+  // Domain grounding is only relevant on the manual-topic path (Site Analyzer handoff already
+  // has its own siteAnalysisId and is a different, already-required flow).
+  const domainReady = !saRequired && !!domain.trim();
+  const domainAnalysisReady = domainAnalysisStatus === "ready" && !!domainAnalysisId;
+  const domainChoicePending =
+    domainReady && !domainAnalysisReady && !proceedWithoutGrounding;
+
   const canSubmit = useMemo(() => {
     if (!clientId || !topic.trim()) return false;
     if (startingContentType === "imagePrompt" && !notes.trim()) return false;
     if (startingContentType === "aiTool" && !notes.trim()) return false;
     if (saRequired && !sectionOk) return false;
+    if (domainChoicePending) return false;
     return true;
-  }, [clientId, topic, startingContentType, notes, saRequired, sectionOk]);
+  }, [clientId, topic, startingContentType, notes, saRequired, sectionOk, domainChoicePending]);
+
+  async function checkOrAnalyzeDomain(force: boolean) {
+    const d = domain.trim();
+    if (!d) return;
+    setDomainChecking(true);
+    setDomainError(null);
+    setProceedWithoutGrounding(false);
+    try {
+      const res = await fetch("/api/site-analyzer/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: d, force }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not check site analysis");
+      setDomainAnalysisId(body.id ?? null);
+      let status = String(body.status || "").toLowerCase();
+      setDomainAnalysisStatus(status);
+      setLastAnalyzedAtUtc(body.lastAnalyzedAtUtc ?? null);
+
+      // Poll while a run is in flight (first-time or forced re-analyze).
+      const deadline = Date.now() + 5 * 60_000;
+      while (status === "processing" && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const pollRes = await fetch(`/api/site-analyzer/${body.id}`);
+        const pollBody = await pollRes.json().catch(() => ({}));
+        if (!pollRes.ok) throw new Error(pollBody.error || "Site analysis check failed");
+        status = String(pollBody.status || "").toLowerCase();
+        setDomainAnalysisStatus(status);
+        setLastAnalyzedAtUtc(pollBody.lastAnalyzedAtUtc ?? null);
+      }
+    } catch (e) {
+      setDomainError(e instanceof Error ? e.message : "Could not check site analysis");
+    } finally {
+      setDomainChecking(false);
+    }
+  }
 
   function submit() {
     setError(null);
     if (!canSubmit) {
-      setError("Fill required fields. Site Analyzer creates need related pages.");
+      setError(
+        domainChoicePending
+          ? "Analyze this domain or choose \"Continue without grounding\" before starting."
+          : "Fill required fields. Site Analyzer creates need related pages.",
+      );
       return;
     }
     startTransition(async () => {
@@ -134,8 +195,12 @@ export default function CreateStartForm() {
           startingContentType,
           topic: topicTrimmed,
           notes: notes.trim() || null,
+          department: department.trim() || "marketing",
           siteAnalysisId:
-            handoff?.siteAnalysisId || siteAnalysisIdQuery || null,
+            handoff?.siteAnalysisId ||
+            siteAnalysisIdQuery ||
+            (domainAnalysisReady ? domainAnalysisId : null) ||
+            null,
           siteSection: handoff?.section ?? null,
         });
         clearSiteSectionHandoff();
@@ -211,6 +276,89 @@ export default function CreateStartForm() {
             placeholder="Target topic"
           />
         </label>
+
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          Department
+          <input
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            className="rounded-md border border-border bg-white px-3 py-2 text-sm"
+            placeholder="marketing"
+          />
+          <span className="text-xs font-normal text-muted">
+            Used in canonical URL / JSON-LD path segment (e.g. /marketing/slug).
+          </span>
+        </label>
+
+        {!saRequired ? (
+          <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Site domain (optional — grounds Generate in real sub-topics from this site)
+              <input
+                value={domain}
+                onChange={(e) => {
+                  setDomain(e.target.value);
+                  setDomainAnalysisId(null);
+                  setDomainAnalysisStatus(null);
+                  setLastAnalyzedAtUtc(null);
+                  setProceedWithoutGrounding(false);
+                }}
+                className="rounded-md border border-border bg-white px-3 py-2 text-sm"
+                placeholder="example.com"
+              />
+            </label>
+
+            {domain.trim() ? (
+              <div className="flex flex-col gap-2 text-sm">
+                {domainAnalysisReady ? (
+                  <>
+                    <p className="text-muted">
+                      Analyzed{lastAnalyzedAtUtc ? ` — last analyzed ${new Date(lastAnalyzedAtUtc).toLocaleString()}` : ""}.
+                      Generate will mention this topic&apos;s real sub-topics from the site.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={domainChecking}
+                      onClick={() => checkOrAnalyzeDomain(true)}
+                      className="self-start rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted/10 disabled:opacity-50"
+                    >
+                      {domainChecking ? "Re-analyzing…" : "Re-analyze (site content may have changed)"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-muted">
+                      {domainAnalysisStatus === "processing"
+                        ? "Analyzing…"
+                        : domainAnalysisStatus === "failed"
+                          ? "Analysis failed — you can try again or proceed without grounding."
+                          : "This domain has not been analyzed yet. Without an analysis, Generate cannot ground the draft in real sub-topics."}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={domainChecking}
+                        onClick={() => checkOrAnalyzeDomain(false)}
+                        className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand/90 disabled:opacity-50"
+                      >
+                        {domainChecking ? "Analyzing…" : "Analyze now"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={domainChecking}
+                        onClick={() => setProceedWithoutGrounding(true)}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted/10 disabled:opacity-50"
+                      >
+                        Continue without grounding
+                      </button>
+                    </div>
+                  </>
+                )}
+                {domainError ? <p className="text-red-600">{domainError}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           Notes

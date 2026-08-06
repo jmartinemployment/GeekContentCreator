@@ -11,7 +11,9 @@ This document consolidates the full proposed Content Creator change set: Content
 
 **Objective:** align the Content Brief controls to Google's **documented** Search and Ads terminology so generated content is crafted to *known* Google attributes for SEO standing. Where Google publishes a taxonomy (audience segments, Full-Funnel stages, CTA types, E-E-A-T), use its exact names/values and cite the source. Where Google publishes **no** such taxonomy (a "tone" scale, content "angles"), those are internal editorial controls grounded in Google's quality guidance — not presented as Google attributes.
 
-**Deploy order (when executing) — compat-first:** the backend validator does presence-only string checks on the *current* field names, so renaming a field before the UI emits it fails saves closed. Sequence: (1) backend accepts old-or-new names during a compat window → (2) deploy UI emitting the canonical Google-aligned values → (3) later tighten the backend to canonical-only. Brief fields stay opaque JSON, persisted in **both** `GccCreate.BriefJson` (server) and browser `localStorage` (`gcc-content-brief:`), with no version tag today — see §1.I.
+**Deploy order (when executing) — compat-first:** the backend validator does presence-only string checks on the *current* field names, so renaming a field before the UI emits it fails saves closed. Sequence: (1) backend accepts old-or-new names during a compat window → (2) deploy UI emitting the canonical Google-aligned values → (3) later tighten the backend to canonical-only. Brief fields stay opaque JSON, persisted in **both** `GccCreate.BriefJson` (server) and browser `localStorage` (`gcc-content-brief:`), with a **required** version tag — see §1.I.
+
+**Closing the compat window (not indefinite):** this is a deliberate, temporary translation layer, not a permanent fallback — it must close on a stated trigger or it becomes exactly the kind of "temporary" fallback that quietly turns permanent. Close the window on the first deploy **after both**: (a) the UI has shipped emitting canonical-only values, and (b) GeekAPI's legacy-name acceptance path has logged **zero** legacy-shaped requests for 14 consecutive days. Add a log line/counter at the compat-accept branch in `ValidateBriefRequired` so this is observed, not assumed. See §1.I and Verification.
 
 ### Source of truth per field (verified against Google, 2026-08)
 
@@ -145,7 +147,13 @@ Legacy: `start_trial`/`subscribe` → `sign_up`; `book_demo` → `book_now`; `do
 | `informational_instructional` | informational, navigational | problem_solution, ultimate_guide |
 | `commercial_balanced` | commercial_investigation, transactional | comparative, case_study_data |
 
-Empty intersection → fall back to intent-allow + helper warning. Secondary intent does not gate voice.
+**Empty intersection fails closed, not a silent fallback:** when the chosen Primary Intent + Angle
+combination has zero compatible tones, **block** tone selection with an explicit inline error
+("No compatible tone for this intent + angle combination — adjust one of them") rather than
+silently widening the allowed set to intent-only. A warning that trails an already-made silent
+choice is weaker than preventing the choice — same fail-closed standard already applied to the
+Site Analyzer fallback inventory (fallback-elimination work, plan doc removed post-completion — see `CONTENT_CREATOR_PLAN.md` §14). Secondary intent still does
+not gate voice.
 
 ### 1.G Content Brief panel layout
 
@@ -171,7 +179,9 @@ The brief is opaque JSON with **no version tag and no value remapping anywhere t
 2. The `getGccCreate` → `JSON.parse` server-brief load in `ContentBriefPanel.tsx` (~91–104).
 3. Guard the value-echo in `buildBriefBlock` so an unmapped legacy value can't reach the prompt.
 
-**Helper/type churn** — these all hardcode the current field set and must change together in `brief-catalog.ts`: the catalogs, the `ContentBrief` interface, `emptyContentBrief`, `contentBriefMissingFields`, `isContentBriefComplete`, `buildBriefBlock`, `formatBriefAsHtml`; plus the `ContentBriefPanel.tsx` layout, ToV block, and gating. Replacing Tone of Voice (a six-slider numeric `Record`) with the 3-value control + E-E-A-T deletes `TOV_SCALES` / `TOV_PRESETS` / `TOV_NEUTRAL` and `buildToneOfVoiceSummary`, and needs a **defined legacy mapping** for old numeric briefs (e.g. unknown/all-neutral → `commercial_balanced`). Recommend adding a `briefVersion` tag so future term changes are migratable.
+**Helper/type churn** — these all hardcode the current field set and must change together in `brief-catalog.ts`: the catalogs, the `ContentBrief` interface, `emptyContentBrief`, `contentBriefMissingFields`, `isContentBriefComplete`, `buildBriefBlock`, `formatBriefAsHtml`; plus the `ContentBriefPanel.tsx` layout, ToV block, and gating. Replacing Tone of Voice (a six-slider numeric `Record`) with the 3-value control + E-E-A-T deletes `TOV_SCALES` / `TOV_PRESETS` / `TOV_NEUTRAL` and `buildToneOfVoiceSummary`, and needs a **defined legacy mapping** for old numeric briefs (e.g. unknown/all-neutral → `commercial_balanced`). **`briefVersion` is a required field, not optional** — this is the second full catalog rewrite already; the absence of versioning is exactly what made this remap work complicated, and retrofitting it a third time would be more expensive than adding it now. `emptyContentBrief` stamps the current version; the legacy-remap paths (below) are what run when it's absent or stale.
+
+**Closing the compat window:** the legacy→canonical remap below is a deliberate, temporary translation layer, not permanent infrastructure — apply the same scrutiny given to the Site Analyzer fallbacks. Close it on the first deploy after (a) the UI ships canonical-only emission and (b) zero legacy-shaped requests are logged for 14 consecutive days at the compat-accept branch in `ValidateBriefRequired` (§1.H) — add a counter/log there so this is observed, not assumed. After closing, an unversioned/legacy-shaped brief should fail validation rather than continue to be silently translated indefinitely.
 
 ---
 
@@ -286,13 +296,13 @@ Low temperature (≤ 0.2). Guardrail still runs post-gen. **Not** a parallel Nex
 
 ## Part 5 — Site Analyzer functionality additions
 
-Complementary to brief Angle for SEO. This work is specified in full in its own document — **[site-analyzer-functionality-additions.plan.md](./site-analyzer-functionality-additions.plan.md)** — which is the source of truth. Summary: feed three Google-evaluation lenses into Site Analyzer gap output so operators pick/prove an Angle for SEO —
+**Implemented (2026-08-06)** — the companion plan doc (`site-analyzer-functionality-additions.plan.md`) has been deleted post-completion. Summary of what shipped: three Google-evaluation lenses feeding Site Analyzer gap output so operators pick/prove an Angle for SEO —
 
 1. **SERP shape summary** — top ~10 organic as format/intent roadmap; don't fight the dominant SERP shape.
 2. **PAA / PAF clusters** — latent questions into outline/FAQ.
 3. **Information Gain notes** — distinct perspective/data competitors miss.
 
-Delivery slices, DTO shapes (`SerpShapeSummary`, `PaaPafCluster`, `InformationGainNote`), and the deferred scrape/vendor decisions live in that companion doc — kept there to avoid drift. Do not duplicate them here.
+DTO shapes (`SerpShapeSummary`, `PaaPafCluster`, `InformationGainNote`) live in `GeekApplication/Models/ContentCreator/GccSerpLensModels.cs`; the gap-detail UI is `site-analyzer-client.tsx`'s `openGapDetail`/`SerpIngestPanel`. Only remaining open item: live Analyze smoke test on a real domain (see `CONTENT_CREATOR_PLAN.md` §14).
 
 ---
 

@@ -2,19 +2,18 @@
 
 **Happy path:** Site Analyzer (optional) → **Start create** → Content Brief → generate → revise / on-page SEO / polish → content approval → Mix.
 
-Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator/...`. Content Writer v2 **projects** remain as a legacy surface only.
+Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator/...`. The legacy Content Writer v2 `Project`-backed `/app` screens were retired (2026-08-06) — `/app/create` → `/app/creates` is the sole create path now.
 
 **Plan:** [CONTENT_CREATOR_PLAN.md](./CONTENT_CREATOR_PLAN.md)  
 **Architecture:** [architecture.md](./architecture.md) — Next → GeekOAuth + GeekAPI only (never GeekRepository directly).  
 **Site Analyzer sitemap step-1:** implemented, deployed, live in production — not yet verified end-to-end against a real domain. Planning docs removed post-merge; see commit history (Geek-SEO `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23`).  
-**Fallback elimination plan (implemented):** [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) · [inventory](./docs/FALLBACK_INVENTORY.md) — replaced Site Analyzer's fabricated content-gap fallback with real heading-based detection, eliminated silent provider auto-switching and swallowed exceptions across Geek-SEO/GeekAPI. CWV2's `.html`/`.txt` git export turned out to already be fully implemented, no change needed. 195/195 Geek-SEO tests pass; not yet live-verified against a real domain.
+**Fallback elimination (implemented, plan doc removed post-completion):** [inventory](./docs/FALLBACK_INVENTORY.md) — replaced Site Analyzer's fabricated content-gap fallback with real heading-based detection (later replaced again with a real h1–h6 + paragraph tree, see `CONTENT_CREATOR_PLAN.md` §14), eliminated silent provider auto-switching and swallowed exceptions across Geek-SEO/GeekAPI. CWV2's `.html`/`.txt` git export turned out to already be fully implemented, no change needed. Not yet live-verified against a real domain.
 
 ## Stack
 
 - Next.js App Router + TypeScript + Tailwind
 - GeekOAuth client: `geek-content-creator`
 - Content Creator API (proxied at `/api/cw/*`): `/api/geek-content-creator/creates`, brief-research, research/follow, generate, versions (revise / SEO / polish / approve / repurpose), Site Analyzer
-- Legacy CWV2 project APIs still proxied for `/app` Projects
 - Local port: **3003**
 - Production (Vercel): `https://geek-content-creator.vercel.app` — GitHub → Vercel, same pattern as sibling frontend apps.
 
@@ -36,7 +35,7 @@ Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted**
 
 **Sitemap step 1 (deployed, not yet live-verified):** Analyze step 1 now always regenerates a crawl-based sitemap inventory + downloadable `sitemap.xml` (unlimited discovery; inventory-complete crawl; fail-closed throw on empty/incomplete). Download sitemap button added to Site Analyzer UI. Unit-tested (191/191 in Geek-SEO), pushed to `main`, and deployed live in the backend (Geek-SEO, GeekAPI on Railway) and the UI (GeekContentCreator on Vercel — see the Railway-incident note above); **not yet run end-to-end against a live domain** (requires a real OAuth session to exercise — see `scripts/smoke-site-analyzer.mjs`).
 
-**Fixed:** Site Analyzer's content-gap detection previously fabricated gaps — when a pillar had fewer than 3 real crawled child pages, it filled in 5 hardcoded generic subtopics instead of finding real ones. Now replaced with real heading-based detection (headings found on crawled pages with no matching URL become gaps; a pillar with none shows zero gaps, never invented filler). See [docs/FALLBACK_ELIMINATION_PLAN.md](./docs/FALLBACK_ELIMINATION_PLAN.md) for this and the other fallback/soft-success patterns eliminated across Geek-SEO and GeekAPI.
+**Fixed:** Site Analyzer's content-gap detection previously fabricated gaps — when a pillar had fewer than 3 real crawled child pages, it filled in 5 hardcoded generic subtopics instead of finding real ones. Replaced with real heading-based detection, then further replaced (2026-08-06) with a real per-page h1–h6 + paragraph tree and content-backed candidacy — see `CONTENT_CREATOR_PLAN.md` §14 for this and the other fallback/soft-success patterns eliminated across Geek-SEO and GeekAPI.
 
 ## Operator smoke (day one)
 
