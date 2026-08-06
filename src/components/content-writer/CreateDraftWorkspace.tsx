@@ -50,7 +50,8 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
     setOutputTypes((prev) => {
       if (prev.length) return prev;
       const t = detail.startingContentType;
-      return GCC_OUTPUT_TYPES.some((o) => o.value === t) ? [t] : ["blog"];
+      if (t && GCC_OUTPUT_TYPES.some((o) => o.value === t)) return [t];
+      return ["blog"];
     });
   }, [detail]);
 
@@ -227,7 +228,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
 
       <div className="mb-8 mt-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-brand">
-          {detail.startingContentType}
+          {detail.startingContentType ?? "no type yet"}
         </p>
         <h1 className="mt-1 text-3xl font-bold text-foreground">{detail.topic}</h1>
         <p className="mt-2 text-sm text-muted">
@@ -251,7 +252,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
           clientId={detail.clientId}
           targetKeyword={detail.topic}
           createId={createId}
-          startingContentType={detail.startingContentType}
+          startingContentType={detail.startingContentType ?? undefined}
           onBriefValidityChange={setBriefFormComplete}
           onBriefSaved={(_id, ok) => {
             setBriefSavedOnServer(ok);

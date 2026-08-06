@@ -24,7 +24,7 @@ export type GccCreate = {
   id: string;
   clientId: string;
   ownerUserId: string;
-  startingContentType: string;
+  startingContentType: string | null;
   topic: string;
   notes: string | null;
   siteAnalysisId: string | null;

@@ -15,7 +15,7 @@ export interface GccCreate {
   id: string;
   clientId: string;
   ownerUserId: string;
-  startingContentType: string;
+  startingContentType: string | null;
   topic: string;
   notes: string | null;
   department?: string;
@@ -60,7 +60,7 @@ async function gccRequest<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function createGccCreate(input: {
   clientId: string;
-  startingContentType: string;
+  startingContentType?: string | null;
   topic: string;
   notes?: string | null;
   siteAnalysisId?: string | null;
@@ -81,7 +81,7 @@ export function createGccCreate(input: {
     method: "POST",
     body: JSON.stringify({
       clientId: input.clientId,
-      startingContentType: input.startingContentType,
+      startingContentType: input.startingContentType ?? null,
       topic: input.topic,
       notes: input.notes ?? null,
       siteAnalysisId,

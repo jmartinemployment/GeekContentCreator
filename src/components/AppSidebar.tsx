@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const nav: { href: string; label: string; match: "exact" | "prefix" }[] = [
   { href: "/app/creates", label: "Creates", match: "prefix" },
-  { href: "/app/create", label: "Start create", match: "exact" },
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
 ];
 

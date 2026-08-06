@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { writeSiteSectionHandoff } from "@/lib/site-section-storage";
+import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
 import type { ContentGap, SiteSectionContext } from "@/lib/types";
 import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
+import { createGccCreate } from "@/lib/gcc-api";
+import { getClients, ApiError } from "@/lib/content-writer/api";
+import type { Client } from "@/lib/content-writer/types";
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
@@ -27,11 +30,11 @@ async function downloadSitemap(analysisId: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-function toAbsoluteSiteUrl(domain: string): string {
-  const d = domain.trim().replace(/\/$/, "");
-  if (!d) return "";
-  if (/^https?:\/\//i.test(d)) return d;
-  return `https://${d}`;
+function gapSectionFirstSegment(path: string | null | undefined): string | null {
+  const p = path?.trim();
+  if (!p) return null;
+  const seg = p.split("/").map((s) => s.trim()).filter(Boolean)[0];
+  return seg || null;
 }
 
 export function SiteAnalyzerClient() {
@@ -48,6 +51,10 @@ export function SiteAnalyzerClient() {
   const [analyzing, setAnalyzing] = useState(false);
   const [pending, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientId, setClientId] = useState<string>("");
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const selectedGap = gaps.find((g) => g.id === selectedGapId) ?? null;
 
@@ -55,6 +62,19 @@ export function SiteAnalyzerClient() {
     return () => {
       abortRef.current?.abort();
     };
+  }, []);
+
+  useEffect(() => {
+    getClients()
+      .then((list) => {
+        setClients(list);
+        setClientError(null);
+        if (list[0] && !clientId) setClientId(list[0].id);
+      })
+      .catch((e) =>
+        setClientError(e instanceof Error ? e.message : "Could not load clients."),
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function pollUntilDone(id: string, signal: AbortSignal) {
@@ -180,48 +200,52 @@ export function SiteAnalyzerClient() {
     });
   }
 
-  function startCreate() {
+  async function startCreate() {
     if (!analysisId || !selectedGap || !section) return;
+    if (!clientId) {
+      setError("Select a client before starting a create.");
+      return;
+    }
     setError(null);
-    startTransition(() => {
-      try {
-        const projectUrl = toAbsoluteSiteUrl(domain);
-        const gapSectionPath =
-          selectedGap.sectionPath ?? section.gapSectionPath ?? null;
-        writeSiteSectionHandoff({
-          siteAnalysisId: analysisId,
-          gapTopic: selectedGap.topic,
-          gapReason: selectedGap.reason,
-          gapSectionPath,
-          projectUrl,
-          section: {
-            ...section,
-            siteAnalysisId: section.siteAnalysisId || analysisId,
-            gapTopic: section.gapTopic || selectedGap.topic,
-            gapSectionPath: section.gapSectionPath ?? gapSectionPath,
-          },
-          curatedSerp,
-        });
-
-        const q = new URLSearchParams({
-          topic: selectedGap.topic,
-          siteAnalysisId: analysisId,
-        });
-        if (projectUrl) q.set("projectUrl", projectUrl);
-        if (selectedGap.suggestPillar) q.set("suggestPillar", "1");
-        if (gapSectionPath) q.set("sectionPath", gapSectionPath);
-        if (selectedGap.reason) q.set("gapReason", selectedGap.reason);
-
-        router.push(`/app/create?${q.toString()}`);
-      } catch {
-        setError(
-          "Could not store site section context. Allow session storage and try again.",
-        );
-      }
-    });
+    setCreating(true);
+    try {
+      const gapSectionPath =
+        selectedGap.sectionPath ?? section.gapSectionPath ?? null;
+      const department =
+        gapSectionFirstSegment(gapSectionPath) || "marketing";
+      const gapReason = selectedGap.reason?.trim() || null;
+      const normalizedSection: SiteSectionContext = {
+        ...section,
+        siteAnalysisId: section.siteAnalysisId || analysisId,
+        gapTopic: section.gapTopic || selectedGap.topic,
+        gapSectionPath: section.gapSectionPath ?? gapSectionPath,
+      };
+      const created = await createGccCreate({
+        clientId,
+        topic: selectedGap.topic,
+        notes: gapReason,
+        siteAnalysisId: analysisId,
+        siteSection: normalizedSection,
+        department,
+      });
+      clearSiteSectionHandoff();
+      // Seed curated SERP bits into local brief storage is now handled in Workflow;
+      // no sessionStorage handoff needed.
+      router.push(`/app/creates/${created.id}`);
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Could not start create.",
+      );
+    } finally {
+      setCreating(false);
+    }
   }
 
-  const busy = pending || analyzing;
+  const busy = pending || analyzing || creating;
 
   return (
     <div className="mt-8 space-y-6">
@@ -339,13 +363,35 @@ export function SiteAnalyzerClient() {
                           it and hand-enter SERP fields later.
                         </p>
                       )}
+                      <div className="mt-3 flex flex-col gap-2">
+                        <label className="flex flex-col gap-1 text-xs font-medium text-[var(--gcc-muted)]">
+                          Client
+                          <select
+                            value={clientId}
+                            onChange={(e) => setClientId(e.target.value)}
+                            className="mt-1 rounded-md border border-[var(--gcc-line)] bg-white px-2 py-1.5 text-sm text-foreground"
+                          >
+                            {clients.length === 0 ? (
+                              <option value="">No clients yet</option>
+                            ) : null}
+                            {clients.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {clientError ? (
+                          <p className="text-xs text-red-600">{clientError}</p>
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        disabled={busy}
-                        onClick={startCreate}
+                        disabled={busy || !clientId}
+                        onClick={() => void startCreate()}
                         className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                       >
-                        Start create
+                        {creating ? "Starting…" : "Start create"}
                       </button>
                     </>
                   )}
