@@ -458,7 +458,7 @@ export function SiteAnalyzerClient() {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : !analysisId ? (
         <div className="rounded-md border border-dashed border-[var(--gcc-line)] bg-white px-4 py-6 text-center">
           <p className="text-sm text-[var(--gcc-muted)]">No Site Analyzer run yet — run Analyze to enable Create.</p>
           <button
@@ -470,8 +470,8 @@ export function SiteAnalyzerClient() {
             Create disabled — run Site Analyzer
           </button>
         </div>
-      )}
-      {gaps.length === 0 && analysisId && !busy ? (
+      ) : null}
+      {gaps.length === 0 && analysisId && !busy && !error ? (
         <p className="text-xs text-amber-700">Site Analyzer ran but produced no gaps — try a different domain or seed topic.</p>
       ) : null}
     </div>
