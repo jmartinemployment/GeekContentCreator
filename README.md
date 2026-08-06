@@ -31,11 +31,19 @@ npm run dev
 
 Open [http://localhost:3003](http://localhost:3003). Auth and API are **hosted**: GeekOAuth (`auth.geekatyourspot.com`) and GeekAPI (`api.geekatyourspot.com`).
 
-**Site Analyzer:** Enter a domain → **Analyze** runs Geek-SEO ThroughCoverage behind GeekAPI (OAuth Bearer). Fail closed if Geek-SEO is unset, unauthorized, or analysis fails — never invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL`.
+**Site Analyzer:** Enter a domain → **Analyze** runs Geek-SEO ThroughCoverage behind GeekAPI (OAuth Bearer). Fail closed if Geek-SEO is unset, unauthorized, or analysis fails — never invent gaps or related pages. GeekAPI needs `GEEK_SEO_API_URL`. Every Analyze starts a **new crawl** (no cached ready reuse).
+
+**Missing pages (gaps):** Site Analyzer lists headings that need their own page. Rules:
+
+1. A candidate is only considered if Analyze saw that phrase as an HTML heading (`h1`–`h6`).
+2. A page is **not** missing if its slug is found on a crawled/sitemap URL. Slugs are always lowercase and use hyphens between words (e.g. `Automated Content Generation` → `automated-content-generation`).
+3. Short headings still count (e.g. heading `AI` with no `/ai` page is a missing page).
+
+The UI shows the **heading** on its own line and the **pillar** on the line below — not a single concatenated string.
 
 **Sitemap step 1 (deployed, not yet live-verified):** Analyze step 1 now always regenerates a crawl-based sitemap inventory + downloadable `sitemap.xml` (unlimited discovery; inventory-complete crawl; fail-closed throw on empty/incomplete). Download sitemap button added to Site Analyzer UI. Unit-tested (191/191 in Geek-SEO), pushed to `main`, and deployed live in the backend (Geek-SEO, GeekAPI on Railway) and the UI (GeekContentCreator on Vercel — see the Railway-incident note above); **not yet run end-to-end against a live domain** (requires a real OAuth session to exercise — see `scripts/smoke-site-analyzer.mjs`).
 
-**Fixed:** Site Analyzer's content-gap detection previously fabricated gaps — when a pillar had fewer than 3 real crawled child pages, it filled in 5 hardcoded generic subtopics instead of finding real ones. Replaced with real heading-based detection, then further replaced (2026-08-06) with a real per-page h1–h6 + paragraph tree and content-backed candidacy — see `CONTENT_CREATOR_PLAN.md` §14 for this and the other fallback/soft-success patterns eliminated across Geek-SEO and GeekAPI.
+**Fixed:** Site Analyzer's content-gap detection previously fabricated gaps — when a pillar had fewer than 3 real crawled child pages, it filled in 5 hardcoded generic subtopics instead of finding real ones. Replaced with real heading-based detection (heading → missing page when no matching URL slug). See `CONTENT_CREATOR_PLAN.md` §14 for related fallback/soft-success eliminations.
 
 ## Operator smoke (day one)
 

@@ -332,8 +332,10 @@ export function SiteAnalyzerClient() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">{g.topic}</p>
+                  {g.sectionPath ? (
+                    <p className="text-sm text-[var(--gcc-muted)]">{g.sectionPath}</p>
+                  ) : null}
                   <p className="text-xs text-[var(--gcc-muted)]">
-                    {g.sectionPath ? `${g.sectionPath} · ` : ""}
                     {g.reason}
                     {g.suggestPillar ? " · suggest pillar" : ""}
                   </p>
