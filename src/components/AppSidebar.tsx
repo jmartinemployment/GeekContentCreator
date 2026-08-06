@@ -1,19 +1,48 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import {
+  hasSiteAnalyzerCompleted,
+  SITE_ANALYZER_COMPLETED_EVENT,
+} from "@/lib/site-analyzer-gate";
 
-const nav: { href: string; label: string; match: "exact" | "prefix" }[] = [
-  { href: "/app/creates", label: "Creates", match: "prefix" },
+const nav: {
+  href: string;
+  label: string;
+  match: "exact" | "prefix";
+  requiresSiteAnalyzer?: boolean;
+}[] = [
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
+  {
+    href: "/app/creates",
+    label: "Creates",
+    match: "prefix",
+    requiresSiteAnalyzer: true,
+  },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const [siteAnalyzerDone, setSiteAnalyzerDone] = useState(false);
+
+  useEffect(() => {
+    function sync() {
+      setSiteAnalyzerDone(hasSiteAnalyzerCompleted());
+    }
+    sync();
+    window.addEventListener(SITE_ANALYZER_COMPLETED_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(SITE_ANALYZER_COMPLETED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--gcc-line)] bg-[var(--gcc-slate)] px-3 py-5 text-white">
-      <Link href="/app/creates" className="mb-8 px-2">
+      <Link href="/app/site-analyzer" className="mb-8 px-2">
         <span className="font-display text-lg font-semibold leading-tight">
           Geek Content Creator
         </span>
@@ -21,6 +50,18 @@ export function AppSidebar() {
 
       <nav className="flex flex-col gap-0.5">
         {nav.map((item) => {
+          const disabled = Boolean(item.requiresSiteAnalyzer && !siteAnalyzerDone);
+          if (disabled) {
+            return (
+              <span
+                key={item.href}
+                aria-disabled="true"
+                className="cursor-not-allowed rounded-md px-3 py-2 text-sm font-medium text-white/35"
+              >
+                {item.label}
+              </span>
+            );
+          }
           const isActive =
             item.match === "exact"
               ? pathname === item.href

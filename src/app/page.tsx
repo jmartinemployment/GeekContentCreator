@@ -53,7 +53,7 @@ export default function HomePage() {
             Sign in to create
           </a>
           <Link
-            href="/app/creates"
+            href="/app/site-analyzer"
             className="inline-flex items-center justify-center rounded-md border border-white/20 px-5 py-3 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
           >
             Open app

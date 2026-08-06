@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
+import { markSiteAnalyzerCompleted } from "@/lib/site-analyzer-gate";
 import type { ContentGap, SiteSectionContext } from "@/lib/types";
 import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
@@ -110,6 +111,7 @@ export function SiteAnalyzerClient() {
         if (!(body.gaps ?? []).length) {
           throw new Error("Site analysis finished but produced no content gaps.");
         }
+        markSiteAnalyzerCompleted(id);
         return;
       }
       if (status === "failed") {
@@ -156,6 +158,7 @@ export function SiteAnalyzerClient() {
           if (!body.gaps.length) {
             throw new Error("Site analysis finished but produced no content gaps.");
           }
+          markSiteAnalyzerCompleted(body.id);
           return;
         }
 
