@@ -145,6 +145,8 @@ export function SiteAnalyzerClient() {
           body: JSON.stringify({
             domain,
             seedTopic: seedTopic || null,
+            // Content Creator always starts a new crawl — never reuse a ready/cached analysis.
+            force: true,
           }),
           signal: ac.signal,
         });
@@ -153,16 +155,7 @@ export function SiteAnalyzerClient() {
         if (!body.id) throw new Error("Analyze response missing analysis id");
 
         setAnalysisId(body.id);
-        const status = String(body.status || "").toLowerCase();
-        if (status === "ready" && Array.isArray(body.gaps)) {
-          setGaps(body.gaps);
-          if (!body.gaps.length) {
-            throw new Error("Site analysis finished but produced no content gaps.");
-          }
-          unlockWorkflow();
-          return;
-        }
-
+        // force:true always starts processing — poll until ready (do not trust a cached ready body).
         await pollUntilDone(body.id, ac.signal);
       } catch (e) {
         if (ac.signal.aborted) return;
@@ -476,7 +469,7 @@ export function SiteAnalyzerClient() {
           </button>
         </div>
       )}
-      {gaps.length === 0 && analysisId ? (
+      {gaps.length === 0 && analysisId && !busy ? (
         <p className="text-xs text-amber-700">Site Analyzer ran but produced no gaps — try a different domain or seed topic.</p>
       ) : null}
     </div>

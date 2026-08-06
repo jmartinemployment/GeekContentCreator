@@ -20,7 +20,8 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         domain: body.domain,
         seedTopic: body.seedTopic ?? null,
-        force: body.force === true,
+        // Always force a new Geek-SEO run from this UI — never return a cached ready analysis.
+        force: true,
       }),
       cache: "no-store",
     },
