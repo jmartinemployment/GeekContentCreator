@@ -1,12 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  hasSiteAnalyzerCompleted,
-  SITE_ANALYZER_COMPLETED_EVENT,
-} from "@/lib/site-analyzer-gate";
+import { useWorkflowGate } from "@/components/WorkflowGate";
 
 const nav: {
   href: string;
@@ -17,7 +13,7 @@ const nav: {
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
   {
     href: "/app/creates",
-    label: "Creates",
+    label: "Workflow",
     match: "prefix",
     requiresSiteAnalyzer: true,
   },
@@ -25,20 +21,7 @@ const nav: {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const [siteAnalyzerDone, setSiteAnalyzerDone] = useState(false);
-
-  useEffect(() => {
-    function sync() {
-      setSiteAnalyzerDone(hasSiteAnalyzerCompleted());
-    }
-    sync();
-    window.addEventListener(SITE_ANALYZER_COMPLETED_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(SITE_ANALYZER_COMPLETED_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
+  const { workflowUnlocked } = useWorkflowGate();
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--gcc-line)] bg-[var(--gcc-slate)] px-3 py-5 text-white">
@@ -50,7 +33,7 @@ export function AppSidebar() {
 
       <nav className="flex flex-col gap-0.5">
         {nav.map((item) => {
-          const disabled = Boolean(item.requiresSiteAnalyzer && !siteAnalyzerDone);
+          const disabled = Boolean(item.requiresSiteAnalyzer && !workflowUnlocked);
           if (disabled) {
             return (
               <span

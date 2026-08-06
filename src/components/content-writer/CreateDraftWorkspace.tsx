@@ -121,7 +121,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <p className="text-sm text-red-600">{loadError}</p>
         <Link href="/app/creates" className="mt-4 inline-block text-sm text-brand hover:underline">
-          &larr; Back to creates
+          &larr; Back to workflow
         </Link>
       </div>
     );
@@ -223,7 +223,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
       <Link href="/app/creates" className="text-sm text-brand hover:underline">
-        &larr; Back to creates
+        &larr; Back to workflow
       </Link>
 
       <div className="mb-8 mt-2">

@@ -29,7 +29,7 @@ export default function CreatesListPage() {
         <p className="text-sm font-semibold uppercase tracking-wide text-brand">
           Content Creator
         </p>
-        <h1 className="mt-1 text-3xl font-bold text-foreground">Creates</h1>
+        <h1 className="mt-1 text-3xl font-bold text-foreground">Workflow</h1>
         <p className="mt-2 text-sm text-muted">
           Site Analyzer grounds each create with site section context. Open a
           create to choose output types, fill the Content Brief, and generate.
@@ -39,7 +39,7 @@ export default function CreatesListPage() {
       {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
 
       {creates.length === 0 && !error ? (
-        <p className="text-sm text-muted">No creates yet.</p>
+        <p className="text-sm text-muted">Nothing in workflow yet.</p>
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
           {creates.map((c) => (

@@ -1,4 +1,4 @@
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppShell } from "@/components/AppShell";
 import { requireAccessToken } from "@/lib/auth/session";
 
 export default async function AppLayout({
@@ -8,10 +8,5 @@ export default async function AppLayout({
 }) {
   await requireAccessToken();
 
-  return (
-    <div className="flex min-h-screen bg-[var(--gcc-paper)] text-[var(--gcc-ink)]">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
-  );
+  return <AppShell>{children}</AppShell>;
 }

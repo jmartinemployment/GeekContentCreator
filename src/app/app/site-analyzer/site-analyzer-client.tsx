@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
-import { markSiteAnalyzerCompleted } from "@/lib/site-analyzer-gate";
+import { useWorkflowGate } from "@/components/WorkflowGate";
 import type { ContentGap, SiteSectionContext } from "@/lib/types";
 import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
@@ -40,6 +40,7 @@ function gapSectionFirstSegment(path: string | null | undefined): string | null 
 
 export function SiteAnalyzerClient() {
   const router = useRouter();
+  const { unlockWorkflow } = useWorkflowGate();
   const [domain, setDomain] = useState("");
   const [seedTopic, setSeedTopic] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export function SiteAnalyzerClient() {
         if (!(body.gaps ?? []).length) {
           throw new Error("Site analysis finished but produced no content gaps.");
         }
-        markSiteAnalyzerCompleted(id);
+        unlockWorkflow();
         return;
       }
       if (status === "failed") {
@@ -158,7 +159,7 @@ export function SiteAnalyzerClient() {
           if (!body.gaps.length) {
             throw new Error("Site analysis finished but produced no content gaps.");
           }
-          markSiteAnalyzerCompleted(body.id);
+          unlockWorkflow();
           return;
         }
 
