@@ -55,6 +55,7 @@ export function SiteAnalyzerClient() {
   const [clientId, setClientId] = useState<string>("");
   const [clientError, setClientError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showReuseConfirm, setShowReuseConfirm] = useState(false);
 
   const selectedGap = gaps.find((g) => g.id === selectedGapId) ?? null;
 
@@ -200,12 +201,13 @@ export function SiteAnalyzerClient() {
     });
   }
 
-  async function startCreate() {
+  async function doCreate() {
     if (!analysisId || !selectedGap || !section) return;
     if (!clientId) {
       setError("Select a client before starting a create.");
       return;
     }
+    setShowReuseConfirm(false);
     setError(null);
     setCreating(true);
     try {
@@ -246,6 +248,20 @@ export function SiteAnalyzerClient() {
   }
 
   const busy = pending || analyzing || creating;
+
+  function startCreate() {
+    if (!analysisId || !selectedGap || !section) return;
+    if (!clientId) {
+      setError("Select a client before starting a create.");
+      return;
+    }
+    // Disabled until Site Analyzer run — now a run exists (analysisId+gap+section), ask if new run needed.
+    if (analysisId && selectedGap && section && clients.length > 0) {
+      setShowReuseConfirm(true);
+      return;
+    }
+    void doCreate();
+  }
 
   return (
     <div className="mt-8 space-y-6">
@@ -387,12 +403,55 @@ export function SiteAnalyzerClient() {
                       </div>
                       <button
                         type="button"
-                        disabled={busy || !clientId}
+                        disabled={busy || !clientId || !analysisId || !selectedGap || !section || creating}
                         onClick={() => void startCreate()}
-                        className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        title={
+                          !analysisId || !selectedGap || !section
+                            ? "Run Site Analyzer and select a gap to enable"
+                            : !clientId
+                              ? "Select a client"
+                              : undefined
+                        }
                       >
                         {creating ? "Starting…" : "Start create"}
                       </button>
+                      {showReuseConfirm ? (
+                        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm">
+                          <p className="font-medium text-amber-900">A Site Analyzer run already exists for this domain.</p>
+                          <p className="mt-1 text-xs text-amber-800">Need a new Site Analyzer run before creating, or use the existing grounding?</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={creating}
+                              onClick={() => void doCreate()}
+                              className="rounded-md bg-[var(--gcc-teal)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            >
+                              {creating ? "Starting…" : "Use existing run"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => {
+                                setShowReuseConfirm(false);
+                                setError(null);
+                                // Re-run analyzer for this domain
+                                analyze();
+                              }}
+                              className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              Run new Site Analyzer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowReuseConfirm(false)}
+                              className="rounded-md px-3 py-1.5 text-xs text-amber-800 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </div>
