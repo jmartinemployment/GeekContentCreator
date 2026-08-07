@@ -130,6 +130,7 @@ export type SiteAnalysis = {
   step?: string;
   stepNumber?: number;
   totalSteps?: number;
+  pages?: Array<{ url: string; title: string; headings: Array<{ level: number; text: string }> }>;
 };
 
 export type RepurposeMixRequest = {

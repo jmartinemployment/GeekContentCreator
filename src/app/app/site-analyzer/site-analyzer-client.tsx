@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
 import { useWorkflowGate } from "@/components/WorkflowGate";
-import type { ContentGap, SiteSectionContext } from "@/lib/types";
+import type { ContentGap, SiteSectionContext, SiteAnalysis } from "@/lib/types";
 import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
 import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
+import { SiteHeadingHierarchy } from "@/components/SiteHeadingHierarchy";
 import { createGccCreate } from "@/lib/gcc-api";
 import { getClients, ApiError } from "@/lib/content-writer/api";
 import type { Client } from "@/lib/content-writer/types";
@@ -58,6 +59,7 @@ export function SiteAnalyzerClient() {
   const [clientError, setClientError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showReuseConfirm, setShowReuseConfirm] = useState(false);
+  const [sitePages, setSitePages] = useState<SiteAnalysis['pages']>([]);
 
   const selectedGap = gaps.find((g) => g.id === selectedGapId) ?? null;
 
@@ -108,6 +110,7 @@ export function SiteAnalyzerClient() {
 
       if (status === "ready") {
         setGaps(body.gaps ?? []);
+        setSitePages(body.pages ?? []);
         setStepLabel(null);
         if (!(body.gaps ?? []).length) {
           throw new Error("Site analysis finished but produced no content gaps.");
@@ -324,6 +327,8 @@ export function SiteAnalyzerClient() {
           </button>
         </div>
       ) : null}
+
+      <SiteHeadingHierarchy pages={sitePages} />
 
       {gaps.length > 0 ? (
         <ul className="divide-y divide-[var(--gcc-line)] border border-[var(--gcc-line)] bg-white">
