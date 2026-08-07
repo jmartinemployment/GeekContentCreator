@@ -44,40 +44,15 @@ export default function CreatesListPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand">
-            Content Creator
-          </p>
-          <h1 className="mt-1 text-3xl font-bold text-foreground">History</h1>
-          <p className="mt-2 text-sm text-muted">
-            Happy path: Site Analyzer → Workflow → Content Brief → generate →
-            revise / SEO / approve / Mix. Site Analyzer attaches site section on
-            the create.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={
-              selectedClientId
-                ? `/app/create?type=imagePrompt&clientId=${encodeURIComponent(selectedClientId)}`
-                : "/app/create?type=imagePrompt"
-            }
-            className="rounded-md border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/20"
-          >
-            Image prompt
-          </Link>
-          <Link
-            href={
-              selectedClientId
-                ? `/app/create?clientId=${encodeURIComponent(selectedClientId)}`
-                : "/app/create"
-            }
-            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
-          >
-            Workflow
-          </Link>
-        </div>
+      <div className="mb-8">
+        <p className="text-sm font-semibold uppercase tracking-wide text-brand">
+          Content Creator
+        </p>
+        <h1 className="mt-1 text-3xl font-bold text-foreground">Creates</h1>
+        <p className="mt-2 text-sm text-muted">
+          Happy path: Site Analyzer → Content Brief → generate → revise / SEO /
+          approve / Mix. Start a create by picking a gap in Site Analyzer.
+        </p>
       </div>
 
       {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
@@ -96,18 +71,7 @@ export default function CreatesListPage() {
 
       {visible.length === 0 && !error ? (
         <p className="text-sm text-muted">
-          No creates yet for this client.{" "}
-          <Link
-            href={
-              selectedClientId
-                ? `/app/create?clientId=${encodeURIComponent(selectedClientId)}`
-                : "/app/create"
-            }
-            className="font-semibold text-brand hover:underline"
-          >
-            Open Workflow
-          </Link>{" "}
-          or pick a Site Analyzer gap.
+          No creates yet for this client. Pick a gap in Site Analyzer to start one.
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border bg-surface">

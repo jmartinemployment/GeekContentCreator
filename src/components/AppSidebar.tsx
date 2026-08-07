@@ -2,27 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useWorkflowGate } from "@/components/WorkflowGate";
 
 const nav: {
   href: string;
   label: string;
   match: "exact" | "prefix";
-  requiresSiteAnalyzer?: boolean;
 }[] = [
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
-  {
-    href: "/app/create",
-    label: "Workflow",
-    match: "exact",
-    requiresSiteAnalyzer: true,
-  },
-  { href: "/app/creates", label: "History", match: "prefix" },
+  { href: "/app/creates", label: "Creates", match: "prefix" },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { workflowUnlocked } = useWorkflowGate();
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--gcc-line)] bg-[var(--gcc-slate)] px-3 py-5 text-white">
@@ -34,18 +25,6 @@ export function AppSidebar() {
 
       <nav className="flex flex-col gap-0.5">
         {nav.map((item) => {
-          const disabled = Boolean(item.requiresSiteAnalyzer && !workflowUnlocked);
-          if (disabled) {
-            return (
-              <span
-                key={item.href}
-                aria-disabled="true"
-                className="cursor-not-allowed rounded-md px-3 py-2 text-sm font-medium text-white/35"
-              >
-                {item.label}
-              </span>
-            );
-          }
           const isActive =
             item.match === "exact"
               ? pathname === item.href
