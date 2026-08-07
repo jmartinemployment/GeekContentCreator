@@ -184,11 +184,11 @@ API namespace: Content Creator’s own (`/api/geek-content-creator/...`), not ho
 | `PATCH /creates/{id}/brief-research` | Persist `BriefJson` and/or `ResearchJson` |
 | `POST /creates/{id}/research/follow` | Fetch ≤3 URLs; fail closed; write `ResearchJson` on full success |
 | `POST /creates/{id}/generate` | Validate brief from DB; inject BRIEF + research; Site Analyzer gate unchanged |
-| Start create `/app/create` | New Content Creator create; SA handoff requires non-empty `relatedPages` |
+| Workflow `/app/create` | New Content Creator create (form formerly "Start create"); SA handoff requires non-empty `relatedPages` |
 | Create workspace `/app/creates/{id}` | Brief + generate + draft / revise / SEO / polish / approve |
 | `POST /versions/{id}/repurpose` | Mix after content approval on the create artifact |
 | Site Analyzer → `/app/create` | Not CWV2 project form-filler; section stored then persisted on create |
-| Image prompt | Start create `type=imagePrompt` (topic + notes on create); not a parallel non-create API |
+| Image prompt | Workflow `type=imagePrompt` (topic + notes on create); not a parallel non-create API |
 
 Ops: GeekRepository startup runs `Database.MigrateAsync` for Content Creator (prod applied `AddGccCreateBriefResearchJson` with GeekAPI `59aa0ea`).
 

@@ -66,7 +66,7 @@ function countPhrase(text: string, phrase: string): number {
 
 function extractHeadingsFromHtml(html: string): string[] {
   const headings: string[] = [];
-  const re = /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi;
+  const re = /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     const t = stripHtml(m[1]);

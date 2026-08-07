@@ -1,7 +1,13 @@
+/** A real crawled heading with its HTML level (1 = h1 ... 6 = h6). */
+export type Heading = {
+  level: number;
+  text: string;
+};
+
 export type RelatedPage = {
   url: string;
   title: string;
-  headings: string[];
+  headings: Heading[];
   excerpt: string;
 };
 

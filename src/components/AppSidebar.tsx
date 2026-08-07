@@ -12,11 +12,12 @@ const nav: {
 }[] = [
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
   {
-    href: "/app/creates",
+    href: "/app/create",
     label: "Workflow",
-    match: "prefix",
+    match: "exact",
     requiresSiteAnalyzer: true,
   },
+  { href: "/app/creates", label: "History", match: "prefix" },
 ];
 
 export function AppSidebar() {

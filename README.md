@@ -1,6 +1,6 @@
 # Geek Content Creator
 
-**Happy path:** Site Analyzer (optional) → **Start create** → Content Brief → generate → revise / on-page SEO / polish → content approval → Mix.
+**Happy path:** Site Analyzer → **Workflow** (the create form, formerly "Start create") → Content Brief → generate → revise / on-page SEO / polish → content approval → Mix.
 
 Creates own brief, research, and generate via GeekAPI `/api/geek-content-creator/...`. The legacy Content Writer v2 `Project`-backed `/app` screens were retired (2026-08-06) — `/app/create` → `/app/creates` is the sole create path now.
 
@@ -47,9 +47,9 @@ The UI shows the **heading** on its own line and the **pillar** on the line belo
 
 ## Operator smoke (day one)
 
-1. Sign in → **Creates** → client → **Start a create** (blog) → fill Content Brief → **Save brief** → **Generate**
-2. Site Analyzer → pick gap → **Start create** (site section with related pages required) → brief → Generate (not keyword-only)
-3. Image prompt: **Start create** with type Image prompt (topic + notes required) → brief → Generate
+1. Sign in → **Workflow** → client → (blog) → fill Content Brief → **Save brief** → **Generate**
+2. Site Analyzer → pick gap → **Open Workflow** (site section with related pages required) → brief → Generate (not keyword-only)
+3. Image prompt: **Workflow** with type Image prompt (topic + notes required) → brief → Generate
 4. Draft workspace: SEO / polish → Revise (Full or Section) → Content approval → Mix
 5. Fail-closed checks: generate without brief → `brief required`; research follow with a bad URL → whole op fails; SA create with empty `relatedPages` → rejected
 
