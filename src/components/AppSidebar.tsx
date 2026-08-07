@@ -9,7 +9,6 @@ const nav: {
   match: "exact" | "prefix";
 }[] = [
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
-  { href: "/app/creates", label: "Creates", match: "prefix" },
 ];
 
 export function AppSidebar() {
