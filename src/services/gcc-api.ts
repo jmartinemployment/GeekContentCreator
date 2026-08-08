@@ -649,4 +649,28 @@ export function parseSavedSerp(
   });
 }
 
+export interface GccClient {
+  id: string;
+  name: string;
+  notes: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export function getGccClientByName(name: string): Promise<GccClient | null> {
+  return gccRequest<GccClient>(`/api/geek-content-creator/clients?name=${encodeURIComponent(name.trim())}`, {
+    method: "GET",
+  }).catch(() => null);
+}
+
+export function createGccClient(input: { name: string; notes?: string }): Promise<GccClient> {
+  return gccRequest<GccClient>("/api/geek-content-creator/clients", {
+    method: "POST",
+    body: JSON.stringify({
+      name: input.name.trim(),
+      notes: input.notes || null,
+    }),
+  });
+}
+
 export const GCC_CREATE_STORAGE_PREFIX = "gcc-create-id:";

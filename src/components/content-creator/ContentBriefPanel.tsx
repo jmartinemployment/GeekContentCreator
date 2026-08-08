@@ -57,6 +57,7 @@ export default function ContentBriefPanel({
 }) {
   const [brief, setBrief] = useState<ContentBrief>(() => emptyContentBrief());
   const [createId, setCreateId] = useState<string | null>(createIdProp ?? null);
+  const [keywordInput, setKeywordInput] = useState(targetKeyword || "");
   const [hydrated, setHydrated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -234,14 +235,14 @@ export default function ContentBriefPanel({
     const created = await createGccCreate({
       clientId,
       startingContentType,
-      topic: targetKeyword.trim() || "untitled",
+      topic: keywordInput.trim() || "untitled",
       siteAnalysisId: handoff?.siteAnalysisId ?? null,
       siteSection: handoff?.section ?? null,
     });
     if (handoff) clearSiteSectionHandoff();
     setCreateId(created.id);
     try {
-      localStorage.setItem(GCC_CREATE_STORAGE_PREFIX + targetKeyword, created.id);
+      localStorage.setItem(GCC_CREATE_STORAGE_PREFIX + keywordInput, created.id);
     } catch {
       /* ignore */
     }
@@ -297,6 +298,19 @@ export default function ContentBriefPanel({
         create (GeekAPI); Generate reads server state only. Fail closed: Generate stays disabled
         until required fields are saved.
       </p>
+
+      <div className="mt-5">
+        <label className={labelClass}>
+          Target keyword{requiredMark(!!keywordInput)}
+          <input
+            type="text"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            placeholder="e.g., 'Best AI tools for content creation'"
+            className={fieldClass}
+          />
+        </label>
+      </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>

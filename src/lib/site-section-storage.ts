@@ -77,3 +77,38 @@ export function siteSectionForApi(section: SiteSectionContext) {
     informationGain: section.informationGain ?? null,
   };
 }
+
+/** sessionStorage key for Site Analyzer → Workflow (plain workflow, not gap-detail) handoff. */
+export const WORKFLOW_CLIENT_HANDOFF_KEY = "gcc.workflowClientHandoff";
+
+export type WorkflowClientHandoff = {
+  clientId: string;
+  domain: string;
+};
+
+export function readWorkflowClientHandoff(): WorkflowClientHandoff | null {
+  try {
+    const raw = sessionStorage.getItem(WORKFLOW_CLIENT_HANDOFF_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<WorkflowClientHandoff>;
+    if (!parsed.clientId) return null;
+    return {
+      clientId: parsed.clientId,
+      domain: parsed.domain || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeWorkflowClientHandoff(handoff: WorkflowClientHandoff): void {
+  sessionStorage.setItem(WORKFLOW_CLIENT_HANDOFF_KEY, JSON.stringify(handoff));
+}
+
+export function clearWorkflowClientHandoff(): void {
+  try {
+    sessionStorage.removeItem(WORKFLOW_CLIENT_HANDOFF_KEY);
+  } catch {
+    /* ignore */
+  }
+}

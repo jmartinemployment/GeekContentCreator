@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
+import { clearSiteSectionHandoff, writeWorkflowClientHandoff } from "@/lib/site-section-storage";
 import { useWorkflowGate } from "@/components/WorkflowGate";
 import type { ContentGap, SiteSectionContext, SiteAnalysis } from "@/lib/types";
 import type { CuratedSerpSeed } from "@/lib/content-creator/serp-lens";
 import { SerpIngestPanel } from "@/components/content-creator/SerpIngestPanel";
 import { SiteHeadingHierarchy } from "@/components/SiteHeadingHierarchy";
-import { createGccCreate } from "@/services/gcc-api";
-import { getClients, ApiError } from "@/services/content-writer-api";
+import { createGccCreate, createGccClient, getGccClientByName, ApiError } from "@/services/gcc-api";
+import { getClients } from "@/services/content-writer-api";
 import type { Client } from "@/lib/types";
 
 const POLL_MS = 2500;
@@ -43,7 +43,6 @@ export function SiteAnalyzerClient() {
   const router = useRouter();
   const { unlockWorkflow } = useWorkflowGate();
   const [domain, setDomain] = useState("");
-  const [seedTopic, setSeedTopic] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [gaps, setGaps] = useState<ContentGap[]>([]);
   const [selectedGapId, setSelectedGapId] = useState<string | null>(null);
@@ -115,6 +114,30 @@ export function SiteAnalyzerClient() {
         if (!(body.gaps ?? []).length) {
           throw new Error("Site analysis finished but produced no content gaps.");
         }
+
+        // Resolve domain → client and write Workflow handoff
+        try {
+          const domainTrimmed = domain.trim();
+          let clientId: string | null = null;
+
+          // Try to get existing client by name
+          const existing = await getGccClientByName(domainTrimmed);
+          if (existing) {
+            clientId = existing.id;
+          } else {
+            // Create new client for this domain
+            const created = await createGccClient({ name: domainTrimmed });
+            clientId = created.id;
+          }
+
+          if (clientId) {
+            writeWorkflowClientHandoff({ clientId, domain: domainTrimmed });
+          }
+        } catch (e) {
+          // Log but don't fail — handoff is optional, Workflow can still proceed without it
+          console.error("Failed to resolve Workflow client:", e);
+        }
+
         unlockWorkflow();
         return;
       }
@@ -147,7 +170,6 @@ export function SiteAnalyzerClient() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             domain,
-            seedTopic: seedTopic || null,
             // Content Creator always starts a new crawl — never reuse a ready/cached analysis.
             force: true,
           }),
@@ -271,13 +293,6 @@ export function SiteAnalyzerClient() {
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             placeholder="geekatyourspot.com"
-            className="flex-1 rounded-md border border-[var(--gcc-line)] bg-white px-3 py-2 text-sm"
-            disabled={analyzing}
-          />
-          <input
-            value={seedTopic}
-            onChange={(e) => setSeedTopic(e.target.value)}
-            placeholder="Optional seed topic"
             className="flex-1 rounded-md border border-[var(--gcc-line)] bg-white px-3 py-2 text-sm"
             disabled={analyzing}
           />
