@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import CreateDraftWorkspace from "@/components/content-writer/CreateDraftWorkspace";
+import CreateDraftWorkspace from "@/components/content-creator/CreateDraftWorkspace";
 
 /**
  * Content Creator draft workspace — revise / SEO / polish / approve

@@ -1,5 +1,5 @@
 import type { SiteSectionContext } from "@/lib/types";
-import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
+import type { CuratedSerpSeed } from "@/lib/content-creator/serp-lens";
 
 /** sessionStorage key for Site Analyzer → Content Creator create handoff. */
 export const SITE_SECTION_STORAGE_KEY = "gcc.siteSectionContext";

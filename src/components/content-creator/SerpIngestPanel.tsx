@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { parseSavedSerp } from "@/lib/gcc-api";
-import { ApiError } from "@/lib/content-writer/api";
+import { parseSavedSerp, ApiError } from "@/services/gcc-api";
 import type {
   CuratedSerpSeed,
   PaaCandidate,
   SavedSerpOrganic,
   SavedSerpParseResult,
-} from "@/lib/content-writer/serp-lens";
+} from "@/lib/content-creator/serp-lens";
 import type { InformationGainNote } from "@/lib/types";
 
 export function SerpIngestPanel({

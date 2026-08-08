@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { ApiError } from "@/lib/content-writer/api";
 import {
+  ApiError,
   generateGccTools,
   type GccArtifact,
-} from "@/lib/gcc-api";
+} from "@/services/gcc-api";
 
 /**
  * AI Tools on a Content Creator create — names + brief, or names + source artifact.

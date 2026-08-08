@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ApiError } from "@/lib/content-writer/api";
+import { ApiError } from "@/services/content-writer-api";
 import {
   getGccCreateDetail,
   listGccVersions,
   repurposeGccVersion,
   type GccArtifact,
   type GccArtifactVersion,
-} from "@/lib/gcc-api";
+} from "@/services/gcc-api";
 
 /**
  * Mix / Repurpose chooser for Content Creator creates.

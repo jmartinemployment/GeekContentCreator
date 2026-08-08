@@ -3,13 +3,19 @@
  * Proxied via /api/cw same-origin helper (Bearer forward).
  */
 
-import type { ContentBrief } from "@/lib/content-writer/brief-catalog";
-import { ApiError } from "@/lib/content-writer/api";
+import type { ContentBrief } from "@/lib/content-creator/brief-catalog";
 import type { SiteSectionContext } from "@/lib/types";
 import { siteSectionForApi } from "@/lib/site-section-storage";
-import type { SavedSerpParseResult } from "@/lib/content-writer/serp-lens";
+import type { SavedSerpParseResult } from "@/lib/content-creator/serp-lens";
 
 const API_BASE = "/api/cw";
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 export interface GccCreate {
   id: string;

@@ -9,7 +9,7 @@ import {
 import {
   isSessionDeadError,
   refreshAccessToken,
-} from "@/lib/auth/tokens";
+} from "@/services/auth-tokens";
 
 export const getAccessToken = cache(async (): Promise<string | null> => {
   const jar = await cookies();

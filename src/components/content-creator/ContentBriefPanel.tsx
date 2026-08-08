@@ -18,25 +18,25 @@ import {
   migrateBrief,
   saveBriefToStorage,
   toneAllowed,
+  LENGTH_BAND_OPTIONS,
   type AudienceDetail,
   type ContentBrief,
   type EeatSignal,
   type LengthBandKey,
-} from "@/lib/content-writer/brief-catalog";
-import { LENGTH_BAND_OPTIONS } from "@/lib/content-writer/types";
-import { ApiError } from "@/lib/content-writer/api";
+} from "@/lib/content-creator/brief-catalog";
+import { ApiError } from "@/services/gcc-api";
 import {
   GCC_CREATE_STORAGE_PREFIX,
   briefToJson,
   createGccCreate,
   getGccCreate,
   patchBriefResearch,
-} from "@/lib/gcc-api";
+} from "@/services/gcc-api";
 import {
   clearSiteSectionHandoff,
   readSiteSectionHandoff,
 } from "@/lib/site-section-storage";
-import { CreateKeywordUploadPanel } from "@/components/content-writer/CreateKeywordUploadPanel";
+import { CreateKeywordUploadPanel } from "./CreateKeywordUploadPanel";
 
 export default function ContentBriefPanel({
   clientId,

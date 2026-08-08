@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createClient, ApiError } from "@/lib/content-writer/api";
-import type { Client } from "@/lib/content-writer/types";
+import { createClient, ApiError } from "@/services/content-writer-api";
+import type { Client } from "@/lib/types";
 
 export default function ClientsPanel({
   clients,

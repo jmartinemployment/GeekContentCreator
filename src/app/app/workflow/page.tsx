@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkflowGate } from "@/components/WorkflowGate";
-import { createGccCreate } from "@/lib/gcc-api";
+import { createGccCreate } from "@/services/gcc-api";
 import Link from "next/link";
 
 export default function WorkflowPage() {

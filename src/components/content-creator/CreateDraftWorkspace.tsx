@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { SiteContextBanner } from "@/components/SiteContextBanner";
-import ContentBriefPanel from "@/components/content-writer/ContentBriefPanel";
-import CreateAiToolsPanel from "@/components/content-writer/CreateAiToolsPanel";
-import { ApiError } from "@/lib/content-writer/api";
+import ContentBriefPanel from "./ContentBriefPanel";
+import CreateAiToolsPanel from "./CreateAiToolsPanel";
+import { ApiError } from "@/services/gcc-api";
 import {
   approveGccVersion,
   generateGccCreate,
@@ -25,7 +25,7 @@ import {
   type GccPolishReport,
   type GccSeoReport,
   type GccStaleGroundingError,
-} from "@/lib/gcc-api";
+} from "@/services/gcc-api";
 
 export default function CreateDraftWorkspace({ createId }: { createId: string }) {
   const [detail, setDetail] = useState<GccCreateDetail | null>(null);

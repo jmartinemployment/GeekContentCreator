@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ClientsPanel from "@/components/content-writer/ClientsPanel";
-import { getClients, ApiError } from "@/lib/content-writer/api";
-import type { Client } from "@/lib/content-writer/types";
-import { listGccCreates, type GccCreate } from "@/lib/gcc-api";
+import { getClients, ApiError } from "@/services/content-writer-api";
+import type { Client } from "@/lib/types";
+import { listGccCreates, type GccCreate } from "@/services/gcc-api";
 
 export default function CreatesListPage() {
   const [clients, setClients] = useState<Client[]>([]);

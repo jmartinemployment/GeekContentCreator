@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
 import { useWorkflowGate } from "@/components/WorkflowGate";
 import type { ContentGap, SiteSectionContext, SiteAnalysis } from "@/lib/types";
-import type { CuratedSerpSeed } from "@/lib/content-writer/serp-lens";
-import { SerpIngestPanel } from "@/components/content-writer/SerpIngestPanel";
+import type { CuratedSerpSeed } from "@/lib/content-creator/serp-lens";
+import { SerpIngestPanel } from "@/components/content-creator/SerpIngestPanel";
 import { SiteHeadingHierarchy } from "@/components/SiteHeadingHierarchy";
-import { createGccCreate } from "@/lib/gcc-api";
-import { getClients, ApiError } from "@/lib/content-writer/api";
-import type { Client } from "@/lib/content-writer/types";
+import { createGccCreate } from "@/services/gcc-api";
+import { getClients, ApiError } from "@/services/content-writer-api";
+import type { Client } from "@/lib/types";
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;

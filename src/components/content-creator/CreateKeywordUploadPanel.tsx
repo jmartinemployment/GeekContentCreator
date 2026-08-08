@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApiError } from "@/lib/content-writer/api";
 import {
+  ApiError,
   GCC_KEYWORD_CATEGORIES,
   deleteCreateKeywordSource,
   listCreateKeywordSources,
   uploadCreateKeywordSource,
   type GccKeywordSource,
-} from "@/lib/gcc-api";
+} from "@/services/gcc-api";
 
 /**
  * CWv2-style research upload for a Content Creator create. Uploading IS the research action —
