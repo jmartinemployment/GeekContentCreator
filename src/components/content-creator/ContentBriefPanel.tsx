@@ -40,6 +40,7 @@ import { CreateKeywordUploadPanel } from "./CreateKeywordUploadPanel";
 
 export default function ContentBriefPanel({
   clientId,
+  siteAnalysisId,
   targetKeyword,
   createId: createIdProp,
   startingContentType = "blog",
@@ -47,6 +48,7 @@ export default function ContentBriefPanel({
   onBriefValidityChange,
 }: {
   clientId: string;
+  siteAnalysisId?: string;
   targetKeyword: string;
   /** When set, brief saves onto this create (does not open a second create). */
   createId?: string | null;
@@ -236,7 +238,7 @@ export default function ContentBriefPanel({
       clientId,
       startingContentType,
       topic: keywordInput.trim() || "untitled",
-      siteAnalysisId: handoff?.siteAnalysisId ?? null,
+      siteAnalysisId: siteAnalysisId || handoff?.siteAnalysisId || null,
       siteSection: handoff?.section ?? null,
     });
     if (handoff) clearSiteSectionHandoff();

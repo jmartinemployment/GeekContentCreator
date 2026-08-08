@@ -10,7 +10,7 @@ import Link from "next/link";
 export default function WorkflowPage() {
   const router = useRouter();
   const { workflowUnlocked } = useWorkflowGate();
-  const [handoff, setHandoff] = useState<{ clientId: string; domain: string } | null>(null);
+  const [handoff, setHandoff] = useState<{ clientId: string; domain: string; siteAnalysisId: string } | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -65,6 +65,7 @@ export default function WorkflowPage() {
       ) : (
         <ContentBriefPanel
           clientId={handoff.clientId}
+          siteAnalysisId={handoff.siteAnalysisId}
           targetKeyword=""
           onBriefSaved={(createId) => router.push(`/app/creates/${createId}`)}
           onBriefValidityChange={() => {}}

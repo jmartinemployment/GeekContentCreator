@@ -380,7 +380,17 @@ export function migrateBrief(raw: unknown): ContentBrief {
   );
 
   base.lengthBand = (str(p.lengthBand) as LengthBandKey) || "";
-  base.writingNotes = str(p.writingNotes);
+  // Normalize writing notes: collapse consecutive duplicate lines (one-time migration for stale storage)
+  const rawNotes = str(p.writingNotes);
+  base.writingNotes = rawNotes
+    .split("\n")
+    .reduce((acc: string[], line) => {
+      if (acc.length === 0 || acc[acc.length - 1] !== line) {
+        acc.push(line);
+      }
+      return acc;
+    }, [])
+    .join("\n");
   base.serpTitles = str(p.serpTitles);
   base.serpUrls = str(p.serpUrls);
   base.paaQuestions = str(p.paaQuestions);

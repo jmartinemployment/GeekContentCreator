@@ -84,6 +84,7 @@ export const WORKFLOW_CLIENT_HANDOFF_KEY = "gcc.workflowClientHandoff";
 export type WorkflowClientHandoff = {
   clientId: string;
   domain: string;
+  siteAnalysisId: string;
 };
 
 export function readWorkflowClientHandoff(): WorkflowClientHandoff | null {
@@ -91,10 +92,11 @@ export function readWorkflowClientHandoff(): WorkflowClientHandoff | null {
     const raw = sessionStorage.getItem(WORKFLOW_CLIENT_HANDOFF_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<WorkflowClientHandoff>;
-    if (!parsed.clientId) return null;
+    if (!parsed.clientId || !parsed.siteAnalysisId) return null;
     return {
       clientId: parsed.clientId,
       domain: parsed.domain || "",
+      siteAnalysisId: parsed.siteAnalysisId,
     };
   } catch {
     return null;

@@ -131,7 +131,7 @@ export function SiteAnalyzerClient() {
           }
 
           if (clientId) {
-            writeWorkflowClientHandoff({ clientId, domain: domainTrimmed });
+            writeWorkflowClientHandoff({ clientId, domain: domainTrimmed, siteAnalysisId: id });
           }
         } catch (e) {
           // Log but don't fail — handoff is optional, Workflow can still proceed without it
@@ -343,7 +343,7 @@ export function SiteAnalyzerClient() {
         </div>
       ) : null}
 
-      <SiteHeadingHierarchy pages={sitePages} />
+      <SiteHeadingHierarchy pages={sitePages} gaps={gaps} />
 
       {gaps.length > 0 ? (
         <ul className="divide-y divide-[var(--gcc-line)] border border-[var(--gcc-line)] bg-white">
