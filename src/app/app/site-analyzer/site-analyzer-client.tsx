@@ -14,6 +14,7 @@ import type { Client } from "@/lib/types";
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
+const SHOW_GAP_GENERATE_BUTTON = false; // Site Analyzer currently only returns headings without matching pages (missing-page gaps). Generate is disabled pending Workflow rebuild. Flip this line if gap types expand to include real content gaps.
 
 async function downloadSitemap(analysisId: string): Promise<void> {
   const response = await fetch(
@@ -420,57 +421,65 @@ export function SiteAnalyzerClient() {
                           <p className="text-xs text-red-600">{clientError}</p>
                         ) : null}
                       </div>
-                      <button
-                        type="button"
-                        disabled={busy || !clientId || !analysisId || !selectedGap || !section || creating}
-                        onClick={() => void startCreate()}
-                        className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                        title={
-                          !analysisId || !selectedGap || !section
-                            ? "Run Site Analyzer and select a gap to enable"
-                            : !clientId
-                              ? "Select a client"
-                              : undefined
-                        }
-                      >
-                        {creating ? "Starting…" : "Start create"}
-                      </button>
-                      {showReuseConfirm ? (
-                        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm">
-                          <p className="font-medium text-amber-900">A Site Analyzer run already exists for this domain.</p>
-                          <p className="mt-1 text-xs text-amber-800">Need a new Site Analyzer run before creating, or use the existing grounding?</p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              disabled={creating}
-                              onClick={() => void doCreate()}
-                              className="rounded-md bg-[var(--gcc-teal)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                            >
-                              {creating ? "Starting…" : "Use existing run"}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => {
-                                setShowReuseConfirm(false);
-                                setError(null);
-                                // Re-run analyzer for this domain
-                                analyze();
-                              }}
-                              className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
-                            >
-                              Run new Site Analyzer
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowReuseConfirm(false)}
-                              className="rounded-md px-3 py-1.5 text-xs text-amber-800 hover:underline"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
+                      {SHOW_GAP_GENERATE_BUTTON ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy || !clientId || !analysisId || !selectedGap || !section || creating}
+                            onClick={() => void startCreate()}
+                            className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            title={
+                              !analysisId || !selectedGap || !section
+                                ? "Run Site Analyzer and select a gap to enable"
+                                : !clientId
+                                  ? "Select a client"
+                                  : undefined
+                            }
+                          >
+                            {creating ? "Starting…" : "Start create"}
+                          </button>
+                          {showReuseConfirm ? (
+                            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm">
+                              <p className="font-medium text-amber-900">A Site Analyzer run already exists for this domain.</p>
+                              <p className="mt-1 text-xs text-amber-800">Need a new Site Analyzer run before creating, or use the existing grounding?</p>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={creating}
+                                  onClick={() => void doCreate()}
+                                  className="rounded-md bg-[var(--gcc-teal)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                >
+                                  {creating ? "Starting…" : "Use existing run"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setShowReuseConfirm(false);
+                                    setError(null);
+                                    // Re-run analyzer for this domain
+                                    analyze();
+                                  }}
+                                  className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                                >
+                                  Run new Site Analyzer
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowReuseConfirm(false)}
+                                  className="rounded-md px-3 py-1.5 text-xs text-amber-800 hover:underline"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-xs text-[var(--gcc-muted)] mt-3">
+                          Generate is temporarily disabled while Workflow is being rebuilt.
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
