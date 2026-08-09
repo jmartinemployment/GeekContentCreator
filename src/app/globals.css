@@ -39,6 +39,7 @@
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
   --color-brand: var(--color-brand);
+  --color-brand-dark: var(--gcc-teal-deep);
   --color-muted: var(--color-muted);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);

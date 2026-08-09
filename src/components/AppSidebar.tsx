@@ -11,7 +11,7 @@ const nav: {
   requiresWorkflow?: boolean;
 }[] = [
   { href: "/app/site-analyzer", label: "Site Analyzer", match: "prefix" },
-  { href: "/app/workflow", label: "Workflow", match: "exact", requiresWorkflow: true },
+  { href: "/app/workflow", label: "Workflow", match: "prefix", requiresWorkflow: true },
 ];
 
 export function AppSidebar() {
