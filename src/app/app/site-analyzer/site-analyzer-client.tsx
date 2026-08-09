@@ -15,7 +15,6 @@ import type { Client } from "@/lib/types";
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
 const SHOW_GAP_GENERATE_BUTTON = false; // Site Analyzer currently only returns headings without matching pages (missing-page gaps). Generate is disabled pending Workflow rebuild. Flip this line if gap types expand to include real content gaps.
-const SHOW_SITE_STRUCTURE = false; // Hierarchy is on each gap; standalone Site structure panel is hidden.
 
 async function downloadSitemap(analysisId: string): Promise<void> {
   const response = await fetch(
@@ -39,6 +38,72 @@ function gapSectionFirstSegment(path: string | null | undefined): string | null 
   if (!p) return null;
   const seg = p.split("/").map((s) => s.trim()).filter(Boolean)[0];
   return seg || null;
+}
+
+/** Normalize poll/API gap shapes (camelCase or PascalCase) into ContentGap. */
+function normalizeGap(raw: Record<string, unknown>): ContentGap {
+  const topic = String(raw.topic ?? raw.Topic ?? "");
+  const hierarchyRaw = raw.hierarchy ?? raw.Hierarchy;
+  const hierarchy = Array.isArray(hierarchyRaw)
+    ? hierarchyRaw.map((h) => String(h)).filter(Boolean)
+    : null;
+  const sourcePageUrl = (raw.sourcePageUrl ?? raw.SourcePageUrl) as string | null | undefined;
+  return {
+    id: String(raw.id ?? raw.Id ?? ""),
+    topic,
+    sectionPath: (raw.sectionPath ?? raw.SectionPath ?? null) as string | null,
+    reason: String(raw.reason ?? raw.Reason ?? ""),
+    hierarchy: hierarchy && hierarchy.length > 0 ? hierarchy : null,
+    sourcePageUrl: sourcePageUrl?.trim() || null,
+  };
+}
+
+/**
+ * Build leveled breadcrumb for a gap from site pages when API hierarchy is missing
+ * or to attach H-levels for display.
+ */
+function resolveGapHierarchy(
+  gap: ContentGap,
+  pages: SiteAnalysis["pages"] | undefined,
+): { levels: Array<{ level: number; text: string }>; sourcePageUrl: string | null } {
+  const pagesList = pages ?? [];
+  const topicKey = gap.topic.trim().toLowerCase();
+
+  for (const page of pagesList) {
+    const stack: Array<{ level: number; text: string }> = [];
+    for (const h of page.headings ?? []) {
+      while (stack.length > 0 && stack[stack.length - 1]!.level >= h.level) {
+        stack.pop();
+      }
+      stack.push({ level: h.level, text: h.text });
+      if (h.text.trim().toLowerCase() === topicKey) {
+        return {
+          levels: stack.map((n) => ({ level: n.level, text: n.text })),
+          sourcePageUrl: gap.sourcePageUrl || page.url || null,
+        };
+      }
+    }
+  }
+
+  // Fall back to API hierarchy strings without levels (assume H1..Hn).
+  if (gap.hierarchy && gap.hierarchy.length > 0) {
+    return {
+      levels: gap.hierarchy.map((text, i) => ({ level: i + 1, text })),
+      sourcePageUrl: gap.sourcePageUrl ?? null,
+    };
+  }
+
+  if (gap.sectionPath) {
+    return {
+      levels: [
+        { level: 1, text: gap.sectionPath },
+        { level: 2, text: gap.topic },
+      ],
+      sourcePageUrl: gap.sourcePageUrl ?? null,
+    };
+  }
+
+  return { levels: [{ level: 1, text: gap.topic }], sourcePageUrl: gap.sourcePageUrl ?? null };
 }
 
 export function SiteAnalyzerClient() {
@@ -110,10 +175,11 @@ export function SiteAnalyzerClient() {
       }
 
       if (status === "ready") {
-        setGaps(body.gaps ?? []);
-        setSitePages(body.pages ?? []);
+        const rawGaps = (body.gaps ?? body.Gaps ?? []) as Record<string, unknown>[];
+        setGaps(rawGaps.map(normalizeGap));
+        setSitePages(body.pages ?? body.Pages ?? []);
         setStepLabel(null);
-        if (!(body.gaps ?? []).length) {
+        if (!rawGaps.length) {
           throw new Error("Site analysis finished but produced no content gaps.");
         }
 
@@ -345,41 +411,55 @@ export function SiteAnalyzerClient() {
         </div>
       ) : null}
 
-      {SHOW_SITE_STRUCTURE ? (
-        <SiteHeadingHierarchy pages={sitePages} gaps={gaps} />
-      ) : null}
+      <SiteHeadingHierarchy pages={sitePages} gaps={gaps} />
 
       {gaps.length > 0 ? (
         <ul className="divide-y divide-[var(--gcc-line)] border border-[var(--gcc-line)] bg-white">
           {gaps.map((g) => {
-            const hierarchy =
-              g.hierarchy && g.hierarchy.length > 0
-                ? g.hierarchy
-                : g.sectionPath
-                  ? [g.sectionPath, g.topic]
-                  : null;
+            const { levels, sourcePageUrl } = resolveGapHierarchy(g, sitePages);
             return (
             <li key={g.id} className="px-4 py-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">{g.topic}</p>
-                  {hierarchy ? (
-                    <p className="text-sm text-[var(--gcc-muted)]">
-                      {hierarchy.join(" › ")}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="font-medium text-[var(--gcc-ink)]">{g.topic}</p>
+                  <div className="rounded-md border border-[var(--gcc-line)] bg-[var(--gcc-teal)]/5 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gcc-teal-deep)]">
+                      Hierarchy
                     </p>
-                  ) : null}
-                  {g.sourcePageUrl ? (
-                    <p className="text-xs text-[var(--gcc-muted)]">
-                      <a
-                        href={g.sourcePageUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline decoration-[var(--gcc-line)] hover:text-[var(--gcc-teal-deep)]"
-                      >
-                        {g.sourcePageUrl}
-                      </a>
-                    </p>
-                  ) : null}
+                    <ul className="mt-1.5 space-y-0.5">
+                      {levels.map((h, i) => {
+                        const isGapHeading =
+                          h.text.trim().toLowerCase() === g.topic.trim().toLowerCase();
+                        return (
+                          <li
+                            key={`${h.level}-${h.text}-${i}`}
+                            className={
+                              isGapHeading
+                                ? "text-sm font-medium text-red-700"
+                                : "text-sm text-[var(--gcc-ink)]"
+                            }
+                            style={{ paddingLeft: `${Math.max(0, h.level - 1) * 0.75}rem` }}
+                          >
+                            H{h.level}: {h.text}
+                            {isGapHeading ? " — missing page" : ""}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {sourcePageUrl ? (
+                      <p className="mt-2 text-xs text-[var(--gcc-muted)]">
+                        On{" "}
+                        <a
+                          href={sourcePageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="break-all underline decoration-[var(--gcc-line)] hover:text-[var(--gcc-teal-deep)]"
+                        >
+                          {sourcePageUrl}
+                        </a>
+                      </p>
+                    ) : null}
+                  </div>
                   <p className="text-xs text-[var(--gcc-muted)]">{g.reason}</p>
                 </div>
                 <button
