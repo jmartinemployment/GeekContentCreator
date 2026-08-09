@@ -82,6 +82,11 @@ export default function HierarchyContextPanel({
         }
 
         const trees = (Array.isArray(body) ? body : []) as PageSectionTreePage[];
+        if (trees.length === 0) {
+          throw new Error(
+            "Site Analyzer returned no page-section trees for this analysis. Re-run Site Analyzer, then reopen Workflow.",
+          );
+        }
         const next = matchKeywordToHierarchy(trees, targetKeyword);
         if (cancelled) return;
         setMatch(next);
@@ -91,16 +96,28 @@ export default function HierarchyContextPanel({
         const sourceUrl = next?.sourcePageUrl ?? null;
 
         // Persist match (or clear) so generate is server-complete. Keep allowOutside if still unmatched.
-        const project = await updateProjectHierarchyContext(projectId, {
-          hierarchyPath: pathLabel,
-          hierarchyChildHeadings: children,
-          hierarchySourcePageUrl: sourceUrl,
-          allowOutsideSiteScope: next ? false : allowOutside,
-          siteAnalysisId,
-        });
-        if (cancelled) return;
-        if (next) setAllowOutside(false);
-        onProjectUpdated(project);
+        try {
+          const project = await updateProjectHierarchyContext(projectId, {
+            hierarchyPath: pathLabel,
+            hierarchyChildHeadings: children,
+            hierarchySourcePageUrl: sourceUrl,
+            allowOutsideSiteScope: next ? false : allowOutside,
+            siteAnalysisId,
+          });
+          if (cancelled) return;
+          if (next) setAllowOutside(false);
+          onProjectUpdated(project);
+        } catch (persistErr) {
+          if (cancelled) return;
+          // Match UI can still show; persist needs deployed GeekAPI (hierarchy-context).
+          setPersistError(
+            persistErr instanceof ApiError
+              ? persistErr.status === 404
+                ? "Could not save hierarchy context (API 404). Redeploy GeekAPI with the latest Content Writer changes, then refresh."
+                : persistErr.message
+              : "Could not save hierarchy context.",
+          );
+        }
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : "Hierarchy load failed.");
