@@ -1,31 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useWorkflowGate } from "@/components/WorkflowGate";
-import { clearSiteSectionHandoff, readWorkflowClientHandoff } from "@/lib/site-section-storage";
-import ContentBriefPanel from "@/components/content-creator/ContentBriefPanel";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function WorkflowPage() {
-  const router = useRouter();
   const { workflowUnlocked } = useWorkflowGate();
-  const [handoff, setHandoff] = useState<{ clientId: string; domain: string; siteAnalysisId: string } | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // Guard against stale gap-detail handoff contaminating Workflow-initiated creates
-    clearSiteSectionHandoff();
-
-    // Read the Workflow client handoff from Site Analyzer
-    const workflowHandoff = readWorkflowClientHandoff();
-    setHandoff(workflowHandoff);
-    setHydrated(true);
-  }, []);
-
-  if (!hydrated) {
-    return null;
-  }
+  const contentTypes = [
+    { id: "pillar", label: "Pillar", description: "Comprehensive deep-dive article (3000+ words)" },
+    { id: "blog", label: "Blog Post", description: "Accessible blog article (1500-2000 words)" },
+    { id: "email", label: "Email", description: "Cold outreach email (150-200 words)" },
+    { id: "linkedin", label: "LinkedIn", description: "Professional post (200-300 words)" },
+    { id: "facebook", label: "Facebook", description: "Casual link-share post (30-50 words)" },
+  ];
 
   if (!workflowUnlocked) {
     return (
@@ -46,31 +35,33 @@ export default function WorkflowPage() {
         <p className="text-sm font-semibold uppercase tracking-wide text-brand">
           Content Creator
         </p>
-        <h1 className="mt-1 text-3xl font-bold text-foreground">Workflow</h1>
+        <h1 className="mt-1 text-3xl font-bold text-foreground">Generate Content</h1>
         <p className="mt-2 text-sm text-muted">
-          Define your content brief and let us generate optimized content aligned to your brand
-          strategy.
+          Create optimized content grounded in your site's context.
         </p>
       </div>
 
-      {!handoff ? (
-        <div className="rounded-lg border border-border bg-surface p-6">
-          <p className="text-sm text-muted">
-            No Site Analysis client available. Run Site Analyzer first to create content.{" "}
-            <Link href="/app/site-analyzer" className="text-brand hover:underline">
-              Go to Site Analyzer
-            </Link>
-          </p>
-        </div>
-      ) : (
-        <ContentBriefPanel
-          clientId={handoff.clientId}
-          siteAnalysisId={handoff.siteAnalysisId}
-          targetKeyword=""
-          onBriefSaved={(createId) => router.push(`/app/creates/${createId}`)}
-          onBriefValidityChange={() => {}}
-        />
-      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {contentTypes.map((type) => (
+          <div
+            key={type.id}
+            className="rounded-lg border border-border bg-surface p-6 hover:bg-surface/80 transition-colors"
+          >
+            <h3 className="font-semibold text-foreground">{type.label}</h3>
+            <p className="mt-2 text-sm text-muted">{type.description}</p>
+            <button
+              disabled={isLoading}
+              onClick={() => {
+                setIsLoading(true);
+                // TODO: Navigate to create page with type pre-selected
+              }}
+              className="mt-4 w-full px-4 py-2 text-sm font-medium rounded bg-brand text-white hover:bg-brand/90 disabled:opacity-50"
+            >
+              Generate
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
