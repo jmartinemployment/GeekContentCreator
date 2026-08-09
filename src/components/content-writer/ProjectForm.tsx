@@ -9,6 +9,7 @@ import {
   defaultLlmProvider,
   isProductionContentWriterApi,
 } from "@/services/content-writer-api";
+import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
 
 export default function ProjectForm({
   clientId,
@@ -29,6 +30,18 @@ export default function ProjectForm({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const handoff = readWorkflowClientHandoff();
+    if (handoff?.domain && !projectUrl) {
+      const domain = handoff.domain.startsWith("http")
+        ? handoff.domain
+        : `https://${handoff.domain}`;
+      setProjectUrl(domain);
+    }
+    // only seed once from handoff
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     getGeekBackendCategories(clientId)
       .then((options) => {
@@ -47,6 +60,7 @@ export default function ProjectForm({
     setError(null);
     setIsSubmitting(true);
     try {
+      const handoff = readWorkflowClientHandoff();
       const project = await createProject({
         clientId,
         name,
@@ -55,6 +69,7 @@ export default function ProjectForm({
         department,
         preferredProvider,
         useExactKeywordAsTitle,
+        siteAnalysisId: handoff?.siteAnalysisId ?? null,
       });
       onCreated(project);
       setName("");
@@ -71,7 +86,8 @@ export default function ProjectForm({
     <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">New Project</h2>
       <p className="mt-1 text-sm text-muted">
-        Enter the client site to crawl and the primary keyword this content set should target.
+        Enter the client site URL and the primary keyword. Site Analyzer hierarchy (from Workflow
+        handoff) replaces crawl for page/site context.
       </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">

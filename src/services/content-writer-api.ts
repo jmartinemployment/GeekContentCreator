@@ -103,10 +103,20 @@ export function createProject(input: {
   department: string;
   preferredProvider: LlmProviderType;
   useExactKeywordAsTitle?: boolean;
+  siteAnalysisId?: string | null;
 }): Promise<ProjectSummary> {
   return request<ProjectSummary>("/api/projects", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      clientId: input.clientId,
+      name: input.name,
+      projectUrl: input.projectUrl,
+      targetKeyword: input.targetKeyword,
+      department: input.department,
+      preferredProvider: input.preferredProvider,
+      useExactKeywordAsTitle: input.useExactKeywordAsTitle ?? false,
+      siteAnalysisId: input.siteAnalysisId ?? null,
+    }),
   });
 }
 
@@ -125,6 +135,28 @@ export function updateProjectNotes(
   return request<ProjectDetail>(`/api/projects/${projectId}/notes`, {
     method: "PUT",
     body: JSON.stringify({ notes }),
+  });
+}
+
+export function updateProjectHierarchyContext(
+  projectId: string,
+  input: {
+    hierarchyPath: string | null;
+    hierarchyChildHeadings: string[];
+    hierarchySourcePageUrl: string | null;
+    allowOutsideSiteScope: boolean;
+    siteAnalysisId?: string | null;
+  },
+): Promise<ProjectDetail> {
+  return request<ProjectDetail>(`/api/projects/${projectId}/hierarchy-context`, {
+    method: "PUT",
+    body: JSON.stringify({
+      hierarchyPath: input.hierarchyPath,
+      hierarchyChildHeadings: input.hierarchyChildHeadings,
+      hierarchySourcePageUrl: input.hierarchySourcePageUrl,
+      allowOutsideSiteScope: input.allowOutsideSiteScope,
+      siteAnalysisId: input.siteAnalysisId ?? null,
+    }),
   });
 }
 

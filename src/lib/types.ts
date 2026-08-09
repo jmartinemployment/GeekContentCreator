@@ -235,6 +235,7 @@ export interface ProjectSummary {
   preferredProvider: LlmProviderType;
   useExactKeywordAsTitle: boolean;
   createdAtUtc: string;
+  siteAnalysisId?: string | null;
 }
 
 export interface CrawlSummary {
@@ -280,6 +281,10 @@ export interface ProjectDetail extends ProjectSummary {
   contentSet: GeneratedContentSet | null;
   notes: string | null;
   contentApprovedAtUtc?: string | null;
+  hierarchyPath?: string | null;
+  hierarchyChildHeadings?: string[];
+  hierarchySourcePageUrl?: string | null;
+  allowOutsideSiteScope?: boolean;
 }
 
 export interface ArticleDraft {

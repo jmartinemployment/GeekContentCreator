@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import CrawlPanel from "@/components/content-writer/CrawlPanel";
+import HierarchyContextPanel, {
+  type HierarchyGateState,
+} from "@/components/content-writer/HierarchyContextPanel";
 import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { useWorkflowGate } from "@/components/WorkflowGate";
 import { getProject } from "@/services/content-writer-api";
+import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
 import type {
-  CrawlSummary,
   GeneratedContentSet,
   KeywordSourceResponse,
   ProjectDetail,
@@ -23,12 +25,20 @@ export default function WorkflowProjectPage() {
   const { workflowUnlocked } = useWorkflowGate();
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [crawl, setCrawl] = useState<CrawlSummary | null>(null);
   const [keywordSources, setKeywordSources] = useState<KeywordSourceResponse[]>([]);
   const [generated, setGenerated] = useState<GeneratedContentSet | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [hierarchyGate, setHierarchyGate] = useState<HierarchyGateState>({
+    matched: false,
+    allowOutsideSiteScope: false,
+    loadError: null,
+    loading: true,
+  });
 
-  const canGenerate = crawl !== null && keywordSources.length > 0;
+  const hierarchyOk =
+    hierarchyGate.matched || hierarchyGate.allowOutsideSiteScope;
+  const canGenerate =
+    keywordSources.length > 0 && hierarchyOk && !hierarchyGate.loading;
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -36,7 +46,6 @@ export default function WorkflowProjectPage() {
       setLoadError(null);
       const detail = await getProject(projectId);
       setProject(detail);
-      setCrawl(detail.crawl);
       setKeywordSources(detail.keywordSources);
       setGenerated(detail.contentSet);
     } catch (err) {
@@ -50,6 +59,10 @@ export default function WorkflowProjectPage() {
     if (!workflowUnlocked) return;
     void load();
   }, [load, workflowUnlocked]);
+
+  const handleProjectUpdated = useCallback((next: ProjectDetail) => {
+    setProject(next);
+  }, []);
 
   if (!workflowUnlocked) {
     return (
@@ -86,6 +99,9 @@ export default function WorkflowProjectPage() {
     );
   }
 
+  const siteAnalysisId =
+    project.siteAnalysisId ?? readWorkflowClientHandoff()?.siteAnalysisId ?? null;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
       <Link href="/app/workflow" className="text-sm text-brand hover:underline">
@@ -101,11 +117,16 @@ export default function WorkflowProjectPage() {
       </div>
 
       <div className="flex flex-col gap-6">
-        <CrawlPanel
+        <HierarchyContextPanel
           projectId={project.id}
-          projectUrl={project.projectUrl}
-          crawl={crawl}
-          onCrawled={setCrawl}
+          targetKeyword={project.targetKeyword}
+          siteAnalysisId={siteAnalysisId}
+          initialPath={project.hierarchyPath ?? null}
+          initialChildren={project.hierarchyChildHeadings ?? []}
+          initialSourcePageUrl={project.hierarchySourcePageUrl ?? null}
+          initialAllowOutside={project.allowOutsideSiteScope ?? false}
+          onProjectUpdated={handleProjectUpdated}
+          onGateChange={setHierarchyGate}
         />
 
         <FileUploadPanel

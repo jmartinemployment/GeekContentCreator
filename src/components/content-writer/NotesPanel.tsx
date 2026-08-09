@@ -37,7 +37,7 @@ export default function NotesPanel({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-foreground">4. Notes</h2>
+      <h2 className="text-lg font-semibold text-foreground">3. Notes</h2>
       <p className="mt-1 text-sm text-muted">
         Optional. Comma-separated topics that must appear as headings in the pillar article (e.g.
         Pricing, Implementation Timeline, Security &amp; Compliance).

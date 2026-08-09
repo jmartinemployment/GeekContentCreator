@@ -80,8 +80,8 @@ export default function WorkflowPage() {
         </p>
         <h1 className="mt-1 text-3xl font-bold text-foreground">Workflow</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Crawl a client site, upload research, generate a pillar article + companion
-          content, run editorial review, and publish.
+          Crawl a client site was replaced by Site Analyzer hierarchy. Upload research, generate a
+          pillar article + companion content, run editorial review, and publish.
         </p>
       </div>
 
