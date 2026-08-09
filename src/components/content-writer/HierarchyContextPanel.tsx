@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
-  matchKeywordToHierarchy,
+  findHierarchyMatches,
+  hierarchyMatchId,
+  hierarchyMatchKindLabel,
   type HierarchyMatch,
   type PageSectionTreePage,
 } from "@/lib/content-creator/hierarchy-match";
@@ -16,13 +18,34 @@ export type HierarchyGateState = {
   loading: boolean;
 };
 
+function sameMatch(a: HierarchyMatch | null, b: HierarchyMatch | null): boolean {
+  if (!a || !b) return a === b;
+  return hierarchyMatchId(a) === hierarchyMatchId(b);
+}
+
+function pickInitial(
+  matches: HierarchyMatch[],
+  initialPath: string | null,
+  initialSourcePageUrl: string | null,
+): HierarchyMatch | null {
+  if (matches.length === 0) return null;
+  if (initialPath && initialSourcePageUrl) {
+    const saved = matches.find(
+      (m) =>
+        m.sourcePageUrl === initialSourcePageUrl && m.path.join(" › ") === initialPath,
+    );
+    if (saved) return saved;
+  }
+  return matches[0] ?? null;
+}
+
 export default function HierarchyContextPanel({
   projectId,
   targetKeyword,
   siteAnalysisId,
-  initialPath: _initialPath,
+  initialPath,
   initialChildren: _initialChildren,
-  initialSourcePageUrl: _initialSourcePageUrl,
+  initialSourcePageUrl,
   initialAllowOutside,
   onProjectUpdated,
   onGateChange,
@@ -39,18 +62,50 @@ export default function HierarchyContextPanel({
 }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [match, setMatch] = useState<HierarchyMatch | null>(null);
+  const [matches, setMatches] = useState<HierarchyMatch[]>([]);
+  const [selected, setSelected] = useState<HierarchyMatch | null>(null);
   const [allowOutside, setAllowOutside] = useState(initialAllowOutside);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [persisting, setPersisting] = useState(false);
 
   useEffect(() => {
     onGateChange({
-      matched: match !== null,
+      matched: selected !== null,
       allowOutsideSiteScope: allowOutside,
       loadError,
       loading,
     });
-  }, [match, allowOutside, loadError, loading, onGateChange]);
+  }, [selected, allowOutside, loadError, loading, onGateChange]);
+
+  async function persistSelection(
+    next: HierarchyMatch | null,
+    outside: boolean,
+  ): Promise<void> {
+    setPersistError(null);
+    setPersisting(true);
+    try {
+      const project = await updateProjectHierarchyContext(projectId, {
+        hierarchyPath: next?.path.join(" › ") ?? null,
+        hierarchyChildHeadings: next?.childHeadings ?? [],
+        hierarchySourcePageUrl: next?.sourcePageUrl ?? null,
+        allowOutsideSiteScope: next ? false : outside,
+        siteAnalysisId: siteAnalysisId ?? undefined,
+      });
+      if (next) setAllowOutside(false);
+      onProjectUpdated(project);
+    } catch (persistErr) {
+      setPersistError(
+        persistErr instanceof ApiError
+          ? persistErr.status === 404
+            ? "Could not save hierarchy context (API 404). Redeploy GeekAPI with the latest Content Writer changes, then refresh."
+            : persistErr.message
+          : "Could not save hierarchy context.",
+      );
+      throw persistErr;
+    } finally {
+      setPersisting(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +115,8 @@ export default function HierarchyContextPanel({
         setLoadError(
           "No Site Analyzer handoff on this project. Unlock Workflow from Site Analyzer and create the project again, or acknowledge an out-of-scope keyword.",
         );
-        setMatch(null);
+        setMatches([]);
+        setSelected(null);
         setLoading(false);
         return;
       }
@@ -87,41 +143,23 @@ export default function HierarchyContextPanel({
             "Site Analyzer returned no page-section trees for this analysis. Re-run Site Analyzer, then reopen Workflow.",
           );
         }
-        const next = matchKeywordToHierarchy(trees, targetKeyword);
+        const nextMatches = findHierarchyMatches(trees, targetKeyword);
         if (cancelled) return;
-        setMatch(next);
+        setMatches(nextMatches);
+        const nextSelected = pickInitial(nextMatches, initialPath, initialSourcePageUrl);
+        setSelected(nextSelected);
 
-        const pathLabel = next?.path.join(" › ") ?? null;
-        const children = next?.childHeadings ?? [];
-        const sourceUrl = next?.sourcePageUrl ?? null;
-
-        // Persist match (or clear) so generate is server-complete. Keep allowOutside if still unmatched.
         try {
-          const project = await updateProjectHierarchyContext(projectId, {
-            hierarchyPath: pathLabel,
-            hierarchyChildHeadings: children,
-            hierarchySourcePageUrl: sourceUrl,
-            allowOutsideSiteScope: next ? false : allowOutside,
-            siteAnalysisId,
-          });
-          if (cancelled) return;
-          if (next) setAllowOutside(false);
-          onProjectUpdated(project);
-        } catch (persistErr) {
-          if (cancelled) return;
-          // Match UI can still show; persist needs deployed GeekAPI (hierarchy-context).
-          setPersistError(
-            persistErr instanceof ApiError
-              ? persistErr.status === 404
-                ? "Could not save hierarchy context (API 404). Redeploy GeekAPI with the latest Content Writer changes, then refresh."
-                : persistErr.message
-              : "Could not save hierarchy context.",
-          );
+          await persistSelection(nextSelected, nextSelected ? false : allowOutside);
+        } catch {
+          // Persist error already set; match UI still usable.
         }
+        if (cancelled) return;
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : "Hierarchy load failed.");
-        setMatch(null);
+        setMatches([]);
+        setSelected(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -132,80 +170,130 @@ export default function HierarchyContextPanel({
       cancelled = true;
     };
     // Re-match when keyword or analysis changes; allowOutside toggled separately.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialAllowOutside only seeds checkbox
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial* only seeds selection
   }, [projectId, siteAnalysisId, targetKeyword]);
+
+  async function handleSelect(match: HierarchyMatch) {
+    if (sameMatch(selected, match) || persisting) return;
+    const previous = selected;
+    setSelected(match);
+    try {
+      await persistSelection(match, false);
+    } catch {
+      setSelected(previous);
+    }
+  }
 
   async function handleAllowOutsideChange(checked: boolean) {
     setPersistError(null);
     setAllowOutside(checked);
     try {
-      const project = await updateProjectHierarchyContext(projectId, {
-        hierarchyPath: match?.path.join(" › ") ?? null,
-        hierarchyChildHeadings: match?.childHeadings ?? [],
-        hierarchySourcePageUrl: match?.sourcePageUrl ?? null,
-        allowOutsideSiteScope: checked,
-        siteAnalysisId: siteAnalysisId ?? undefined,
-      });
-      onProjectUpdated(project);
-    } catch (err) {
-      setPersistError(
-        err instanceof ApiError ? err.message : "Could not save outside-scope acknowledgment.",
-      );
+      await persistSelection(selected, checked);
+    } catch {
       setAllowOutside(!checked);
     }
   }
 
-  const pathLabel = match?.path.join(" › ") ?? null;
-  const children = match?.childHeadings ?? [];
-  const sourceUrl = match?.sourcePageUrl ?? null;
+  const children = selected?.childHeadings ?? [];
+  const sourceUrl = selected?.sourcePageUrl ?? null;
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">2. Site hierarchy context</h2>
       <p className="mt-1 text-sm text-muted">
-        Match the project keyword against Site Analyzer heading trees. Child topics ground Generate
-        (pillar/blog must use them as child headings). Tone &amp; Focus stay omitted this phase.
+        Match the project keyword against Site Analyzer heading trees. Choose which match grounds
+        Generate (pillar/blog must use its child headings). Tone &amp; Focus stay omitted this phase.
       </p>
 
       {loading ? <p className="mt-4 text-sm text-muted">Loading hierarchy…</p> : null}
 
       {loadError ? <p className="mt-4 text-sm text-red-600">{loadError}</p> : null}
 
-      {!loading && match ? (
-        <div className="mt-4 space-y-3 text-sm">
+      {!loading && matches.length > 0 ? (
+        <div className="mt-4 space-y-4 text-sm">
           <div>
-            <p className="font-medium text-foreground">Matched path</p>
-            <p className="text-muted">{pathLabel}</p>
+            <p className="font-medium text-foreground">
+              {matches.length === 1
+                ? "Matched path"
+                : `${matches.length} matches — select the node for this write`}
+            </p>
+            <fieldset className="mt-2 space-y-2" disabled={persisting}>
+              <legend className="sr-only">Hierarchy match</legend>
+              {matches.map((m) => {
+                const id = hierarchyMatchId(m);
+                const checked = sameMatch(selected, m);
+                return (
+                  <label
+                    key={id}
+                    className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 ${
+                      checked
+                        ? "border-brand bg-brand/5"
+                        : "border-border hover:border-brand/40"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="hierarchy-match"
+                      className="mt-1 h-4 w-4 border-border text-brand focus:ring-2 focus:ring-brand/20"
+                      checked={checked}
+                      onChange={() => void handleSelect(m)}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium text-foreground">
+                        {m.path.join(" › ")}
+                      </span>
+                      <span className="mt-0.5 block break-all text-xs text-muted">
+                        {hierarchyMatchKindLabel(m.kind)}
+                        {m.sourcePageUrl ? ` · ${m.sourcePageUrl}` : ""}
+                      </span>
+                      {m.childHeadings.length > 0 ? (
+                        <span className="mt-1 block text-xs text-muted">
+                          {m.childHeadings.length} child heading
+                          {m.childHeadings.length === 1 ? "" : "s"}
+                        </span>
+                      ) : (
+                        <span className="mt-1 block text-xs text-muted">No child headings</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
           </div>
-          {sourceUrl ? (
-            <div>
-              <p className="font-medium text-foreground">Source page</p>
-              <a
-                href={sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="break-all text-brand hover:underline"
-              >
-                {sourceUrl}
-              </a>
-            </div>
+
+          {selected ? (
+            <>
+              {sourceUrl ? (
+                <div>
+                  <p className="font-medium text-foreground">Selected source page</p>
+                  <a
+                    href={sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-all text-brand hover:underline"
+                  >
+                    {sourceUrl}
+                  </a>
+                </div>
+              ) : null}
+              <div>
+                <p className="font-medium text-foreground">Child headings (injected)</p>
+                {children.length > 0 ? (
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-foreground">
+                    {children.map((c) => (
+                      <li key={c}>{c}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted">Selected node has no child headings.</p>
+                )}
+              </div>
+            </>
           ) : null}
-          <div>
-            <p className="font-medium text-foreground">Child headings</p>
-            {children.length > 0 ? (
-              <ul className="mt-1 list-disc space-y-1 pl-5 text-foreground">
-                {children.map((c) => (
-                  <li key={c}>{c}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted">Matched node has no child headings.</p>
-            )}
-          </div>
         </div>
       ) : null}
 
-      {!loading && !match ? (
+      {!loading && matches.length === 0 && !loadError ? (
         <div className="mt-4 space-y-3">
           <p className="text-sm text-amber-800">
             No hierarchy match for &ldquo;{targetKeyword}&rdquo; — page/site hierarchy context will be

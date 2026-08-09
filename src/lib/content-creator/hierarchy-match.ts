@@ -11,11 +11,21 @@ export type PageSectionTreePage = {
   roots: PageSectionNode[];
 };
 
+export type HierarchyMatchKind = "exact-heading" | "contains-heading" | "exact-page" | "contains-page";
+
 export type HierarchyMatch = {
   path: string[];
   childHeadings: string[];
   sourcePageUrl: string;
   matchedHeading: string;
+  kind: HierarchyMatchKind;
+};
+
+const KIND_RANK: Record<HierarchyMatchKind, number> = {
+  "exact-heading": 0,
+  "exact-page": 1,
+  "contains-heading": 2,
+  "contains-page": 3,
 };
 
 /** Same deterministic slugify intent as GccGenerateService.Slugify. */
@@ -78,41 +88,71 @@ function slugsMatch(a: string, b: string): "exact" | "contains" | null {
   return null;
 }
 
+function toMatch(
+  node: PageSectionNode | null,
+  path: string[],
+  pageUrl: string,
+  topic: string,
+  kind: HierarchyMatchKind,
+): HierarchyMatch {
+  const childHeadings = node
+    ? childrenOf(node)
+        .map((c) => headingOf(c))
+        .filter((t): t is string => !!t)
+    : [];
+  return {
+    path,
+    childHeadings,
+    sourcePageUrl: pageUrl,
+    matchedHeading: (node ? headingOf(node) : "") || path[path.length - 1] || topic,
+    kind,
+  };
+}
+
+function matchKey(m: HierarchyMatch): string {
+  return `${m.sourcePageUrl}\0${m.path.join("\0")}\0${m.kind.startsWith("exact") ? "exact" : "contains"}`;
+}
+
 /**
- * Match keyword to a heading node or page URL slug.
- * 1) Exact heading slug, 2) either-direction heading contains,
- * 3) page URL slug exact/contains → that page's root heading (or keyword as path).
+ * All keyword matches against heading nodes and page URL slugs, ranked best-first.
+ * Dedupes the same path+page (keeps stronger kind).
  */
-export function matchKeywordToHierarchy(
+export function findHierarchyMatches(
   trees: PageSectionTreePage[],
   keyword: string,
-): HierarchyMatch | null {
+): HierarchyMatch[] {
   const topic = keyword.trim();
-  if (!topic || trees.length === 0) return null;
+  if (!topic || trees.length === 0) return [];
 
   const topicSlug = slugifyHeading(topic);
-  if (!topicSlug) return null;
+  if (!topicSlug) return [];
 
-  let exact: { node: PageSectionNode; path: string[]; pageUrl: string } | null = null;
-  let contains: { node: PageSectionNode; path: string[]; pageUrl: string } | null = null;
-  let pageHit: { node: PageSectionNode | null; path: string[]; pageUrl: string } | null =
-    null;
+  const byKey = new Map<string, HierarchyMatch>();
+
+  function consider(m: HierarchyMatch) {
+    const key = `${m.sourcePageUrl}\0${m.path.join("\0")}`;
+    const prev = byKey.get(key);
+    if (!prev || KIND_RANK[m.kind] < KIND_RANK[prev.kind]) {
+      byKey.set(key, m);
+    }
+  }
 
   for (const page of trees) {
     const urlSlug = pageUrlSlug(page.pageUrl);
     const urlMatch = slugsMatch(urlSlug, topicSlug);
-    if (urlMatch && !pageHit) {
+    if (urlMatch) {
       const roots = page.roots ?? [];
       const root = roots[0] ?? null;
       const rootText = root ? headingOf(root) : "";
-      pageHit = {
-        node: root,
-        path: rootText ? [rootText] : [topic],
-        pageUrl: page.pageUrl,
-      };
-      if (urlMatch === "exact" && root) {
-        exact = { node: root, path: [rootText || topic], pageUrl: page.pageUrl };
-      }
+      consider(
+        toMatch(
+          root,
+          rootText ? [rootText] : [topic],
+          page.pageUrl,
+          topic,
+          urlMatch === "exact" ? "exact-page" : "contains-page",
+        ),
+      );
     }
 
     for (const { node, path } of flattenWithPath(page.roots ?? [], [])) {
@@ -120,44 +160,50 @@ export function matchKeywordToHierarchy(
       if (!nodeSlug) continue;
 
       const kind = slugsMatch(nodeSlug, topicSlug);
-      if (kind === "exact") {
-        exact = { node, path, pageUrl: page.pageUrl };
-        break;
-      }
-      if (kind === "contains" && !contains) {
-        contains = { node, path, pageUrl: page.pageUrl };
-      }
+      if (!kind) continue;
+      consider(
+        toMatch(
+          node,
+          path,
+          page.pageUrl,
+          topic,
+          kind === "exact" ? "exact-heading" : "contains-heading",
+        ),
+      );
     }
-    if (exact) break;
   }
 
-  const hit =
-    exact ??
-    contains ??
-    (pageHit?.node
-      ? { node: pageHit.node, path: pageHit.path, pageUrl: pageHit.pageUrl }
-      : null);
+  return [...byKey.values()].sort((a, b) => {
+    const rank = KIND_RANK[a.kind] - KIND_RANK[b.kind];
+    if (rank !== 0) return rank;
+    return a.path.join(" › ").localeCompare(b.path.join(" › "));
+  });
+}
 
-  if (!hit) {
-    if (pageHit) {
-      return {
-        path: pageHit.path,
-        childHeadings: [],
-        sourcePageUrl: pageHit.pageUrl,
-        matchedHeading: pageHit.path[pageHit.path.length - 1] ?? topic,
-      };
-    }
-    return null;
+/**
+ * Best single match (exact heading → exact page → contains heading → contains page).
+ * Prefer {@link findHierarchyMatches} when the operator may need to choose.
+ */
+export function matchKeywordToHierarchy(
+  trees: PageSectionTreePage[],
+  keyword: string,
+): HierarchyMatch | null {
+  return findHierarchyMatches(trees, keyword)[0] ?? null;
+}
+
+export function hierarchyMatchId(m: HierarchyMatch): string {
+  return matchKey(m);
+}
+
+export function hierarchyMatchKindLabel(kind: HierarchyMatchKind): string {
+  switch (kind) {
+    case "exact-heading":
+      return "Exact heading";
+    case "contains-heading":
+      return "Heading contains keyword";
+    case "exact-page":
+      return "Exact page URL";
+    case "contains-page":
+      return "Page URL contains keyword";
   }
-
-  const childHeadings = childrenOf(hit.node)
-    .map((c) => headingOf(c))
-    .filter((t): t is string => !!t);
-
-  return {
-    path: hit.path,
-    childHeadings,
-    sourcePageUrl: hit.pageUrl,
-    matchedHeading: headingOf(hit.node) || hit.path[hit.path.length - 1] || topic,
-  };
 }
