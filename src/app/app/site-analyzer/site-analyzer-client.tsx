@@ -356,10 +356,7 @@ export function SiteAnalyzerClient() {
                   {g.sectionPath ? (
                     <p className="text-sm text-[var(--gcc-muted)]">{g.sectionPath}</p>
                   ) : null}
-                  <p className="text-xs text-[var(--gcc-muted)]">
-                    {g.reason}
-                    {g.suggestPillar ? " · suggest pillar" : ""}
-                  </p>
+                  <p className="text-xs text-[var(--gcc-muted)]">{g.reason}</p>
                 </div>
                 <button
                   type="button"

@@ -116,7 +116,6 @@ export type ContentGap = {
   topic: string;
   sectionPath: string | null;
   reason: string;
-  suggestPillar: boolean;
 };
 
 export type SiteAnalysis = {
