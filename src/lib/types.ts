@@ -116,6 +116,8 @@ export type ContentGap = {
   topic: string;
   sectionPath: string | null;
   reason: string;
+  hierarchy?: string[] | null;
+  sourcePageUrl?: string | null;
 };
 
 export type SiteAnalysis = {

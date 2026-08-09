@@ -15,6 +15,7 @@ import type { Client } from "@/lib/types";
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
 const SHOW_GAP_GENERATE_BUTTON = false; // Site Analyzer currently only returns headings without matching pages (missing-page gaps). Generate is disabled pending Workflow rebuild. Flip this line if gap types expand to include real content gaps.
+const SHOW_SITE_STRUCTURE = false; // Hierarchy is on each gap; standalone Site structure panel is hidden.
 
 async function downloadSitemap(analysisId: string): Promise<void> {
   const response = await fetch(
@@ -344,17 +345,40 @@ export function SiteAnalyzerClient() {
         </div>
       ) : null}
 
-      <SiteHeadingHierarchy pages={sitePages} gaps={gaps} />
+      {SHOW_SITE_STRUCTURE ? (
+        <SiteHeadingHierarchy pages={sitePages} gaps={gaps} />
+      ) : null}
 
       {gaps.length > 0 ? (
         <ul className="divide-y divide-[var(--gcc-line)] border border-[var(--gcc-line)] bg-white">
-          {gaps.map((g) => (
+          {gaps.map((g) => {
+            const hierarchy =
+              g.hierarchy && g.hierarchy.length > 0
+                ? g.hierarchy
+                : g.sectionPath
+                  ? [g.sectionPath, g.topic]
+                  : null;
+            return (
             <li key={g.id} className="px-4 py-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">{g.topic}</p>
-                  {g.sectionPath ? (
-                    <p className="text-sm text-[var(--gcc-muted)]">{g.sectionPath}</p>
+                  {hierarchy ? (
+                    <p className="text-sm text-[var(--gcc-muted)]">
+                      {hierarchy.join(" › ")}
+                    </p>
+                  ) : null}
+                  {g.sourcePageUrl ? (
+                    <p className="text-xs text-[var(--gcc-muted)]">
+                      <a
+                        href={g.sourcePageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline decoration-[var(--gcc-line)] hover:text-[var(--gcc-teal-deep)]"
+                      >
+                        {g.sourcePageUrl}
+                      </a>
+                    </p>
                   ) : null}
                   <p className="text-xs text-[var(--gcc-muted)]">{g.reason}</p>
                 </div>
@@ -482,7 +506,8 @@ export function SiteAnalyzerClient() {
                 </div>
               ) : null}
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : !analysisId ? (
         <div className="rounded-md border border-dashed border-[var(--gcc-line)] bg-white px-4 py-6 text-center">
