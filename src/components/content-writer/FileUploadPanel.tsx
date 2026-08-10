@@ -56,7 +56,17 @@ export default function FileUploadPanel({
     setError(null);
 
     if (category === "KeywordResult") {
-      const files = Array.from(fileList);
+      const incoming = Array.from(fileList);
+      // Append when already curating so operators can add more SERP pages without Cancel first.
+      const byKey = new Map<string, File>();
+      for (const f of parsed ? pendingFiles : []) {
+        byKey.set(`${f.name}:${f.size}:${f.lastModified}`, f);
+      }
+      for (const f of incoming) {
+        byKey.set(`${f.name}:${f.size}:${f.lastModified}`, f);
+      }
+      const files = [...byKey.values()];
+
       setIsUploading(true);
       try {
         const merged = await parseAndMergeKeywordSerpFiles(files, targetKeyword);
@@ -78,8 +88,10 @@ export default function FileUploadPanel({
           );
         }
       } catch (err) {
-        setPendingFiles([]);
-        setParsed(null);
+        if (!parsed) {
+          setPendingFiles([]);
+          setParsed(null);
+        }
         setError(
           err instanceof GccApiError || err instanceof ApiError
             ? err.message
@@ -173,9 +185,10 @@ export default function FileUploadPanel({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">3. Upload Research Inputs</h2>
       <p className="mt-1 text-sm text-muted">
-        Keyword SERP Result: upload a saved Google results page, confirm organic titles/URLs (serp-lens),
-        then Generate uses that curated index — not page chrome headings. Wikipedia / .edu / .gov stay
-        quotable sources. PAA can be selected from the parse or uploaded as a .txt list.
+        Keyword SERP Result: pick one or more saved Google results pages (⌘/Ctrl-click or ⌘/Ctrl-A
+        in the file dialog), confirm organic titles/URLs, then Generate uses that curated index —
+        not page chrome headings. Wikipedia / .edu / .gov stay quotable sources. PAA can be selected
+        from the parse or uploaded as a .txt list.
       </p>
 
       {serpTitles?.trim() ? (
@@ -201,7 +214,6 @@ export default function FileUploadPanel({
             value={category}
             onChange={(e) => setCategory(e.target.value as KeywordSourceCategory)}
             className="rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            disabled={!!parsed}
           >
             {KEYWORD_SOURCE_CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -216,13 +228,15 @@ export default function FileUploadPanel({
             ? category === "KeywordResult"
               ? "Parsing…"
               : "Uploading..."
-            : "Choose File(s)"}
+            : parsed
+              ? "Add more Keyword SERP file(s)"
+              : "Choose File(s)"}
           <input
             type="file"
             multiple
             accept={category === "PeopleAlsoAsk" ? ".txt" : ".html,.htm,.txt,text/html,text/plain"}
             className="hidden"
-            disabled={isUploading || confirming || !!parsed}
+            disabled={isUploading || confirming}
             onChange={(e) => {
               void handleFilesSelected(e.target.files);
               e.target.value = "";
@@ -230,6 +244,13 @@ export default function FileUploadPanel({
           />
         </label>
       </div>
+
+      {pendingFiles.length > 0 ? (
+        <p className="mt-2 text-xs text-muted">
+          Pending Keyword SERP file{pendingFiles.length === 1 ? "" : "s"} ({pendingFiles.length}):{" "}
+          {pendingFiles.map((f) => f.name).join(", ")}
+        </p>
+      ) : null}
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
