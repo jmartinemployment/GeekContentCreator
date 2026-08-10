@@ -16,6 +16,8 @@ export type HierarchyMatchKind = "exact-heading" | "contains-heading" | "exact-p
 export type HierarchyMatch = {
   path: string[];
   childHeadings: string[];
+  /** Tool names parsed from a "Top … Tools: a, b, c" paragraph on the matched node. */
+  toolNames: string[];
   sourcePageUrl: string;
   matchedHeading: string;
   kind: HierarchyMatchKind;
@@ -61,6 +63,33 @@ function childrenOf(node: PageSectionNode): PageSectionNode[] {
   return node.children ?? (node as { Children?: PageSectionNode[] }).Children ?? [];
 }
 
+function paragraphsOf(node: PageSectionNode): string[] {
+  const raw =
+    node.paragraphs ?? (node as { Paragraphs?: string[] | null }).Paragraphs ?? [];
+  return raw.map((p) => (typeof p === "string" ? p.trim() : "")).filter(Boolean);
+}
+
+/**
+ * Parse "Top AI Content Creation Tools: Jasper, Copy.ai, ChatGPT, Claude" (and close variants).
+ * Returns [] when no such paragraph exists — never invents names.
+ */
+export function parseHierarchyToolNames(paragraphs: string[]): string[] {
+  const pattern =
+    /^Top\s+.+?\s+Tools?\s*:\s*(.+)$/i;
+  for (const p of paragraphs) {
+    const m = p.match(pattern);
+    if (!m?.[1]) continue;
+    const names = m[1]
+      .split(/,|;|\band\b/i)
+      .map((s) => s.replace(/\s+/g, " ").trim())
+      .filter((s) => s.length > 0 && s.length < 80);
+    if (names.length > 0) {
+      return [...new Set(names.map((n) => n.trim()))];
+    }
+  }
+  return [];
+}
+
 function flattenWithPath(
   nodes: PageSectionNode[],
   ancestors: string[],
@@ -100,9 +129,11 @@ function toMatch(
         .map((c) => headingOf(c))
         .filter((t): t is string => !!t)
     : [];
+  const toolNames = node ? parseHierarchyToolNames(paragraphsOf(node)) : [];
   return {
     path,
     childHeadings,
+    toolNames,
     sourcePageUrl: pageUrl,
     matchedHeading: (node ? headingOf(node) : "") || path[path.length - 1] || topic,
     kind,

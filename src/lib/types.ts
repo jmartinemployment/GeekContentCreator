@@ -187,7 +187,8 @@ export type KeywordSourceCategory =
   | "Wikipedia"
   | "Local"
   | "PeopleAlsoAsk"
-  | "CompetitorCrawl";
+  | "CompetitorCrawl"
+  | "Tools";
 
 export type GeneratedContentType =
   | "TechnicalArticle"
@@ -202,7 +203,8 @@ export type GeneratedContentType =
   | "ImagePromptSocialFacebook"
   | "ImagePromptSocialLinkedIn"
   | "ImagePromptSection"
-  | "ToolPost";
+  | "ToolPost"
+  | "Advertising";
 
 export type CategoryStrategy = "DepartmentBased" | "FreeForm";
 
@@ -256,6 +258,8 @@ export interface KeywordSourceResponse {
   headingCount: number;
   paragraphCount: number;
   questionCount: number;
+  extractedToolResearchJson?: string | null;
+  toolsMismatchWarning?: string | null;
 }
 
 export interface GeneratedContentResponse {
@@ -283,6 +287,7 @@ export interface ProjectDetail extends ProjectSummary {
   contentApprovedAtUtc?: string | null;
   hierarchyPath?: string | null;
   hierarchyChildHeadings?: string[];
+  hierarchyToolNames?: string[];
   hierarchySourcePageUrl?: string | null;
   allowOutsideSiteScope?: boolean;
   serpTitles?: string | null;
@@ -402,6 +407,7 @@ export const KEYWORD_SOURCE_CATEGORIES: { value: KeywordSourceCategory; label: s
   { value: "Local", label: "Local Pack" },
   { value: "CompetitorCrawl", label: "Competitor Crawl" },
   { value: "PeopleAlsoAsk", label: "People Also Ask (text)" },
+  { value: "Tools", label: "Tool page (HTML)" },
 ];
 
 export const PROVIDER_OPTIONS: { value: LlmProviderType; label: string }[] = [

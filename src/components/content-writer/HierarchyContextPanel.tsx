@@ -87,6 +87,7 @@ export default function HierarchyContextPanel({
       const project = await updateProjectHierarchyContext(projectId, {
         hierarchyPath: next?.path.join(" › ") ?? null,
         hierarchyChildHeadings: next?.childHeadings ?? [],
+        hierarchyToolNames: next?.toolNames ?? [],
         hierarchySourcePageUrl: next?.sourcePageUrl ?? null,
         allowOutsideSiteScope: next ? false : outside,
         siteAnalysisId: siteAnalysisId ?? undefined,
