@@ -39,7 +39,7 @@ export default function FileUploadPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [parsed, setParsed] = useState<SavedSerpParseResult | null>(null);
   const [selectedOrganics, setSelectedOrganics] = useState<Set<number>>(new Set());
   const [selectedPaa, setSelectedPaa] = useState<Set<number>>(new Set());
@@ -56,31 +56,29 @@ export default function FileUploadPanel({
     setError(null);
 
     if (category === "KeywordResult") {
-      const file = fileList[0];
-      if (!file) return;
+      const files = Array.from(fileList);
       setIsUploading(true);
       try {
-        const text = await file.text();
-        const result = await parseSavedSerp(text, targetKeyword);
-        setPendingFile(file);
-        setParsed(result);
-        setSelectedOrganics(new Set(result.organics.map((_, i) => i)));
+        const merged = await parseAndMergeKeywordSerpFiles(files, targetKeyword);
+        setPendingFiles(files);
+        setParsed(merged);
+        setSelectedOrganics(new Set(merged.organics.map((_, i) => i)));
         setSelectedPaa(
           new Set(
-            result.peopleAlsoAsk
+            merged.peopleAlsoAsk
               .map((q, i) => (q.likelyRelevant ? i : -1))
               .filter((i) => i >= 0),
           ),
         );
-        setSelectedRelated(new Set(result.relatedSearches.map((_, i) => i)));
-        if (result.organics.length === 0) {
+        setSelectedRelated(new Set(merged.relatedSearches.map((_, i) => i)));
+        if (merged.organics.length === 0) {
           setError(
-            result.parseWarning ??
+            merged.parseWarning ??
               "No organic title→URL pairs parsed. Re-save the Google results page (HTML) or try another capture — chrome headings alone are not used.",
           );
         }
       } catch (err) {
-        setPendingFile(null);
+        setPendingFiles([]);
         setParsed(null);
         setError(
           err instanceof GccApiError || err instanceof ApiError
@@ -110,7 +108,11 @@ export default function FileUploadPanel({
   }
 
   async function confirmSerp() {
-    if (!pendingFile || !curatedPreview || !curatedSerpHasOrganics(curatedPreview)) {
+    if (
+      pendingFiles.length === 0 ||
+      !curatedPreview ||
+      !curatedSerpHasOrganics(curatedPreview)
+    ) {
       setError("Select at least one organic result before confirming.");
       return;
     }
@@ -125,11 +127,14 @@ export default function FileUploadPanel({
       });
       onProjectUpdated(project);
 
-      // Keep the raw file on the project for audit; Generate uses curated SERP index, not chrome headings.
-      const uploaded = await uploadKeywordSource(projectId, "KeywordResult", pendingFile);
-      onChanged([...keywordSources, uploaded]);
+      // Keep raw files on the project for audit; Generate uses curated SERP index, not chrome headings.
+      const uploaded: KeywordSourceResponse[] = [];
+      for (const file of pendingFiles) {
+        uploaded.push(await uploadKeywordSource(projectId, "KeywordResult", file));
+      }
+      onChanged([...keywordSources, ...uploaded]);
 
-      setPendingFile(null);
+      setPendingFiles([]);
       setParsed(null);
       setSelectedOrganics(new Set());
       setSelectedPaa(new Set());
@@ -146,7 +151,7 @@ export default function FileUploadPanel({
   }
 
   function cancelSerp() {
-    setPendingFile(null);
+    setPendingFiles([]);
     setParsed(null);
     setSelectedOrganics(new Set());
     setSelectedPaa(new Set());
@@ -214,7 +219,7 @@ export default function FileUploadPanel({
             : "Choose File(s)"}
           <input
             type="file"
-            multiple={category !== "KeywordResult"}
+            multiple
             accept={category === "PeopleAlsoAsk" ? ".txt" : ".html,.htm,.txt,text/html,text/plain"}
             className="hidden"
             disabled={isUploading || confirming || !!parsed}
@@ -232,7 +237,11 @@ export default function FileUploadPanel({
         <div className="mt-4 space-y-3 rounded-lg border border-border bg-background p-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-medium text-foreground">
-              Parsed {pendingFile?.name ?? "SERP"} — select items, then confirm
+              Parsed{" "}
+              {pendingFiles.length === 1
+                ? pendingFiles[0]?.name
+                : `${pendingFiles.length} files`}{" "}
+              — select items, then confirm
             </p>
             <div className="flex gap-2">
               <button
@@ -269,11 +278,13 @@ export default function FileUploadPanel({
           ) : (
             <SelectionList
               title="Organic results"
-              items={parsed.organics.map(
-                (o) => `${o.title} — ${o.url}`,
-              )}
+              items={parsed.organics.map((o) => `${o.title} — ${o.url}`)}
               selected={selectedOrganics}
               onToggle={(i) => setSelectedOrganics((prev) => toggleSet(prev, i))}
+              onSelectAll={() =>
+                setSelectedOrganics(new Set(parsed.organics.map((_, i) => i)))
+              }
+              onClear={() => setSelectedOrganics(new Set())}
             />
           )}
 
@@ -283,6 +294,10 @@ export default function FileUploadPanel({
               items={parsed.peopleAlsoAsk.map((q) => q.question)}
               selected={selectedPaa}
               onToggle={(i) => setSelectedPaa((prev) => toggleSet(prev, i))}
+              onSelectAll={() =>
+                setSelectedPaa(new Set(parsed.peopleAlsoAsk.map((_, i) => i)))
+              }
+              onClear={() => setSelectedPaa(new Set())}
             />
           ) : null}
 
@@ -292,6 +307,10 @@ export default function FileUploadPanel({
               items={parsed.relatedSearches}
               selected={selectedRelated}
               onToggle={(i) => setSelectedRelated((prev) => toggleSet(prev, i))}
+              onSelectAll={() =>
+                setSelectedRelated(new Set(parsed.relatedSearches.map((_, i) => i)))
+              }
+              onClear={() => setSelectedRelated(new Set())}
             />
           ) : null}
         </div>
@@ -335,20 +354,111 @@ function toggleSet(prev: Set<number>, i: number): Set<number> {
   return next;
 }
 
+async function parseAndMergeKeywordSerpFiles(
+  files: File[],
+  targetKeyword: string,
+): Promise<SavedSerpParseResult> {
+  const organics: SavedSerpParseResult["organics"] = [];
+  const peopleAlsoAsk: SavedSerpParseResult["peopleAlsoAsk"] = [];
+  const relatedSearches: string[] = [];
+  const warnings: string[] = [];
+  let shape = {
+    dominantFormats: [] as string[],
+    titlePatterns: [] as string[],
+    guidance: "",
+    hasPeopleAlsoAsk: false,
+    organicCount: 0,
+    pageHint: null as string | null,
+  };
+  let missingPaaLikelyPage2 = false;
+
+  const seenOrganicUrls = new Set<string>();
+  const seenPaa = new Set<string>();
+  const seenRelated = new Set<string>();
+
+  for (const file of files) {
+    const text = await file.text();
+    const result = await parseSavedSerp(text, targetKeyword);
+    if (result.parseWarning) warnings.push(`${file.name}: ${result.parseWarning}`);
+    missingPaaLikelyPage2 = missingPaaLikelyPage2 || result.missingPaaLikelyPage2;
+    if (!shape.guidance && result.shape.guidance) shape = { ...result.shape };
+
+    for (const o of result.organics) {
+      const key = o.url.trim().toLowerCase();
+      if (!key || seenOrganicUrls.has(key)) continue;
+      seenOrganicUrls.add(key);
+      organics.push({ ...o, position: organics.length + 1 });
+    }
+    for (const q of result.peopleAlsoAsk) {
+      const key = q.question.trim().toLowerCase();
+      if (!key || seenPaa.has(key)) continue;
+      seenPaa.add(key);
+      peopleAlsoAsk.push(q);
+    }
+    for (const r of result.relatedSearches) {
+      const key = r.trim().toLowerCase();
+      if (!key || seenRelated.has(key)) continue;
+      seenRelated.add(key);
+      relatedSearches.push(r);
+    }
+  }
+
+  shape = {
+    ...shape,
+    organicCount: organics.length,
+    hasPeopleAlsoAsk: peopleAlsoAsk.length > 0,
+  };
+
+  return {
+    organics,
+    peopleAlsoAsk,
+    relatedSearches,
+    shape,
+    missingPaaLikelyPage2,
+    parseWarning: warnings.length ? warnings.join(" ") : null,
+  };
+}
+
 function SelectionList({
   title,
   items,
   selected,
   onToggle,
+  onSelectAll,
+  onClear,
 }: {
   title: string;
   items: string[];
   selected: Set<number>;
   onToggle: (i: number) => void;
+  onSelectAll: () => void;
+  onClear: () => void;
 }) {
+  const allSelected = items.length > 0 && selected.size === items.length;
+
   return (
     <div>
-      <p className="font-medium text-foreground">{title}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-medium text-foreground">{title}</p>
+        <div className="flex gap-2 text-xs">
+          <button
+            type="button"
+            onClick={onSelectAll}
+            disabled={allSelected}
+            className="font-semibold text-brand hover:underline disabled:cursor-default disabled:text-muted disabled:no-underline"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={selected.size === 0}
+            className="font-semibold text-muted hover:underline disabled:cursor-default disabled:no-underline"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
       <ul className="mt-1 max-h-48 space-y-1 overflow-y-auto">
         {items.map((label, i) => (
           <li key={`${i}-${label.slice(0, 40)}`}>
