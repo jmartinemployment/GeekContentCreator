@@ -12,6 +12,7 @@ import {
   buildCuratedSerpSeed,
   curatedSerpHasOrganics,
   type SavedSerpParseResult,
+  type SerpShapeSummary,
 } from "@/lib/content-creator/serp-lens";
 import {
   KEYWORD_SOURCE_CATEGORIES,
@@ -383,13 +384,13 @@ async function parseAndMergeKeywordSerpFiles(
   const peopleAlsoAsk: SavedSerpParseResult["peopleAlsoAsk"] = [];
   const relatedSearches: string[] = [];
   const warnings: string[] = [];
-  let shape = {
-    dominantFormats: [] as string[],
-    titlePatterns: [] as string[],
+  let shape: SerpShapeSummary = {
+    dominantFormats: [],
+    titlePatterns: [],
     guidance: "",
     hasPeopleAlsoAsk: false,
     organicCount: 0,
-    pageHint: null as string | null,
+    pageHint: null,
   };
   let missingPaaLikelyPage2 = false;
 
