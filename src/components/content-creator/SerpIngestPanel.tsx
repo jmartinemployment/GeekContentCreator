@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { parseSavedSerp, ApiError } from "@/services/gcc-api";
-import type {
-  CuratedSerpSeed,
-  PaaCandidate,
-  SavedSerpOrganic,
-  SavedSerpParseResult,
+import {
+  buildCuratedSerpSeed,
+  type CuratedSerpSeed,
+  type PaaCandidate,
+  type SavedSerpOrganic,
+  type SavedSerpParseResult,
 } from "@/lib/content-creator/serp-lens";
 import type { InformationGainNote } from "@/lib/types";
 
@@ -280,20 +281,9 @@ function buildSeed(
   related: Set<number>,
   informationGain?: InformationGainNote | null,
 ): CuratedSerpSeed {
-  const selectedO = parsed.organics.filter((_, i) => organics.has(i));
-  return {
-    serpTitles: selectedO.map((o) => o.title).join("\n"),
-    serpUrls: selectedO.map((o) => o.url).join("\n"),
-    paaQuestions: parsed.peopleAlsoAsk
-      .filter((_, i) => paa.has(i))
-      .map((q) => q.question)
-      .join("\n"),
-    relatedSearches: parsed.relatedSearches
-      .filter((_, i) => related.has(i))
-      .join("\n"),
-    shapeGuidance: parsed.shape.guidance,
+  return buildCuratedSerpSeed(parsed, organics, paa, related, {
     informationGainSummary: informationGain?.summary,
-  };
+  });
 }
 
 /** Merge crawl-side Information Gain with competitor opens from curated organics. */

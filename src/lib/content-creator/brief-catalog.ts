@@ -207,13 +207,13 @@ export interface ContentBrief {
   eeatSignals: EeatSignal[];
   lengthBand: LengthBandKey | "";
   writingNotes: string;
-  /** One organic title per line (hand-entered SERP notes). */
+  /** One organic title per line (uploaded/curated SERP index). */
   serpTitles: string;
-  /** One absolute http(s) organic URL per line (followed for deep research, ≤3). */
+  /** One absolute http(s) organic URL per line (uploaded/curated; paired with titles). */
   serpUrls: string;
-  /** One PAA question per line. */
+  /** One PAA question per line (operator-curated; never auto-dumped). */
   paaQuestions: string;
-  /** One related search per line. */
+  /** One related search per line (uploaded/curated). */
   relatedSearches: string;
 }
 
@@ -469,22 +469,22 @@ export function buildBriefBlock(brief: ContentBrief, targetKeyword: string): str
 
   const titles = splitLines(brief.serpTitles);
   if (titles.length) {
-    lines.push("SERP organic titles (hand-entered):");
+    lines.push("SERP organic titles (uploaded/curated):");
     for (const t of titles) lines.push(`- ${t}`);
   }
   const urls = splitLines(brief.serpUrls);
   if (urls.length) {
-    lines.push("SERP organic URLs (hand-entered):");
+    lines.push("SERP organic URLs (uploaded/curated):");
     for (const t of urls) lines.push(`- ${t}`);
   }
   const related = splitLines(brief.relatedSearches);
   if (related.length) {
-    lines.push("Related searches (hand-entered):");
+    lines.push("Related searches (uploaded/curated):");
     for (const t of related) lines.push(`- ${t}`);
   }
   const paa = splitLines(brief.paaQuestions);
   if (paa.length) {
-    lines.push("People Also Ask (hand-entered):");
+    lines.push("People Also Ask (operator-curated):");
     for (const t of paa) lines.push(`- ${t}`);
   }
 

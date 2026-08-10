@@ -37,8 +37,13 @@ export default function WorkflowProjectPage() {
 
   const hierarchyOk =
     hierarchyGate.matched || hierarchyGate.allowOutsideSiteScope;
+  const hasSerpIndex = Boolean(project?.serpTitles?.trim());
+  const hasNonKeywordResearch = keywordSources.some(
+    (k) => k.category !== "KeywordResult",
+  );
+  const researchOk = hasSerpIndex || hasNonKeywordResearch;
   const canGenerate =
-    keywordSources.length > 0 && hierarchyOk && !hierarchyGate.loading;
+    researchOk && hierarchyOk && !hierarchyGate.loading;
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -131,8 +136,11 @@ export default function WorkflowProjectPage() {
 
         <FileUploadPanel
           projectId={project.id}
+          targetKeyword={project.targetKeyword}
           keywordSources={keywordSources}
+          serpTitles={project.serpTitles}
           onChanged={setKeywordSources}
+          onProjectUpdated={handleProjectUpdated}
         />
 
         <NotesPanel

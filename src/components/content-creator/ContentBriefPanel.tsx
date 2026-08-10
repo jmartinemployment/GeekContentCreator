@@ -36,6 +36,7 @@ import {
   clearSiteSectionHandoff,
   readSiteSectionHandoff,
 } from "@/lib/site-section-storage";
+import { applyCuratedSerpToBrief } from "@/lib/content-creator/serp-lens";
 import { CreateKeywordUploadPanel } from "./CreateKeywordUploadPanel";
 
 export default function ContentBriefPanel({
@@ -553,8 +554,9 @@ export default function ContentBriefPanel({
       <div className="mt-6 border-t border-border pt-5">
         <p className="text-sm font-medium text-foreground">Research &amp; SERP index</p>
         <p className="mt-1 text-xs text-muted">
-          Upload your saved research below — it feeds Generate automatically, no extra step. The
-          text fields are optional hand-entered SERP notes; PAA stays hand-entered.
+          Upload saved Keyword SERP / wiki pages — Generate reads ResearchJson. Use{" "}
+          <strong>Apply to brief SERP fields</strong> on a Keyword result to fill serpTitles /
+          serpUrls (and related) from parsed organics. PAA stays operator-curated.
         </p>
 
         <div className="mt-3">
@@ -572,6 +574,14 @@ export default function ContentBriefPanel({
                 return next;
               });
               setSavedMsg(null);
+            }}
+            onApplySerpSeed={(seed) => {
+              setBrief((prev) => {
+                const next = applyCuratedSerpToBrief(prev, seed, "replace");
+                persistLocal(next);
+                return next;
+              });
+              setSavedMsg("SERP fields updated from upload — save the brief to persist for Generate.");
             }}
           />
         </div>

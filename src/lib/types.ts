@@ -285,6 +285,10 @@ export interface ProjectDetail extends ProjectSummary {
   hierarchyChildHeadings?: string[];
   hierarchySourcePageUrl?: string | null;
   allowOutsideSiteScope?: boolean;
+  serpTitles?: string | null;
+  serpUrls?: string | null;
+  serpPaaQuestions?: string | null;
+  serpRelatedSearches?: string | null;
 }
 
 export interface ArticleDraft {

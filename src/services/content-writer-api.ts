@@ -160,6 +160,26 @@ export function updateProjectHierarchyContext(
   });
 }
 
+export function updateProjectSerpContext(
+  projectId: string,
+  input: {
+    serpTitles: string | null;
+    serpUrls: string | null;
+    serpPaaQuestions: string | null;
+    serpRelatedSearches: string | null;
+  },
+): Promise<ProjectDetail> {
+  return request<ProjectDetail>(`/api/projects/${projectId}/serp-context`, {
+    method: "PUT",
+    body: JSON.stringify({
+      serpTitles: input.serpTitles,
+      serpUrls: input.serpUrls,
+      serpPaaQuestions: input.serpPaaQuestions,
+      serpRelatedSearches: input.serpRelatedSearches,
+    }),
+  });
+}
+
 export function crawlProject(
   projectId: string,
   maxPages = 50,

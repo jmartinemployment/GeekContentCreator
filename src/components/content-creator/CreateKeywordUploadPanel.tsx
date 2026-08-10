@@ -9,6 +9,11 @@ import {
   uploadCreateKeywordSource,
   type GccKeywordSource,
 } from "@/services/gcc-api";
+import {
+  buildCuratedSerpSeed,
+  curatedSerpHasOrganics,
+  type CuratedSerpSeed,
+} from "@/lib/content-creator/serp-lens";
 
 /**
  * CWv2-style research upload for a Content Creator create. Uploading IS the research action —
@@ -16,18 +21,20 @@ import {
  * follow/process button, no per-file cap.
  *
  * "Keyword result page" (saved Google SERP HTML) is parsed into organics + related searches;
- * Wikipedia/.edu/.gov are parsed as articles into quoteables. PAA stays in the brief textarea —
- * never auto-seeded from any upload. Shape.Guidance (advisory angle signal) is never sent to
- * Generate automatically; the operator adds it to writing notes themselves via "Add to notes".
+ * use "Apply to brief SERP fields" to copy curated organics into ContentBrief.serpTitles/urls.
+ * Wikipedia/.edu/.gov are parsed as articles into quoteables. PAA stays operator-curated —
+ * never auto-dumped. Shape.Guidance is advisory — add it to notes via "Add to notes".
  */
 export function CreateKeywordUploadPanel({
   createId,
   ensureCreateId,
   onAddToNotes,
+  onApplySerpSeed,
 }: {
   createId: string | null;
   ensureCreateId: () => Promise<string>;
   onAddToNotes: (text: string) => void;
+  onApplySerpSeed?: (seed: CuratedSerpSeed) => void;
 }) {
   const [category, setCategory] = useState(GCC_KEYWORD_CATEGORIES[0].value);
   const [sources, setSources] = useState<GccKeywordSource[]>([]);
@@ -160,7 +167,40 @@ export function CreateKeywordUploadPanel({
 
                   {s.serpPage.organics.length > 0 ? (
                     <div>
-                      <p className="font-medium text-foreground">Organics</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-foreground">Organics</p>
+                        {onApplySerpSeed ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const organics = new Set(
+                                s.serpPage!.organics.map((_, i) => i),
+                              );
+                              const related = new Set(
+                                s.serpPage!.relatedSearches.map((_, i) => i),
+                              );
+                              const seed = buildCuratedSerpSeed(
+                                {
+                                  organics: s.serpPage!.organics,
+                                  peopleAlsoAsk: [],
+                                  relatedSearches: s.serpPage!.relatedSearches,
+                                  shape: s.serpPage!.shape,
+                                  missingPaaLikelyPage2: false,
+                                  parseWarning: s.serpPage!.parseWarning,
+                                },
+                                organics,
+                                new Set(),
+                                related,
+                              );
+                              if (!curatedSerpHasOrganics(seed)) return;
+                              onApplySerpSeed(seed);
+                            }}
+                            className="shrink-0 rounded border border-brand/40 bg-brand/5 px-2 py-1 text-xs font-semibold text-brand hover:bg-brand/10"
+                          >
+                            Apply to brief SERP fields
+                          </button>
+                        ) : null}
+                      </div>
                       <ul className="mt-1 list-disc space-y-0.5 pl-4">
                         {s.serpPage.organics.map((o) => (
                           <li key={o.url} className="truncate">
