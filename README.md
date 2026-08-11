@@ -45,6 +45,10 @@ The UI shows the **heading** on its own line and the **pillar** on the line belo
 
 **Fixed:** Site Analyzer's content-gap detection previously fabricated gaps — when a pillar had fewer than 3 real crawled child pages, it filled in 5 hardcoded generic subtopics instead of finding real ones. Replaced with real heading-based detection (heading → missing page when no matching URL slug). See `CONTENT_CREATOR_PLAN.md` §14 for related fallback/soft-success eliminations.
 
+**Lede taxonomy (2026-08-11):** GeekAPI `LedeType` is now 12 values (Summary, ImmediateIdentification, DelayedIdentification, SingleItem, Anecdotal, Narrative, SceneSetting, StartlingStatement, DirectAddress, Question, Quote, Wordplay) — pure enum, no `Creative` fallback. Legacy `Creative` rows deserialize as `null` via `TolerantNullableLedeTypeConverter` and require edit before next generate. The **Content Brief** (`src/lib/content-creator/brief-catalog.ts` + `ContentBriefPanel` — now one-page Workflow at `projects/[id]`) is the single source of truth and drives `ledeType` selection + all content types (`BuildLedeTypeGuidance`/`BuildBriefBodyGuidance` in `ContentPromptBuilder`). See [`docs/plans/fix-lede-heading-regression-and-lede-taxonomy.md`](./docs/plans/fix-lede-heading-regression-and-lede-taxonomy.md).
+
+**Site Analyzer heading rule (2026-08-11):** `NoisePaths`, `H2Noise`, `IsDuplicateHeading`, `Length 4..80` filters deleted — if heading its valid (h1–h6, including h5, duplicates kept), pillars are headings. `HeadingPillarBuilder` kept (only item kept per product direction); `PageSectionTreeBuilder` restored after `b46ac3f` empty-tree regression (`e18ac3d`/`e8b7b05`).
+
 ## Operator smoke (day one)
 
 1. Sign in → **Workflow** → client → (blog) → fill Content Brief → **Save brief** → **Generate**

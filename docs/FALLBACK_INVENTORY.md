@@ -1,6 +1,7 @@
 # Fallback Inventory — Geek-SEO / GeekAPI / GeekContentCreator
 
 **Generated:** 2026-08-03. Read-only research; keep/eliminate decisions are the user's.
+**Update 2026-08-11:** #1/#2 (fabricated 5 generic subtopics) replaced with real heading-based gaps (`CollectAllHeadingGaps`/`h1–h6` tree); `NoisePaths` (`ExactSegments`/`PrefixNoise`/`H2Noise`) + `IsDuplicateHeading`/`Length 4..80`/`IsNoise` filters deleted entirely (`Geek-SEO 1ae3ef8/f302fbc/6dd704c/0876f75`) per "if heading its valid — pillars are headings." `HeadingPillarBuilder` kept (only item kept per user, `e8b7b05`); `PageSectionTreeBuilder` restored (`e18ac3d`) after `b46ac3f` empty-tree regression that caused `GccController:1250` empty gaps. Remaining items below reflect pre-update inventory.
 **Scope:** every fallback found across the three repos, grouped by what it actually does, with file:line evidence.
 **GeekContentCreator (frontend):** zero data fallbacks — every `placeholder=` is an input hint, every `fallback={` is a React loading spinner. Not listed below.
 

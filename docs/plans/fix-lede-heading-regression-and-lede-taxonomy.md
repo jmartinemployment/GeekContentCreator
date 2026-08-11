@@ -236,9 +236,22 @@ Alternative if strict back-compat preferred: keep `Creative` as a 13th member `[
 - `ToolPageGenerator.cs` hardcoded `Summary` for tool pages — left pinned; tool ledes are not pillar ledes.
 - Frontend `LedeType` display badge — follow-up if desired.
 
-## Open Question for Approval
+## Implementation (2026-08-11 — completed)
 
-- **`Creative` legacy member:** remove and rely on parser tolerance (`"creative"` → `Anecdotal`) or keep as 13th `[Obsolete]` member for absolute back-compat? Recommendation: remove and rely on parser tolerance (taxonomy stays pure 12), but keeping it is zero-cost if you prefer.
+**Status: Implemented and deployed.** Pure 12 enum shipped; legacy `Creative` deserializes to `null` (tolerant, requires edit before next generate) — no fallback to `Anecdotal`, no `[Obsolete]` 13th member. Resolves the open question below as "remove, null-tolerant."
+
+**What shipped (beyond the original audience+angle scope):**
+- `GeekBackend ecc4620` — `LedeType` 12 (`ContentDocument.cs:5`), `TolerantNullableLedeTypeConverter` on `GeneratedContent.LedeType?` + `StrictLedeTypeConverter`/`ParseLedeTypeStrict` throwing `ContentGenerationException`, `LedeJsonContract` 12-way camelCase, `BuildLedeTypeGuidance` + `BuildBriefBodyGuidance` wiring full Brief (`audience/angle/intent/funnel/tone` via `GccGenerateService.ExtractBriefFields`/`BuildMinimalContext`) into all pillar/blog/tools/social/email prompts (`ContentPromptBuilder.cs:213/355/405`, `LlmResponseJsonParser.cs:125`).
+- `GeekBackend ce27a71/5ecc80c/7926194` — Brief as source of truth mirrored from `brief-catalog.ts:migrateBrief`, `NoisePaths`/`H2Noise`/`IsDuplicateHeading`/`Length` filters removed per "if heading its valid" (pillars are headings).
+- `GeekContentCreator f3a83bc/afa1eda` — one-page Workflow (`ContentBriefPanel` into `projects/[id]/page.tsx`), Brief drives `ledeType` selection.
+- `GeekContentCreator c151fd1/e736bbb` — hierarchy `Child headings (injected)` fix (descendant collection + ranking).
+- `Geek-SEO 6dd704c/f302fbc` — `PageSectionTreeBuilder` h1–h6 (h5) fix; `b46ac3f` incorrectly disabled both `HeadingPillarBuilder` + `PageSectionTreeBuilder` (empty gaps), restored in `e18ac3d` (trees) + `e8b7b05` (pillar list kept per user — only item kept). `1ae3ef8` deleted `NoisePaths.cs` entirely.
+
+**Verification pending:** `dotnet build GeekAPI/GeekAPI.csproj` hangs on restore in sandbox (not verified); manual `audienceSegment × angle × intent` generation probe for `ledeType` diversity still pending.
+
+## Open Question for Approval — resolved
+
+- **`Creative` legacy member: removed.** Pure 12. Legacy `"creative"` wire value → `null` via `TolerantNullableLedeTypeConverter` on nullable `LedeType?` (`GeneratedContent.cs:27`), so existing rows load but must be edited before regeneration. Strict parser throws on unknown. No `[Obsolete]` member kept. Rationale: user constraint "1 but no fallback ... empty or null being specified for a value that no longer exists; must be changed or specified on edit" + correctness-over-expediency (no silent reuse).
 
 ---
-*Revised 2026-08-11 per user direction: removed regression fix, added audience (6 segments + 3 details + notes at `brief-catalog.ts:51-69`) and angle (4 values at :76-83) wiring so LLM lede selection is guided by brief context. Taxonomy source: `lede_types_taxonomy.md` (12 types: 4 Direct News + 8 Creative/Feature). Hidden UX sources: `AUDIENCE_SEGMENTS`, `AUDIENCE_DETAILS`, `CONTENT_ANGLES`, `ContentBrief` interface in `brief-catalog.ts`; backend brief transport is `GccCreateDto.BriefJson` via `GccGenerateService.cs:200` `BuildBriefAndResearchBlock`; context record is `ProjectGenerationContext` (`GenerationRequest.cs:8`).*
+*Revised 2026-08-11 per user direction: removed regression fix, extended to full Brief (`brief-catalog.ts` — audience 6 segments + 3 details + notes, angle 4, intent, funnel, tone) wiring so LLM lede selection + all content types are guided by brief context. Taxonomy source: `lede_types_taxonomy.md` (12 types: 4 Direct News + 8 Creative/Feature). Hidden UX sources: `AUDIENCE_SEGMENTS`, `AUDIENCE_DETAILS`, `CONTENT_ANGLES`, `ContentBrief` interface in `brief-catalog.ts`; backend brief transport is `GccCreateDto.BriefJson` via `GccGenerateService.cs:200` `BuildBriefAndResearchBlock`; context record is `ProjectGenerationContext` (`GenerationRequest.cs:8`). Implemented as above.*
