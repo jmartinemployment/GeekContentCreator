@@ -8,6 +8,7 @@ import HierarchyContextPanel, {
 } from "@/components/content-writer/HierarchyContextPanel";
 import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import NotesPanel from "@/components/content-writer/NotesPanel";
+import ContentBriefPanel from "@/components/content-creator/ContentBriefPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { useWorkflowGate } from "@/components/WorkflowGate";
@@ -34,6 +35,8 @@ export default function WorkflowProjectPage() {
     loadError: null,
     loading: true,
   });
+  const [briefComplete, setBriefComplete] = useState(false);
+  const [briefSaved, setBriefSaved] = useState(false);
 
   const hierarchyOk =
     hierarchyGate.matched || hierarchyGate.allowOutsideSiteScope;
@@ -133,6 +136,20 @@ export default function WorkflowProjectPage() {
           onProjectUpdated={handleProjectUpdated}
           onGateChange={setHierarchyGate}
         />
+
+        <ContentBriefPanel
+          clientId={project.clientId}
+          siteAnalysisId={siteAnalysisId ?? undefined}
+          targetKeyword={project.targetKeyword}
+          onBriefSaved={(_id, complete) => {
+            setBriefSaved(complete);
+            setBriefComplete(complete);
+          }}
+          onBriefValidityChange={setBriefComplete}
+        />
+        {briefComplete ? null : (
+          <p className="text-sm text-amber-700">Content Brief incomplete — Generate will use the saved brief on the linked create; complete the brief to ensure lede + body honor audience/angle/intent.</p>
+        )}
 
         <FileUploadPanel
           projectId={project.id}
