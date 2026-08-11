@@ -7,7 +7,6 @@ import HierarchyContextPanel, {
   type HierarchyGateState,
 } from "@/components/content-writer/HierarchyContextPanel";
 import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
-import NotesPanel from "@/components/content-writer/NotesPanel";
 import ContentBriefPanel from "@/components/content-creator/ContentBriefPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
@@ -158,12 +157,6 @@ export default function WorkflowProjectPage() {
           serpTitles={project.serpTitles}
           onChanged={setKeywordSources}
           onProjectUpdated={handleProjectUpdated}
-        />
-
-        <NotesPanel
-          projectId={project.id}
-          notes={project.notes}
-          onSaved={setProject}
         />
 
         <ContentResults
