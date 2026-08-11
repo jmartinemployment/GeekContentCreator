@@ -4,6 +4,10 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## No regex for HTML
+
+**Do not use regex to parse HTML.** Headings/links/title/meta/script/style are DOM — use `AngleSharp` or Playwright `querySelectorAll`, not `GeneratedRegex`. See `docs/plans/remove-regex-immediate.md` (immediate) and `remove-regex-full.md` (planned full 147).
+
 ## `src/lib/` vs `src/services/` — no spaghetti
 
 `src/lib/` is pure utilities only: types, config, validation, storage helpers, local data catalogs. **No `fetch()` calls and no API-client methods belong in `src/lib/`, ever.** Any file that talks to a backend (this app's own API, GeekAPI, or any other service) belongs in `src/services/`.
