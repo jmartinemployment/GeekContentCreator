@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import HierarchyContextPanel, {
   type HierarchyGateState,
 } from "@/components/content-writer/HierarchyContextPanel";
-import FileUploadPanel from "@/components/content-writer/FileUploadPanel";
 import ContentBriefPanel from "@/components/content-creator/ContentBriefPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
@@ -39,12 +38,7 @@ export default function WorkflowProjectPage() {
 
   const hierarchyOk =
     hierarchyGate.matched || hierarchyGate.allowOutsideSiteScope;
-  const hasSerpIndex = Boolean(project?.serpTitles?.trim());
-  const hasNonKeywordResearch = keywordSources.some(
-    (k) => k.category !== "KeywordResult",
-  );
-  const researchOk = hasSerpIndex || hasNonKeywordResearch;
-  // Brief + Content integrated: Brief is source of truth for lede + all content types — research is optional enrichment, not a gate.
+  // Brief is sole research input — no Upload Research Inputs panel; generation is Brief + Hierarchy only.
   const canGenerate =
     hierarchyOk && briefComplete && !hierarchyGate.loading;
 
@@ -150,15 +144,6 @@ export default function WorkflowProjectPage() {
         {briefComplete ? null : (
           <p className="text-sm text-amber-700">Content Brief incomplete — Generate will use the saved brief on the linked create; complete the brief to ensure lede + body honor audience/angle/intent.</p>
         )}
-
-        <FileUploadPanel
-          projectId={project.id}
-          targetKeyword={project.targetKeyword}
-          keywordSources={keywordSources}
-          serpTitles={project.serpTitles}
-          onChanged={setKeywordSources}
-          onProjectUpdated={handleProjectUpdated}
-        />
 
         <ContentResults
           projectId={project.id}
