@@ -44,8 +44,9 @@ export default function WorkflowProjectPage() {
     (k) => k.category !== "KeywordResult",
   );
   const researchOk = hasSerpIndex || hasNonKeywordResearch;
+  // Brief + Content integrated: Brief is source of truth for lede + all content types — research is optional enrichment, not a gate.
   const canGenerate =
-    researchOk && hierarchyOk && !hierarchyGate.loading;
+    hierarchyOk && briefComplete && !hierarchyGate.loading;
 
   const load = useCallback(async () => {
     if (!projectId) return;
