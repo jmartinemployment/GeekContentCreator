@@ -117,6 +117,16 @@ function slugsMatch(a: string, b: string): "exact" | "contains" | null {
   return null;
 }
 
+function collectDescendantHeadings(node: PageSectionNode): string[] {
+  const out: string[] = [];
+  for (const child of childrenOf(node)) {
+    const h = headingOf(child);
+    if (h) out.push(h);
+    out.push(...collectDescendantHeadings(child));
+  }
+  return out;
+}
+
 function toMatch(
   node: PageSectionNode | null,
   path: string[],
@@ -124,11 +134,7 @@ function toMatch(
   topic: string,
   kind: HierarchyMatchKind,
 ): HierarchyMatch {
-  const childHeadings = node
-    ? childrenOf(node)
-        .map((c) => headingOf(c))
-        .filter((t): t is string => !!t)
-    : [];
+  const childHeadings = node ? collectDescendantHeadings(node) : [];
   const toolNames = node ? parseHierarchyToolNames(paragraphsOf(node)) : [];
   return {
     path,
@@ -163,7 +169,7 @@ export function findHierarchyMatches(
   function consider(m: HierarchyMatch) {
     const key = `${m.sourcePageUrl}\0${m.path.join("\0")}`;
     const prev = byKey.get(key);
-    if (!prev || KIND_RANK[m.kind] < KIND_RANK[prev.kind]) {
+    if (!prev || KIND_RANK[m.kind] < KIND_RANK[prev.kind] || (KIND_RANK[m.kind] === KIND_RANK[prev.kind] && m.childHeadings.length > prev.childHeadings.length)) {
       byKey.set(key, m);
     }
   }
