@@ -213,6 +213,8 @@ export function findHierarchyMatches(
   return [...byKey.values()].sort((a, b) => {
     const rank = KIND_RANK[a.kind] - KIND_RANK[b.kind];
     if (rank !== 0) return rank;
+    const childDiff = b.childHeadings.length - a.childHeadings.length;
+    if (childDiff !== 0) return childDiff;
     return a.path.join(" › ").localeCompare(b.path.join(" › "));
   });
 }
