@@ -25,6 +25,9 @@
 - `ContentGuardrail.cs:37-38` `\bBannedPhrase\b` — keep (phrase matching, not HTML).
 - `GccSavedSerpParser` `\b\d+\s+(best|ways…)`, `GcwPolishAnalyzer` `[a-z0-9']+`, `SiteCrawlerService` `<loc>`, etc. — keep.
 
+### Content Brief — SERP ingest (clarified 2026-08-11)
+Brief fields `serpTitles`/`serpUrls`/`relatedSearches`/`paaQuestions` are **populated via file upload**, not manual typing: `CreateKeywordUploadPanel` (`Category: Keyword SERP Result`) supports multi-file pick (⌘/Ctrl-A in file dialog) → `uploadCreateKeywordSource` per file → server parses via `GccSavedSerpParser` → `SerpPages` + `SerpIndex`; operator then `Apply to brief SERP fields` (curated organics via `buildCuratedSerpSeed`) — works as intended, Cmd-A selects all and uploads exactly as user wants. `buildBriefBlock` then injects those lines into `=== BRIEF ===`.
+
 ## Steps (phase 2)
 1. For each `GeneratedRegex` that matches HTML tags (`<h…>`, `<a>`, `<title>`, `<meta>`, `<script>`, `<style>`, `<p>`, `<li>`, `<link>`), replace with `AngleSharp` `ParseDocument` + `QuerySelector[All]`.
 2. For `<[^>]+>` tag strip + `\s+` collapse, replace with `element.TextContent` + `Regex.Replace(@"\s+", " ")` **or** keep `\s+` as allowed string regex (document as exception).
