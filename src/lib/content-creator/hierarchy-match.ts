@@ -4,6 +4,8 @@ export type PageSectionNode = {
   headingText: string;
   paragraphs?: string[] | null;
   children?: PageSectionNode[] | null;
+  /** Anchor links (text + href pairs) from HTML anchors in paragraphs (populated once crawler preserves them). */
+  links?: Array<{ text: string; href: string }> | null;
 };
 
 export type PageSectionTreePage = {
@@ -16,8 +18,10 @@ export type HierarchyMatchKind = "exact-heading" | "contains-heading" | "exact-p
 export type HierarchyMatch = {
   path: string[];
   childHeadings: string[];
-  /** Tool names parsed from a "Top … Tools: a, b, c" paragraph on the matched node. */
+  /** Tool names parsed from a "Top … Tools: a, b, c" paragraph on the matched node or descendants. */
   toolNames: string[];
+  /** Tool name → href mappings (populated once crawler preserves anchor data). */
+  toolLinks: Array<{ name: string; href: string }>;
   sourcePageUrl: string;
   matchedHeading: string;
   kind: HierarchyMatchKind;
@@ -127,6 +131,15 @@ function collectDescendantHeadings(node: PageSectionNode): string[] {
   return out;
 }
 
+function collectDescendantParagraphs(node: PageSectionNode): string[] {
+  const out: string[] = [];
+  out.push(...paragraphsOf(node));
+  for (const child of childrenOf(node)) {
+    out.push(...collectDescendantParagraphs(child));
+  }
+  return out;
+}
+
 function toMatch(
   node: PageSectionNode | null,
   path: string[],
@@ -135,11 +148,12 @@ function toMatch(
   kind: HierarchyMatchKind,
 ): HierarchyMatch {
   const childHeadings = node ? collectDescendantHeadings(node) : [];
-  const toolNames = node ? parseHierarchyToolNames(paragraphsOf(node)) : [];
+  const toolNames = node ? parseHierarchyToolNames(collectDescendantParagraphs(node)) : [];
   return {
     path,
     childHeadings,
     toolNames,
+    toolLinks: [],
     sourcePageUrl: pageUrl,
     matchedHeading: (node ? headingOf(node) : "") || path[path.length - 1] || topic,
     kind,

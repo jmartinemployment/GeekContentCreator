@@ -147,6 +147,7 @@ export function updateProjectHierarchyContext(
     allowOutsideSiteScope: boolean;
     siteAnalysisId?: string | null;
     hierarchyToolNames?: string[];
+    hierarchyToolUrls?: Record<string, string>;
   },
 ): Promise<ProjectDetail> {
   return request<ProjectDetail>(`/api/projects/${projectId}/hierarchy-context`, {
@@ -158,6 +159,7 @@ export function updateProjectHierarchyContext(
       allowOutsideSiteScope: input.allowOutsideSiteScope,
       siteAnalysisId: input.siteAnalysisId ?? null,
       hierarchyToolNames: input.hierarchyToolNames ?? [],
+      hierarchyToolUrls: input.hierarchyToolUrls ?? {},
     }),
   });
 }

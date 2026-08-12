@@ -296,6 +296,7 @@ export interface ProjectDetail extends ProjectSummary {
   serpRelatedSearches?: string | null;
   linkedCreateId?: string | null;
   briefJson?: string | null;
+  hierarchyToolUrls?: Record<string, string>;
 }
 
 export interface ArticleDraft {

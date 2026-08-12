@@ -88,6 +88,9 @@ export default function HierarchyContextPanel({
         hierarchyPath: next?.path.join(" › ") ?? null,
         hierarchyChildHeadings: next?.childHeadings ?? [],
         hierarchyToolNames: next?.toolNames ?? [],
+        hierarchyToolUrls: next?.toolLinks.length
+          ? Object.fromEntries(next.toolLinks.map((link) => [link.name, link.href]))
+          : {},
         hierarchySourcePageUrl: next?.sourcePageUrl ?? null,
         allowOutsideSiteScope: next ? false : outside,
         siteAnalysisId: siteAnalysisId ?? undefined,

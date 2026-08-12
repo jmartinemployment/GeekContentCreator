@@ -1,0 +1,85 @@
+--- ContentPromptBuilder.cs (BuildArticleLedePrompt)
++++ ContentPromptBuilder.cs
+@@ -348,15 +348,48 @@
+     {
+         var system = new StringBuilder()
+             .AppendLine("You are a senior technical content writer for an IT consulting firm that specializes in AI implementation.")
+             .AppendLine(BrandTones.ForWebpages())
+             .AppendLine("Write the opening lede for a schema.org TechnicalArticle pillar — third person, expert, consultative, like a senior consultant advising a prospective client.")
+             .AppendLine($"Publisher positioning: {context.ImplementerPositioning}")
+-            .AppendLine("Prefer a creative (hook/narrative) opening; use a summary (direct thesis-first) opening only if a creative angle genuinely doesn't fit this topic.")
+-            .AppendLine("The heading is a real written headline for the opening — never the literal words \"Creative Lead\"/\"Summary Lede\"; that label goes only in ledeType.")
+-            .AppendLine("Do NOT start with \"How\" or a question.")
++            .AppendLine(LedeTypeCatalogBlock())
++            .AppendLine(BuildAudienceAngleGuidance(context))
++            .AppendLine("LEDE SELECTION: Pick ONE ledeType from the 12 above that best fits the heading/topic + audience + angle. If audienceNotes conflict with audienceSegment, follow notes.")
++            .AppendLine("The heading is a real written headline for the opening — never the literal words \"Creative Lead\"/\"Summary Lede\"; that label goes only in ledeType.")
++            .AppendLine("Do NOT start with \"How\" unless the chosen ledeType is Question (then a question is expected).")
+             .AppendLine("PAIN BEFORE SOLUTION (required): the first paragraph must open on the practitioner's pain with the manual / status-quo process ")
+             .AppendLine("for the target keyword (cost, delay, error, risk, wasted hours) — before naming AI or an intelligent solution.")
+             .AppendLine("Only after that pain is established, introduce how an AI-assisted approach changes the situation. 2-3 paragraphs total.")
+             .AppendLine("Also write imagePrompt: a prompt for an image-generation model to illustrate this opening.")
+             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences, no commentary:")
+             .AppendLine(LedeJsonContract)
+             .ToString();
+
+--- ContentPromptBuilder.cs (BuildArticleLedeAndIntroductionPrompt)
++++ ContentPromptBuilder.cs
+@@ -398,13 +398,15 @@
+         var system = new StringBuilder()
+             .AppendLine("You are a senior technical content writer for an IT consulting firm that specializes in AI implementation.")
+             .AppendLine(BrandTones.ForWebpages())
+             .AppendLine("Write TWO things for a schema.org TechnicalArticle pillar in one response: the opening lede, and the Introduction/Overview H2 section that follows it.")
+             .AppendLine($"Publisher positioning: {context.ImplementerPositioning}")
+             .AppendLine()
+             .AppendLine("LEDE:")
+-            .AppendLine("Prefer a creative (hook/narrative) opening; use a summary (direct thesis-first) opening only if a creative angle genuinely doesn't fit this topic.")
+-            .AppendLine("The heading is a real written headline for the opening — never the literal words \"Creative Lead\"/\"Summary Lede\"; that label goes only in ledeType.")
+-            .AppendLine("Do NOT start with \"How\" or a question.")
++            .AppendLine(LedeTypeCatalogBlock())
++            .AppendLine(BuildAudienceAngleGuidance(context))
++            .AppendLine("LEDE SELECTION: Pick ONE ledeType from the 12 above that best fits the heading/topic + audience + angle. If audienceNotes conflict with audienceSegment, follow notes.")
++            .AppendLine("The heading is a real written headline for the opening — never the literal words \"Creative Lead\"/\"Summary Lede\"; that label goes only in ledeType.")
++            .AppendLine("Do NOT start with \"How\" unless the chosen ledeType is Question (then a question is expected).")
+             .AppendLine("PAIN BEFORE SOLUTION (required): the first paragraph must open on the practitioner's pain with the manual / status-quo process ")
+             .AppendLine("for the target keyword (cost, delay, error, risk, wasted hours) — before naming AI or an intelligent solution.")
+             .AppendLine("Only after that pain is established, introduce how an AI-assisted approach changes the situation. 2-3 paragraphs total.")
+             .AppendLine("Also write imagePrompt: a prompt for an image-generation model to illustrate this opening.")
+             .AppendLine()
+             .AppendLine("INTRODUCTION SECTION:")
+             // ... rest unchanged
++
++    // --- helpers appended to class ---
++    private static string LedeTypeCatalogBlock() => string.Join(Environment.NewLine, new[]
++    {
++        "LEDE TYPES (pick one):",
++        "  Direct News:",
++        "    - summary: Lead with key fact/outcome (e.g. \"FedEx integrated predictive AI across 50 hubs, cutting delays by 14%\")",
++        "    - immediateIdentification: Name the person/org/event immediately (e.g. \"OpenAI CEO Sam Altman warned...\")",
++        "    - delayedIdentification: Describe situation first, reveal key actor later (e.g. \"A mid-sized Ohio plant quieted its line... after launching a neural network\")",
++        "    - singleItem: Focus on one critical factor/finding (e.g. \"Clean, well-structured data emerged as the single biggest factor...\")",
++        "  Creative and Feature:",
++        "    - anecdotal: Short relatable story or mistake (e.g. \"When Sarah Jenkins launched her internal AI, it spent three hours giving away free coupon codes\")",
++        "    - narrative: Set a dramatic scene with action/tension (e.g. \"The room fell dead silent as the team pressed Enter...\")",
++        "    - sceneSetting: Vivid sensory details establishing context (e.g. \"Fluorescent lights hummed over empty desks at midnight...\")",
++        "    - startlingStatement: Shocking statistic or claim (e.g. \"Up to 85% of corporate AI projects fail before deployment\")",
++        "    - directAddress: Speak directly to the reader (e.g. \"If you are still waiting for the perfect time to implement AI, your competitors have already...\")",
++        "    - question: Pose a compelling question (e.g. \"Why do elite teams still struggle to get a basic AI chatbot running?\")",
++        "    - quote: Open with an expert/subject quote (e.g. \"Implementing AI isn't a technology problem, it's a culture shock,\" says consultant Marcus Vance)",
++        "    - wordplay: Use puns, metaphors, or clever language (e.g. \"Many companies automated their own artificial stupidity\")",
++    });
++
++    private static string BuildAudienceAngleGuidance(ProjectGenerationContext context)
++    {
++        var audienceSegment = string.IsNullOrWhiteSpace(context.AudienceSegment) ? "(not specified)" : context.AudienceSegment;
++        var audienceDetails = context.AudienceDetails is { Count: > 0 } d ? string.Join(", ", d) : "(none)";
++        var audienceNotes = string.IsNullOrWhiteSpace(context.AudienceNotes) ? "(none)" : context.AudienceNotes.Trim();
++        var angle = string.IsNullOrWhiteSpace(context.ContentAngle) ? "(not specified)" : context.ContentAngle;
++        return string.Join(Environment.NewLine, new[]
++        {
++            $"Audience: {audienceSegment} — details: {audienceDetails} — notes: {audienceNotes}",
++            $"Angle: {angle}",
++            "Lede guidance by angle: comparative→ question/startlingStatement/singleItem; problem_solution→ anecdotal/sceneSetting/directAddress/question; case_study_data→ immediateIdentification/singleItem/quote/startlingStatement; ultimate_guide→ summary/delayedIdentification/directAddress.",
++            "Lede guidance by audience: affinity/in_market→ more narrative/anecdotal room; detailed_demographics/your_data→ more directAddress/question; life_events/custom→ follow notes closely.",
++        });
++    }
