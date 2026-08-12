@@ -182,6 +182,16 @@ export function updateProjectSerpContext(
   });
 }
 
+export function updateProjectBrief(
+  projectId: string,
+  input: { createId: string; briefJson: string | null },
+): Promise<ProjectDetail> {
+  return request<ProjectDetail>(`/api/projects/${projectId}/brief`, {
+    method: "PUT",
+    body: JSON.stringify({ createId: input.createId, briefJson: input.briefJson }),
+  });
+}
+
 export function crawlProject(
   projectId: string,
   maxPages = 50,

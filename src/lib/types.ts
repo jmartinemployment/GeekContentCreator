@@ -294,6 +294,8 @@ export interface ProjectDetail extends ProjectSummary {
   serpUrls?: string | null;
   serpPaaQuestions?: string | null;
   serpRelatedSearches?: string | null;
+  linkedCreateId?: string | null;
+  briefJson?: string | null;
 }
 
 export interface ArticleDraft {

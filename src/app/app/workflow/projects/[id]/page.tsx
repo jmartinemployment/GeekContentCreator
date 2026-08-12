@@ -12,6 +12,7 @@ import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { useWorkflowGate } from "@/components/WorkflowGate";
 import { getProject } from "@/services/content-writer-api";
 import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
+import { isContentBriefComplete, migrateBrief } from "@/lib/content-creator/brief-catalog";
 import type {
   GeneratedContentSet,
   KeywordSourceResponse,
@@ -50,6 +51,10 @@ export default function WorkflowProjectPage() {
       setProject(detail);
       setKeywordSources(detail.keywordSources);
       setGenerated(detail.contentSet);
+      if (detail.briefJson) {
+        const brief = migrateBrief(JSON.parse(detail.briefJson));
+        setBriefComplete(isContentBriefComplete(brief));
+      }
     } catch (err) {
       setLoadError(
         err instanceof Error ? err.message : "Could not load this project.",
@@ -135,6 +140,8 @@ export default function WorkflowProjectPage() {
           clientId={project.clientId}
           siteAnalysisId={siteAnalysisId ?? undefined}
           targetKeyword={project.targetKeyword}
+          createId={project.linkedCreateId ?? undefined}
+          projectId={project.id}
           onBriefSaved={(_id, complete) => {
             setBriefSaved(complete);
             setBriefComplete(complete);
