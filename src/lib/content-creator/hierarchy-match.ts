@@ -15,13 +15,16 @@ export type PageSectionTreePage = {
 
 export type HierarchyMatchKind = "exact-heading" | "contains-heading" | "exact-page" | "contains-page";
 
+export type ToolsByHeading = {
+  heading: string;
+  tools: Array<{ name: string; href?: string }>;
+};
+
 export type HierarchyMatch = {
   path: string[];
   childHeadings: string[];
-  /** Tool names parsed from a "Top … Tools: a, b, c" paragraph on the matched node or descendants. */
-  toolNames: string[];
-  /** Tool name → href mappings (populated once crawler preserves anchor data). */
-  toolLinks: Array<{ name: string; href: string }>;
+  /** Tools grouped by their source heading on the matched node or descendants. */
+  toolsByHeading: ToolsByHeading[];
   sourcePageUrl: string;
   matchedHeading: string;
   kind: HierarchyMatchKind;
@@ -75,11 +78,12 @@ function paragraphsOf(node: PageSectionNode): string[] {
 
 /**
  * Parse "Top AI Content Creation Tools: Jasper, Copy.ai, ChatGPT, Claude" (and close variants).
- * Returns [] when no such paragraph exists — never invents names.
+ * Collects ALL matching paragraphs, not just the first.
+ * Returns [] when no such paragraphs exist — never invents names.
  */
 export function parseHierarchyToolNames(paragraphs: string[]): string[] {
-  const pattern =
-    /^Top\s+.+?\s+Tools?\s*:\s*(.+)$/i;
+  const pattern = /^Top\s+.+?\s+Tools?\s*:\s*(.+)$/i;
+  const allNames: Set<string> = new Set();
   for (const p of paragraphs) {
     const m = p.match(pattern);
     if (!m?.[1]) continue;
@@ -87,11 +91,47 @@ export function parseHierarchyToolNames(paragraphs: string[]): string[] {
       .split(/,|;|\band\b/i)
       .map((s) => s.replace(/\s+/g, " ").trim())
       .filter((s) => s.length > 0 && s.length < 80);
-    if (names.length > 0) {
-      return [...new Set(names.map((n) => n.trim()))];
+    names.forEach((n) => allNames.add(n.trim()));
+  }
+  return [...allNames];
+}
+
+/**
+ * Collect tools grouped by their source heading, walking the subtree of a node.
+ * This preserves the heading association so the LLM knows which tool belongs to which section.
+ */
+function collectToolsByHeading(node: PageSectionNode): ToolsByHeading[] {
+  const result: ToolsByHeading[] = [];
+  const nodeHeading = headingOf(node);
+  const nodeTools = parseHierarchyToolNames(paragraphsOf(node));
+  if (nodeTools.length > 0 && nodeHeading) {
+    result.push({
+      heading: nodeHeading,
+      tools: nodeTools.map((name) => ({ name })),
+    });
+  }
+  for (const child of childrenOf(node)) {
+    result.push(...collectToolsByHeading(child));
+  }
+  return result;
+}
+
+/**
+ * Collect tools from a node and all descendants, grouped by heading.
+ */
+function collectAllToolsByHeading(node: PageSectionNode): ToolsByHeading[] {
+  const result = collectToolsByHeading(node);
+  if (result.length === 0) {
+    const nodeHeading = headingOf(node);
+    const allDescendantTools = parseHierarchyToolNames(collectDescendantParagraphs(node));
+    if (allDescendantTools.length > 0 && nodeHeading) {
+      result.push({
+        heading: nodeHeading,
+        tools: allDescendantTools.map((name) => ({ name })),
+      });
     }
   }
-  return [];
+  return result;
 }
 
 function flattenWithPath(
@@ -148,12 +188,11 @@ function toMatch(
   kind: HierarchyMatchKind,
 ): HierarchyMatch {
   const childHeadings = node ? collectDescendantHeadings(node) : [];
-  const toolNames = node ? parseHierarchyToolNames(collectDescendantParagraphs(node)) : [];
+  const toolsByHeading = node ? collectAllToolsByHeading(node) : [];
   return {
     path,
     childHeadings,
-    toolNames,
-    toolLinks: [],
+    toolsByHeading,
     sourcePageUrl: pageUrl,
     matchedHeading: (node ? headingOf(node) : "") || path[path.length - 1] || topic,
     kind,

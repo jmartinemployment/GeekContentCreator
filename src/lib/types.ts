@@ -1,3 +1,5 @@
+import type { ToolsByHeading } from "./content-creator/hierarchy-match";
+
 /** A real crawled heading with its HTML level (1 = h1 ... 6 = h6). */
 export type Heading = {
   level: number;
@@ -287,7 +289,7 @@ export interface ProjectDetail extends ProjectSummary {
   contentApprovedAtUtc?: string | null;
   hierarchyPath?: string | null;
   hierarchyChildHeadings?: string[];
-  hierarchyToolNames?: string[];
+  hierarchyToolsByHeading?: ToolsByHeading[];
   hierarchySourcePageUrl?: string | null;
   allowOutsideSiteScope?: boolean;
   serpTitles?: string | null;
@@ -296,7 +298,6 @@ export interface ProjectDetail extends ProjectSummary {
   serpRelatedSearches?: string | null;
   linkedCreateId?: string | null;
   briefJson?: string | null;
-  hierarchyToolUrls?: Record<string, string>;
 }
 
 export interface ArticleDraft {
