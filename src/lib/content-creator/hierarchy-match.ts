@@ -1,16 +1,9 @@
-/** Page-section tree node (mirrors Geek-SEO / GeekAPI PageSectionDto). */
-export type PageSectionNode = {
-  level: number;
-  headingText: string;
-  paragraphs?: string[] | null;
-  children?: PageSectionNode[] | null;
-  /** Anchor links (text + href pairs) from HTML anchors in paragraphs (populated once crawler preserves them). */
-  links?: Array<{ text: string; href: string }> | null;
-};
-
-export type PageSectionTreePage = {
+/** One crawled page as stored for Content Creator (not a nested HTML tree). */
+export type PageContextPage = {
   pageUrl: string;
-  roots: PageSectionNode[];
+  headings?: string[] | null;
+  markdown?: string | null;
+  title?: string | null;
 };
 
 export type HierarchyMatchKind = "exact-heading" | "contains-heading" | "exact-page" | "contains-page";
@@ -23,8 +16,9 @@ export type ToolsByHeading = {
 export type HierarchyMatch = {
   path: string[];
   childHeadings: string[];
-  /** Tools grouped by their source heading on the matched node or descendants. */
   toolsByHeading: ToolsByHeading[];
+  /** Markdown for the matched heading and its descendants — the assignment, not extra evidence. */
+  assignmentMarkdown: string;
   sourcePageUrl: string;
   matchedHeading: string;
   kind: HierarchyMatchKind;
@@ -48,7 +42,6 @@ export function slugifyHeading(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** Last meaningful path segment of a page URL as a slug (page “name”). */
 export function pageUrlSlug(pageUrl: string): string {
   try {
     const u = new URL(pageUrl);
@@ -62,96 +55,162 @@ export function pageUrlSlug(pageUrl: string): string {
   }
 }
 
-function headingOf(node: PageSectionNode): string {
-  return (node.headingText ?? (node as { HeadingText?: string }).HeadingText ?? "").trim();
+function compactAlnum(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function childrenOf(node: PageSectionNode): PageSectionNode[] {
-  return node.children ?? (node as { Children?: PageSectionNode[] }).Children ?? [];
-}
+const MD_LINK = /\[([^\]]+)\]\(([^)]+)\)/g;
 
-function paragraphsOf(node: PageSectionNode): string[] {
-  const raw =
-    node.paragraphs ?? (node as { Paragraphs?: string[] | null }).Paragraphs ?? [];
-  return raw.map((p) => (typeof p === "string" ? p.trim() : "")).filter(Boolean);
-}
-
-/**
- * Parse "Top AI Content Creation Tools: Jasper, Copy.ai, ChatGPT, Claude" (and close variants).
- * Collects ALL matching paragraphs, not just the first.
- * Returns [] when no such paragraphs exist — never invents names.
- */
-export function parseHierarchyToolNames(paragraphs: string[]): string[] {
-  const pattern = /^Top\s+.+?\s+Tools?\s*:\s*(.+)$/i;
-  const allNames: Set<string> = new Set();
-  for (const p of paragraphs) {
-    const m = p.match(pattern);
-    if (!m?.[1]) continue;
-    const names = m[1]
-      .split(/,|;|\band\b/i)
-      .map((s) => s.replace(/\s+/g, " ").trim())
-      .filter((s) => s.length > 0 && s.length < 80);
-    names.forEach((n) => allNames.add(n.trim()));
-  }
-  return [...allNames];
-}
-
-/**
- * Collect tools grouped by their source heading, walking the subtree of a node.
- * This preserves the heading association so the LLM knows which tool belongs to which section.
- */
-function collectToolsByHeading(node: PageSectionNode): ToolsByHeading[] {
-  const result: ToolsByHeading[] = [];
-  const nodeHeading = headingOf(node);
-  const nodeTools = parseHierarchyToolNames(paragraphsOf(node));
-  if (nodeTools.length > 0 && nodeHeading) {
-    result.push({
-      heading: nodeHeading,
-      tools: nodeTools.map((name) => ({ name })),
-    });
-  }
-  for (const child of childrenOf(node)) {
-    result.push(...collectToolsByHeading(child));
-  }
-  return result;
-}
-
-/**
- * Collect tools from a node and all descendants, grouped by heading.
- */
-function collectAllToolsByHeading(node: PageSectionNode): ToolsByHeading[] {
-  const result = collectToolsByHeading(node);
-  if (result.length === 0) {
-    const nodeHeading = headingOf(node);
-    const allDescendantTools = parseHierarchyToolNames(collectDescendantParagraphs(node));
-    if (allDescendantTools.length > 0 && nodeHeading) {
-      result.push({
-        heading: nodeHeading,
-        tools: allDescendantTools.map((name) => ({ name })),
-      });
-    }
-  }
-  return result;
-}
-
-function flattenWithPath(
-  nodes: PageSectionNode[],
-  ancestors: string[],
-): { node: PageSectionNode; path: string[] }[] {
-  const out: { node: PageSectionNode; path: string[] }[] = [];
-  for (const node of nodes) {
-    const text = headingOf(node);
-    const path = text ? [...ancestors, text] : ancestors;
-    out.push({
-      node,
-      path: path.length ? path : ancestors.length ? ancestors : [text || "(untitled)"],
-    });
-    const kids = childrenOf(node);
-    if (kids.length) {
-      out.push(...flattenWithPath(kids, path.length ? path : ancestors));
-    }
+function parseMarkdownLinks(text: string): Array<{ text: string; href: string }> {
+  const out: Array<{ text: string; href: string }> = [];
+  MD_LINK.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = MD_LINK.exec(text)) !== null) {
+    const name = (m[1] ?? "").trim();
+    const href = (m[2] ?? "").trim();
+    if (name && href) out.push({ text: name, href });
   }
   return out;
+}
+
+/**
+ * A tool list is 2+ anchors that account for most of the node's non-whitespace
+ * paragraph text (comma-separated names), not links embedded in prose.
+ */
+export function parseHierarchyTools(
+  paragraphs: string[],
+  links: Array<{ text: string; href: string }>,
+): Array<{ name: string; href?: string }> {
+  if (links.length < 2) return [];
+
+  const unique: Array<{ name: string; href?: string }> = [];
+  const seen = new Set<string>();
+  for (const link of links) {
+    const name = link.text.replace(/\s+/g, " ").trim();
+    if (!name || name.length >= 80) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ name, href: link.href || undefined });
+  }
+  if (unique.length < 2) return [];
+
+  const paraCompact = compactAlnum(paragraphs.join(" "));
+  if (paraCompact.length === 0) return unique;
+
+  const linkCompact = compactAlnum(unique.map((t) => t.name).join(" "));
+  if (linkCompact.length === 0) return [];
+  if (linkCompact.length / paraCompact.length < 0.6) return [];
+
+  return unique;
+}
+
+type MdSection = {
+  level: number;
+  heading: string;
+  path: string[];
+  start: number;
+  end: number;
+};
+
+function parseMarkdownSections(markdown: string): MdSection[] {
+  const lines = markdown.split(/\r?\n/);
+  const indexed: { level: number; heading: string; line: number }[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (!m) continue;
+    indexed.push({ level: m[1].length, heading: (m[2] ?? "").trim(), line: i });
+  }
+
+  const stack: { level: number; heading: string }[] = [];
+  const sections: MdSection[] = [];
+  for (let i = 0; i < indexed.length; i++) {
+    const cur = indexed[i]!;
+    while (stack.length > 0 && stack[stack.length - 1]!.level >= cur.level)
+      stack.pop();
+    stack.push({ level: cur.level, heading: cur.heading });
+    let end = lines.length;
+    for (let j = i + 1; j < indexed.length; j++) {
+      if (indexed[j]!.level <= cur.level) {
+        end = indexed[j]!.line;
+        break;
+      }
+    }
+    sections.push({
+      level: cur.level,
+      heading: cur.heading,
+      path: stack.map((s) => s.heading),
+      start: cur.line,
+      end,
+    });
+  }
+  return sections;
+}
+
+function sliceMarkdown(markdown: string, start: number, end: number): string {
+  return markdown.split(/\r?\n/).slice(start, end).join("\n").trim();
+}
+
+function childHeadingsOf(sections: MdSection[], index: number): string[] {
+  const parent = sections[index];
+  if (!parent) return [];
+  const out: string[] = [];
+  for (let i = index + 1; i < sections.length; i++) {
+    const s = sections[i]!;
+    if (s.level <= parent.level) break;
+    out.push(s.heading);
+  }
+  return out;
+}
+
+function toolsInSlice(slice: string, fallbackHeading: string): ToolsByHeading[] {
+  const lines = slice.split(/\r?\n/);
+  const result: ToolsByHeading[] = [];
+  let currentHeading = fallbackHeading;
+  let paraBuf: string[] = [];
+  let links: Array<{ text: string; href: string }> = [];
+
+  function flush() {
+    if (links.length >= 2 && currentHeading) {
+      const tools = parseHierarchyTools(paraBuf, links);
+      const list = tools.length > 0 ? tools : uniqueToolLinks(links);
+      if (list.length >= 2) {
+        result.push({ heading: currentHeading, tools: list });
+      }
+    }
+    paraBuf = [];
+    links = [];
+  }
+
+  for (const line of lines) {
+    const hm = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (hm) {
+      flush();
+      currentHeading = (hm[2] ?? "").trim();
+      continue;
+    }
+    const parsed = parseMarkdownLinks(line);
+    if (parsed.length > 0) links.push(...parsed);
+    const trimmed = line.replace(/^[-*]\s+/, "").trim();
+    if (trimmed) paraBuf.push(trimmed.replace(/\[[^\]]+\]\([^)]+\)/g, "$1").replace(/\[|\]/g, ""));
+  }
+  flush();
+  return result;
+}
+
+function uniqueToolLinks(links: Array<{ text: string; href: string }>): Array<{ name: string; href?: string }> {
+  const unique: Array<{ name: string; href?: string }> = [];
+  const seen = new Set<string>();
+  for (const link of links) {
+    const name = link.text.replace(/\s+/g, " ").trim();
+    if (!name || name.length >= 80) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ name, href: link.href || undefined });
+  }
+  return unique;
 }
 
 function slugsMatch(a: string, b: string): "exact" | "contains" | null {
@@ -161,40 +220,24 @@ function slugsMatch(a: string, b: string): "exact" | "contains" | null {
   return null;
 }
 
-function collectDescendantHeadings(node: PageSectionNode): string[] {
-  const out: string[] = [];
-  for (const child of childrenOf(node)) {
-    const h = headingOf(child);
-    if (h) out.push(h);
-    out.push(...collectDescendantHeadings(child));
-  }
-  return out;
-}
-
-function collectDescendantParagraphs(node: PageSectionNode): string[] {
-  const out: string[] = [];
-  out.push(...paragraphsOf(node));
-  for (const child of childrenOf(node)) {
-    out.push(...collectDescendantParagraphs(child));
-  }
-  return out;
-}
-
 function toMatch(
-  node: PageSectionNode | null,
-  path: string[],
+  section: MdSection | null,
+  markdown: string,
+  sections: MdSection[],
+  index: number,
   pageUrl: string,
   topic: string,
   kind: HierarchyMatchKind,
 ): HierarchyMatch {
-  const childHeadings = node ? collectDescendantHeadings(node) : [];
-  const toolsByHeading = node ? collectAllToolsByHeading(node) : [];
+  const path = section?.path?.length ? section.path : [topic];
+  const slice = section ? sliceMarkdown(markdown, section.start, section.end) : markdown.trim();
   return {
     path,
-    childHeadings,
-    toolsByHeading,
+    childHeadings: section ? childHeadingsOf(sections, index) : [],
+    toolsByHeading: toolsInSlice(slice, section?.heading || topic),
+    assignmentMarkdown: slice,
     sourcePageUrl: pageUrl,
-    matchedHeading: (node ? headingOf(node) : "") || path[path.length - 1] || topic,
+    matchedHeading: section?.heading || path[path.length - 1] || topic,
     kind,
   };
 }
@@ -203,16 +246,12 @@ function matchKey(m: HierarchyMatch): string {
   return `${m.sourcePageUrl}\0${m.path.join("\0")}\0${m.kind.startsWith("exact") ? "exact" : "contains"}`;
 }
 
-/**
- * All keyword matches against heading nodes and page URL slugs, ranked best-first.
- * Dedupes the same path+page (keeps stronger kind).
- */
 export function findHierarchyMatches(
-  trees: PageSectionTreePage[],
+  pages: PageContextPage[],
   keyword: string,
 ): HierarchyMatch[] {
   const topic = keyword.trim();
-  if (!topic || trees.length === 0) return [];
+  if (!topic || pages.length === 0) return [];
 
   const topicSlug = slugifyHeading(topic);
   if (!topicSlug) return [];
@@ -222,22 +261,27 @@ export function findHierarchyMatches(
   function consider(m: HierarchyMatch) {
     const key = `${m.sourcePageUrl}\0${m.path.join("\0")}`;
     const prev = byKey.get(key);
-    if (!prev || KIND_RANK[m.kind] < KIND_RANK[prev.kind] || (KIND_RANK[m.kind] === KIND_RANK[prev.kind] && m.childHeadings.length > prev.childHeadings.length)) {
+    if (
+      !prev ||
+      KIND_RANK[m.kind] < KIND_RANK[prev.kind] ||
+      (KIND_RANK[m.kind] === KIND_RANK[prev.kind] && m.childHeadings.length > prev.childHeadings.length)
+    ) {
       byKey.set(key, m);
     }
   }
 
-  for (const page of trees) {
+  for (const page of pages) {
+    const markdown = page.markdown ?? "";
+    const sections = parseMarkdownSections(markdown);
     const urlSlug = pageUrlSlug(page.pageUrl);
     const urlMatch = slugsMatch(urlSlug, topicSlug);
     if (urlMatch) {
-      const roots = page.roots ?? [];
-      const root = roots[0] ?? null;
-      const rootText = root ? headingOf(root) : "";
       consider(
         toMatch(
-          root,
-          rootText ? [rootText] : [topic],
+          sections[0] ?? null,
+          markdown,
+          sections,
+          0,
           page.pageUrl,
           topic,
           urlMatch === "exact" ? "exact-page" : "contains-page",
@@ -245,16 +289,16 @@ export function findHierarchyMatches(
       );
     }
 
-    for (const { node, path } of flattenWithPath(page.roots ?? [], [])) {
-      const nodeSlug = slugifyHeading(headingOf(node));
-      if (!nodeSlug) continue;
-
-      const kind = slugsMatch(nodeSlug, topicSlug);
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i]!;
+      const kind = slugsMatch(slugifyHeading(section.heading), topicSlug);
       if (!kind) continue;
       consider(
         toMatch(
-          node,
-          path,
+          section,
+          markdown,
+          sections,
+          i,
           page.pageUrl,
           topic,
           kind === "exact" ? "exact-heading" : "contains-heading",
@@ -272,15 +316,11 @@ export function findHierarchyMatches(
   });
 }
 
-/**
- * Best single match (exact heading → exact page → contains heading → contains page).
- * Prefer {@link findHierarchyMatches} when the operator may need to choose.
- */
 export function matchKeywordToHierarchy(
-  trees: PageSectionTreePage[],
+  pages: PageContextPage[],
   keyword: string,
 ): HierarchyMatch | null {
-  return findHierarchyMatches(trees, keyword)[0] ?? null;
+  return findHierarchyMatches(pages, keyword)[0] ?? null;
 }
 
 export function hierarchyMatchId(m: HierarchyMatch): string {

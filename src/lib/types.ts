@@ -290,6 +290,7 @@ export interface ProjectDetail extends ProjectSummary {
   hierarchyPath?: string | null;
   hierarchyChildHeadings?: string[];
   hierarchyToolsByHeading?: ToolsByHeading[];
+  hierarchyAssignmentMarkdown?: string | null;
   hierarchySourcePageUrl?: string | null;
   allowOutsideSiteScope?: boolean;
   serpTitles?: string | null;

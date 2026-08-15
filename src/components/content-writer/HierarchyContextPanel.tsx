@@ -6,7 +6,7 @@ import {
   hierarchyMatchId,
   hierarchyMatchKindLabel,
   type HierarchyMatch,
-  type PageSectionTreePage,
+  type PageContextPage,
 } from "@/lib/content-creator/hierarchy-match";
 import { updateProjectHierarchyContext, ApiError } from "@/services/content-writer-api";
 import type { ProjectDetail } from "@/lib/types";
@@ -88,6 +88,7 @@ export default function HierarchyContextPanel({
         hierarchyPath: next?.path.join(" › ") ?? null,
         hierarchyChildHeadings: next?.childHeadings ?? [],
         hierarchyToolsByHeading: next?.toolsByHeading ?? [],
+        hierarchyAssignmentMarkdown: next?.assignmentMarkdown ?? null,
         hierarchySourcePageUrl: next?.sourcePageUrl ?? null,
         allowOutsideSiteScope: next ? false : outside,
         siteAnalysisId: siteAnalysisId ?? undefined,
@@ -138,13 +139,13 @@ export default function HierarchyContextPanel({
           );
         }
 
-        const trees = (Array.isArray(body) ? body : []) as PageSectionTreePage[];
-        if (trees.length === 0) {
+        const pages = (Array.isArray(body) ? body : []) as PageContextPage[];
+        if (pages.length === 0) {
           throw new Error(
-            "Site Analyzer returned no page-section trees for this analysis. Re-run Site Analyzer, then reopen Workflow.",
+            "Site Analyzer returned no page context for this analysis. Re-run Site Analyzer, then reopen Workflow.",
           );
         }
-        const nextMatches = findHierarchyMatches(trees, targetKeyword);
+        const nextMatches = findHierarchyMatches(pages, targetKeyword);
         if (cancelled) return;
         setMatches(nextMatches);
         const nextSelected = pickInitial(nextMatches, initialPath, initialSourcePageUrl);

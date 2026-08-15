@@ -1,16 +1,19 @@
 # Immediate Regex Removal — Heading Extractors (No Regex for HTML)
 
-**Status:** Planned — immediate (next commit).
+**Status:** Partially delivered (2026-08). `PageSectionTreeBuilder` is HtmlAgilityPack (not
+AngleSharp as the table originally proposed) and no longer uses heading/`<a>`/`\s+` regex.
+`HomepageHeadingsExtractor` and `PageContentExtractor` still have HTTP-path `GeneratedRegex` for
+headings/`<li>` — remaining, not in the search-engine crawler Phase 1 cut.
 **Motivation:** User hates regex (`h|p|li` swallowed `h5` inside `li`, 0 h5's on homepage despite `<li><h5>Automated Content Generation</h5>`). Correctness-over-expediency: headings are DOM, not regex.
-**Policy:** No regex for HTML parsing — headings/links are DOM. Regex remains only for trivial string ops (`\s+`, `<[^>]+>` strip) until full plan lands.
+**Policy:** No regex for HTML parsing — headings/links are DOM. Regex remains only for trivial string ops (slug `[^a-z0-9\s-]`) until full plan lands.
 
 ## Scope — 3 files, 6 GeneratedRegex (Geek-SEO)
 
-| File | Current Regex | Replacement |
-|------|---------------|-------------|
-| `GeekSeoBackend/Services/SiteExtraction/PageSectionTreeBuilder.cs:94` | `"<h(?<hlevel>[1-6])…>(?<htext>…)</h…>|<p…>(?<ptext>…)</p>"` + `TagRegex`/`WhitespaceRegex` | `AngleSharp` `HtmlParser.ParseDocument(html).QuerySelectorAll("h1,h2,h3,h4,h5,h6")` + `p` siblings walk; stack by `Level` unchanged; `CleanText` via `el.TextContent` + `HtmlDecode` |
-| `GeekSeoBackend/Services/SiteExtraction/HomepageHeadingsExtractor.cs:122` | `"<h([1-6])(?:\\s[^>]*)?>([\\s\\S]*?)</h\\1>"` | Same `AngleSharp` `QuerySelectorAll("h1…h6")` — already has Playwright DOM path, just unify |
-| `GeekSeoBackend/Services/SiteExtraction/PageContentExtractor.cs:204,207` | `@"<h([234])…>"` (h2-h4 only) + `@"<li…>(.*?)</li>"` | `QuerySelectorAll("h1…h6")` (fix h2-4 → h1-6) + `QuerySelectorAll("li")` via DOM, not regex; keep `TagStripRegex` until full plan |
+| File | Current Regex | Replacement | Status |
+|------|---------------|-------------|--------|
+| `GeekSeoBackend/Services/SiteExtraction/PageSectionTreeBuilder.cs` | `"<h(?<hlevel>[1-6])…>"` + `TagRegex`/`WhitespaceRegex` | HtmlAgilityPack document walk + `VisibleTextExtractor` | **Done** (HAP, not AngleSharp) |
+| `GeekSeoBackend/Services/SiteExtraction/HomepageHeadingsExtractor.cs:122` | `"<h([1-6])(?:\\s[^>]*)?>([\\s\\S]*?)</h\\1>"` | Playwright DOM path exists; HTTP regex path remains | Open |
+| `GeekSeoBackend/Services/SiteExtraction/PageContentExtractor.cs:208,211` | heading + `<li>` regex | DOM `QuerySelectorAll` | Open (`ExtractFromHtml` still regex) |
 
 **Excluded:** `TagRegex`/`WhitespaceRegex` (`<[^>]+>`, `\s+`) stay for now — trivial, not headinghide.
 

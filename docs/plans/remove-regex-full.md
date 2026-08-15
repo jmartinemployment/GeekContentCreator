@@ -7,10 +7,11 @@
 ## Inventory (by repo)
 
 ### Geek-SEO — GeekSeoBackend (heading/link/content — priority)
-- `PageSectionTreeBuilder` — done in immediate plan.
-- `HomepageHeadingsExtractor`, `PageContentExtractor` — done in immediate plan.
+- `PageSectionTreeBuilder` — done (HtmlAgilityPack; Phase 1 crawler rewrite).
+- `HomepageHeadingsExtractor`, `PageContentExtractor` — still listed; HTTP-path regex remains.
 - `PublicSiteScanService.cs:266-279` — `TitleRegex`, `MetaDescriptionRegex`, `H1Regex`, `CanonicalRegex` — 5 regexes scraping `<title><meta><h1><link>` — replace with `AngleSharp` `QuerySelector("title")`, `QuerySelector("meta[name=description]")`, etc.
-- `SitePageCrawler.cs:367` `<a href>`, `InternalLinkExtractor.cs:115` `<a href>`, `SchemaOrgExtractor.cs:488` `<script ld+json>` — replace with `AngleSharp` `QuerySelectorAll("a[href]")`, `QuerySelectorAll("script[type='application/ld+json']")`.
+- `SitePageCrawler` `LinkHrefRegex` / `InternalLinkExtractor` anchor regex — **cleared** in Phase 1 (DOM `a[href]` + structured `CrawledPage.Links`). `SchemaOrgExtractor.cs` `<script ld+json>` still regex.
+- `slugifyHeading` (`GeekContentCreator` `hierarchy-match.ts`) — **permanent keep**: string normalization, must stay equivalent to `GccGenerateService.Slugify`.
 - `NormalizedTopicalityCalculator.cs:188-195` `<script>`, `<style>`, `<[^>]+>` — DOM `QuerySelectorAll("script,style")` removal, then `TextContent`.
 - `CompetitorPageFetcher.cs:155-156` `Regex.Replace("<script…")`, `NavMenuExtractor.cs:170`, `SiteAnalyzerService.cs:517` — same — DOM.
 - `SiteAnalysisStepRelationalLoader.cs:547-553` `<script>`, `<style>`, `<[^>]+>` — same.
