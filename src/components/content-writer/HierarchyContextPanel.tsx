@@ -96,12 +96,15 @@ export default function HierarchyContextPanel({
       if (next) setAllowOutside(false);
       onProjectUpdated(project);
     } catch (persistErr) {
+      console.error("Failed to persist hierarchy context:", persistErr);
       setPersistError(
         persistErr instanceof ApiError
           ? persistErr.status === 404
             ? "Could not save hierarchy context (API 404). Redeploy GeekAPI with the latest Content Writer changes, then refresh."
             : persistErr.message
-          : "Could not save hierarchy context.",
+          : persistErr instanceof Error
+            ? `Could not save hierarchy context: ${persistErr.message}`
+            : "Could not save hierarchy context.",
       );
       throw persistErr;
     } finally {
@@ -153,7 +156,8 @@ export default function HierarchyContextPanel({
 
         try {
           await persistSelection(nextSelected, nextSelected ? false : allowOutside);
-        } catch {
+        } catch (persistErr) {
+          console.error("Auto-persist of hierarchy selection failed:", persistErr);
           // Persist error already set; match UI still usable.
         }
         if (cancelled) return;
@@ -181,7 +185,8 @@ export default function HierarchyContextPanel({
     setSelected(match);
     try {
       await persistSelection(match, false);
-    } catch {
+    } catch (persistErr) {
+      console.error("Failed to persist hierarchy selection:", persistErr);
       setSelected(previous);
     }
   }
@@ -191,7 +196,8 @@ export default function HierarchyContextPanel({
     setAllowOutside(checked);
     try {
       await persistSelection(selected, checked);
-    } catch {
+    } catch (persistErr) {
+      console.error("Failed to persist outside-scope acknowledgement:", persistErr);
       setAllowOutside(!checked);
     }
   }
