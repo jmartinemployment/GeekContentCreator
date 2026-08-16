@@ -16,6 +16,64 @@ const POLL_MS = 2500;
 const MAX_WAIT_MS = 15 * 60 * 1000;
 const SHOW_GAP_GENERATE_BUTTON = false; // Site Analyzer currently only returns headings without matching pages (missing-page gaps). Generate is disabled pending Workflow rebuild. Flip this line if gap types expand to include real content gaps.
 
+type SiteAnalysisProfileListItem = {
+  id: string;
+  domain: string;
+  status?: string | null;
+  analyzedAt?: string | null;
+  primaryFocus?: string | null;
+};
+
+type TreeNode = {
+  level?: number;
+  Level?: number;
+  headingText?: string;
+  HeadingText?: string;
+  children?: TreeNode[] | null;
+  Children?: TreeNode[] | null;
+};
+
+type SitePageRow = NonNullable<SiteAnalysis["pages"]>[number];
+
+function flattenTreeHeadings(nodes: TreeNode[] | null | undefined): Array<{ level: number; text: string }> {
+  const out: Array<{ level: number; text: string }> = [];
+  function walk(list: TreeNode[], depth: number) {
+    for (const n of list) {
+      const text = String(n.headingText ?? n.HeadingText ?? "").trim();
+      const level = Number(n.level ?? n.Level ?? depth) || depth;
+      if (text) out.push({ level: Math.min(Math.max(level, 1), 6), text });
+      const kids = n.children ?? n.Children;
+      if (kids?.length) walk(kids, depth + 1);
+    }
+  }
+  if (nodes?.length) walk(nodes, 1);
+  return out;
+}
+
+function treesToSitePages(
+  rows: Array<{ pageUrl?: string; PageUrl?: string; treeJson?: string; TreeJson?: string }>,
+): SitePageRow[] {
+  const pages: SitePageRow[] = [];
+  for (const row of rows) {
+    const url = String(row.pageUrl ?? row.PageUrl ?? "").trim();
+    if (!url) continue;
+    let roots: TreeNode[] = [];
+    try {
+      const raw = row.treeJson ?? row.TreeJson ?? "[]";
+      const parsed = JSON.parse(typeof raw === "string" ? raw : "[]") as unknown;
+      roots = Array.isArray(parsed) ? (parsed as TreeNode[]) : [];
+    } catch {
+      roots = [];
+    }
+    pages.push({
+      url,
+      title: url,
+      headings: flattenTreeHeadings(roots),
+    });
+  }
+  return pages;
+}
+
 async function downloadSitemap(analysisId: string): Promise<void> {
   const response = await fetch(
     `/api/site-analyzer/${encodeURIComponent(analysisId)}/sitemap`,
@@ -127,6 +185,11 @@ export function SiteAnalyzerClient() {
   const [showReuseConfirm, setShowReuseConfirm] = useState(false);
   const [reportBefore, setReportBefore] = useState<NonNullable<SiteAnalysis['pages']> | null>(null);
   const [reportAfter, setReportAfter] = useState<NonNullable<SiteAnalysis['pages']>>([]);
+  const [profiles, setProfiles] = useState<SiteAnalysisProfileListItem[]>([]);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [siteAnalysisProfileId, setSiteAnalysisProfileId] = useState<string | null>(null);
+  const [loadingTrees, setLoadingTrees] = useState(false);
 
   // For hierarchy helpers that still need a pages array (use AFTER when available, else BEFORE)
   const sitePages = (reportAfter?.length ?? 0) > 0 ? (reportAfter as SiteAnalysis["pages"]) : (reportBefore ?? []);
@@ -150,6 +213,61 @@ export function SiteAnalyzerClient() {
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        setLoadingProfiles(true);
+        setProfilesError(null);
+        try {
+          const host = domain.trim();
+          const url = host
+            ? `/api/site-analyzer/profiles/by-domain?domain=${encodeURIComponent(host)}&limit=50`
+            : `/api/site-analyzer/profiles/recent?limit=50`;
+          const res = await fetch(url, { cache: "no-store" });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(
+              typeof body.error === "string" ? body.error : "Could not list site_analysis_profiles",
+            );
+          }
+          const list = (Array.isArray(body) ? body : []) as SiteAnalysisProfileListItem[];
+          if (cancelled) return;
+          setProfiles(
+            list.map((p) => ({
+              id: String((p as { id?: string; Id?: string }).id ?? (p as { Id?: string }).Id ?? ""),
+              domain: String(
+                (p as { domain?: string; Domain?: string }).domain ??
+                  (p as { Domain?: string }).Domain ??
+                  "",
+              ),
+              status: (p as { status?: string }).status ?? null,
+              analyzedAt:
+                (p as { analyzedAt?: string; AnalyzedAt?: string }).analyzedAt ??
+                (p as { AnalyzedAt?: string }).AnalyzedAt ??
+                null,
+              primaryFocus:
+                (p as { primaryFocus?: string; PrimaryFocus?: string }).primaryFocus ??
+                (p as { PrimaryFocus?: string }).PrimaryFocus ??
+                null,
+            })).filter((p) => p.id),
+          );
+        } catch (e) {
+          if (!cancelled) {
+            setProfiles([]);
+            setProfilesError(e instanceof Error ? e.message : "Could not list crawls.");
+          }
+        } finally {
+          if (!cancelled) setLoadingProfiles(false);
+        }
+      })();
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [domain]);
 
   async function pollUntilDone(id: string, signal: AbortSignal) {
     const started = Date.now();
@@ -186,26 +304,35 @@ export function SiteAnalyzerClient() {
         setGaps(rawGaps.map(normalizeGap));
         setStepLabel(null);
 
-        // Resolve domain → client and write Workflow handoff
+        const seoProfileId = String(
+          body.seoProfileId ?? body.SeoProfileId ?? body.siteAnalysisProfileId ?? "",
+        ).trim();
+        if (seoProfileId) setSiteAnalysisProfileId(seoProfileId);
+
+        // Resolve domain → client and write Workflow handoff (site_analysis_profiles.Id required)
         try {
           const domainTrimmed = domain.trim();
-          let clientId: string | null = null;
+          let resolvedClientId: string | null = null;
 
-          // Try to get existing client by name
           const existing = await getGccClientByName(domainTrimmed);
           if (existing) {
-            clientId = existing.id;
+            resolvedClientId = existing.id;
           } else {
-            // Create new client for this domain
             const created = await createGccClient({ name: domainTrimmed });
-            clientId = created.id;
+            resolvedClientId = created.id;
           }
 
-          if (clientId) {
-            writeWorkflowClientHandoff({ clientId, domain: domainTrimmed, siteAnalysisId: id });
+          if (resolvedClientId && seoProfileId) {
+            writeWorkflowClientHandoff({
+              clientId: resolvedClientId,
+              domain: domainTrimmed,
+              siteAnalysisId: id,
+              siteAnalysisProfileId: seoProfileId,
+            });
+          } else if (!seoProfileId) {
+            console.error("Ready analysis missing seoProfileId (site_analysis_profiles.Id)");
           }
         } catch (e) {
-          // Log but don't fail — handoff is optional, Workflow can still proceed without it
           console.error("Failed to resolve Workflow client:", e);
         }
 
@@ -268,6 +395,10 @@ export function SiteAnalyzerClient() {
         if (!body.id) throw new Error("Analyze response missing analysis id");
 
         setAnalysisId(body.id);
+        const startProfileId = String(
+          body.seoProfileId ?? body.SeoProfileId ?? body.siteAnalysisProfileId ?? "",
+        ).trim();
+        if (startProfileId) setSiteAnalysisProfileId(startProfileId);
         await pollUntilDone(body.id, ac.signal);
       } catch (e) {
         if (ac.signal.aborted) return;
@@ -284,6 +415,62 @@ export function SiteAnalyzerClient() {
     setAnalyzing(false);
     setStepLabel(null);
     setError("Analysis cancelled.");
+  }
+
+  async function selectSiteAnalysisProfile(profileId: string) {
+    const id = profileId.trim();
+    if (!id) return;
+    setError(null);
+    setSiteAnalysisProfileId(id);
+    setLoadingTrees(true);
+    try {
+      const res = await fetch(
+        `/api/site-analyzer/profiles/${encodeURIComponent(id)}/trees`,
+        { cache: "no-store" },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof body.error === "string" ? body.error : "Could not load trees for crawl",
+        );
+      }
+      const rows = Array.isArray(body) ? body : [];
+      const pages = treesToSitePages(rows);
+      setReportBefore(pages);
+      setReportAfter(pages);
+      setGaps([]);
+
+      const picked = profiles.find((p) => p.id === id);
+      const domainTrimmed = (picked?.domain || domain).trim() || domain.trim();
+      if (domainTrimmed && !domain.trim()) setDomain(domainTrimmed);
+
+      let resolvedClientId: string | null = null;
+      try {
+        const name = domainTrimmed || picked?.domain || "site";
+        const existing = await getGccClientByName(name);
+        if (existing) resolvedClientId = existing.id;
+        else {
+          const created = await createGccClient({ name });
+          resolvedClientId = created.id;
+        }
+      } catch (e) {
+        console.error("Failed to resolve Workflow client for selected crawl:", e);
+      }
+
+      if (resolvedClientId) {
+        writeWorkflowClientHandoff({
+          clientId: resolvedClientId,
+          domain: domainTrimmed,
+          siteAnalysisId: analysisId || undefined,
+          siteAnalysisProfileId: id,
+        });
+      }
+      unlockWorkflow();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load crawl trees");
+    } finally {
+      setLoadingTrees(false);
+    }
   }
 
   function openGapDetail(gap: ContentGap) {
@@ -401,11 +588,63 @@ export function SiteAnalyzerClient() {
             </button>
           ) : null}
         </div>
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium text-[var(--gcc-ink)]">
+            Existing crawl (site_analysis_profiles.Id)
+          </span>
+          <select
+            value={siteAnalysisProfileId ?? ""}
+            disabled={loadingProfiles || analyzing || loadingTrees}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) void selectSiteAnalysisProfile(v);
+              else setSiteAnalysisProfileId(null);
+            }}
+            className="rounded-md border border-[var(--gcc-line)] bg-white px-3 py-2 text-sm"
+          >
+            <option value="">
+              {loadingProfiles
+                ? "Loading crawls…"
+                : profiles.length === 0
+                  ? "No crawls found — Analyze or clear domain filter"
+                  : "Select a crawl…"}
+            </option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.domain}
+                {p.analyzedAt ? ` · ${new Date(p.analyzedAt).toLocaleString()}` : ""}
+                {` · ${p.id.slice(0, 8)}…`}
+              </option>
+            ))}
+          </select>
+          {profilesError ? <span className="text-xs text-red-700">{profilesError}</span> : null}
+          {loadingTrees ? (
+            <span className="text-xs text-[var(--gcc-muted)]">Loading trees for reports…</span>
+          ) : null}
+        </label>
         <p className="text-xs text-[var(--gcc-muted)]">
-          Enter a site domain and click Analyze. Pick a gap to review SERP shape, PAA,
-          and Information Gain, then start a create with related pages from that site
-          section.
+          Enter a site domain and click Analyze, or pick an existing site_analysis_profiles.Id.
+          That GUID is handed to Workflow for hierarchy SQL match. Keyword and department stay on
+          Create Project.
         </p>
+        {siteAnalysisProfileId ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="break-all text-xs text-[var(--gcc-muted)]">
+              site_analysis_profiles.Id: {siteAnalysisProfileId}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                router.push(
+                  `/app/workflow?siteAnalysisProfileId=${encodeURIComponent(siteAnalysisProfileId)}`,
+                );
+              }}
+              className="rounded-md border border-[var(--gcc-line)] px-3 py-1 text-xs font-semibold"
+            >
+              Open Workflow Create Project
+            </button>
+          </div>
+        ) : null}
         {stepLabel ? (
           <p className="text-xs text-[var(--gcc-muted)]">{stepLabel}</p>
         ) : null}

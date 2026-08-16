@@ -339,3 +339,45 @@ export function hierarchyMatchKindLabel(kind: HierarchyMatchKind): string {
       return "Page URL contains keyword";
   }
 }
+
+/** Normalize GeekAPI hierarchy-match DTO (camel or Pascal) into HierarchyMatch. */
+export function normalizeHierarchyMatchFromApi(raw: unknown): HierarchyMatch | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const pathRaw = o.path ?? o.Path;
+  const path = Array.isArray(pathRaw)
+    ? pathRaw.map((p) => String(p)).filter(Boolean)
+    : [];
+  const childrenRaw = o.childHeadings ?? o.ChildHeadings;
+  const childHeadings = Array.isArray(childrenRaw)
+    ? childrenRaw.map((c) => String(c)).filter(Boolean)
+    : [];
+  const sourcePageUrl = String(o.sourcePageUrl ?? o.SourcePageUrl ?? "").trim();
+  const matchedHeading = String(o.matchedHeading ?? o.MatchedHeading ?? "").trim();
+  const kindRaw = String(o.kind ?? o.Kind ?? "").trim();
+  const kind = (
+    ["exact-heading", "contains-heading", "exact-page", "contains-page"] as const
+  ).includes(kindRaw as HierarchyMatchKind)
+    ? (kindRaw as HierarchyMatchKind)
+    : "contains-heading";
+  const assignmentMarkdown = String(
+    o.assignmentMarkdown ?? o.AssignmentMarkdown ?? "",
+  );
+  if (!sourcePageUrl && path.length === 0 && !matchedHeading) return null;
+  return {
+    path: path.length > 0 ? path : matchedHeading ? [matchedHeading] : [],
+    childHeadings,
+    toolsByHeading: [],
+    assignmentMarkdown,
+    sourcePageUrl,
+    matchedHeading: matchedHeading || path[path.length - 1] || "",
+    kind,
+  };
+}
+
+export function normalizeHierarchyMatchesFromApi(body: unknown): HierarchyMatch[] {
+  const arr = Array.isArray(body) ? body : [];
+  return arr
+    .map(normalizeHierarchyMatchFromApi)
+    .filter((m): m is HierarchyMatch => m !== null);
+}

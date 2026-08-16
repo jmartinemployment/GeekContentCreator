@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
-  findHierarchyMatches,
   hierarchyMatchId,
   hierarchyMatchKindLabel,
+  normalizeHierarchyMatchesFromApi,
   type HierarchyMatch,
-  type PageContextPage,
 } from "@/lib/content-creator/hierarchy-match";
 import { updateProjectHierarchyContext, ApiError } from "@/services/content-writer-api";
 import type { ProjectDetail } from "@/lib/types";
@@ -42,6 +41,7 @@ function pickInitial(
 export default function HierarchyContextPanel({
   projectId,
   targetKeyword,
+  siteAnalysisProfileId,
   siteAnalysisId,
   initialPath,
   initialChildren: _initialChildren,
@@ -52,6 +52,9 @@ export default function HierarchyContextPanel({
 }: {
   projectId: string;
   targetKeyword: string;
+  /** geek_seo.site_analysis_profiles.Id — required for SQL hierarchy match. */
+  siteAnalysisProfileId: string | null;
+  /** Optional GCC poll/report id only. */
   siteAnalysisId: string | null;
   initialPath: string | null;
   initialChildren: string[];
@@ -92,6 +95,7 @@ export default function HierarchyContextPanel({
         hierarchySourcePageUrl: next?.sourcePageUrl ?? null,
         allowOutsideSiteScope: next ? false : outside,
         siteAnalysisId: siteAnalysisId ?? undefined,
+        siteAnalysisProfileId: siteAnalysisProfileId ?? undefined,
       });
       if (next) setAllowOutside(false);
       onProjectUpdated(project);
@@ -116,9 +120,9 @@ export default function HierarchyContextPanel({
     let cancelled = false;
 
     async function run() {
-      if (!siteAnalysisId) {
+      if (!siteAnalysisProfileId) {
         setLoadError(
-          "No Site Analyzer handoff on this project. Unlock Workflow from Site Analyzer and create the project again, or acknowledge an out-of-scope keyword.",
+          "No site_analysis_profiles.Id on this project. Select a crawl in Site Analyzer, then create the project again, or acknowledge an out-of-scope keyword.",
         );
         setMatches([]);
         setSelected(null);
@@ -130,7 +134,7 @@ export default function HierarchyContextPanel({
       setLoadError(null);
       try {
         const res = await fetch(
-          `/api/site-analyzer/${encodeURIComponent(siteAnalysisId)}/page-section-trees`,
+          `/api/site-analyzer/profiles/${encodeURIComponent(siteAnalysisProfileId)}/hierarchy-match?keyword=${encodeURIComponent(targetKeyword)}`,
           { cache: "no-store" },
         );
         const body = await res.json().catch(() => ({}));
@@ -138,17 +142,11 @@ export default function HierarchyContextPanel({
           throw new Error(
             typeof body.error === "string"
               ? body.error
-              : "Could not load Site Analyzer hierarchy.",
+              : "Could not load Site Analyzer hierarchy match.",
           );
         }
 
-        const pages = (Array.isArray(body) ? body : []) as PageContextPage[];
-        if (pages.length === 0) {
-          throw new Error(
-            "Site Analyzer returned no page context for this analysis. Re-run Site Analyzer, then reopen Workflow.",
-          );
-        }
-        const nextMatches = findHierarchyMatches(pages, targetKeyword);
+        const nextMatches = normalizeHierarchyMatchesFromApi(body);
         if (cancelled) return;
         setMatches(nextMatches);
         const nextSelected = pickInitial(nextMatches, initialPath, initialSourcePageUrl);
@@ -158,7 +156,6 @@ export default function HierarchyContextPanel({
           await persistSelection(nextSelected, nextSelected ? false : allowOutside);
         } catch (persistErr) {
           console.error("Auto-persist of hierarchy selection failed:", persistErr);
-          // Persist error already set; match UI still usable.
         }
         if (cancelled) return;
       } catch (err) {
@@ -175,9 +172,8 @@ export default function HierarchyContextPanel({
     return () => {
       cancelled = true;
     };
-    // Re-match when keyword or analysis changes; allowOutside toggled separately.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial* only seeds selection
-  }, [projectId, siteAnalysisId, targetKeyword]);
+  }, [projectId, siteAnalysisProfileId, targetKeyword]);
 
   async function handleSelect(match: HierarchyMatch) {
     if (sameMatch(selected, match) || persisting) return;
@@ -209,8 +205,9 @@ export default function HierarchyContextPanel({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">2. Site hierarchy context</h2>
       <p className="mt-1 text-sm text-muted">
-        Match the project keyword against Site Analyzer heading trees. Choose which match grounds
-        Generate (pillar/blog must use its child headings). Tone &amp; Focus stay omitted this phase.
+        Match the project keyword against site_analysis_page_section_trees for this
+        site_analysis_profiles.Id. Choose which match grounds Generate (pillar/blog must use
+        its child headings). Tone &amp; Focus stay omitted this phase.
       </p>
 
       {loading ? <p className="mt-4 text-sm text-muted">Loading hierarchy…</p> : null}

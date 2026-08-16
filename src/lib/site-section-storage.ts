@@ -84,7 +84,10 @@ export const WORKFLOW_CLIENT_HANDOFF_KEY = "gcc.workflowClientHandoff";
 export type WorkflowClientHandoff = {
   clientId: string;
   domain: string;
-  siteAnalysisId: string;
+  /** Optional GCC poll/report handle (content_creator.gcc_site_analyses.Id). */
+  siteAnalysisId?: string;
+  /** Required for hierarchy grounding: geek_seo.site_analysis_profiles.Id */
+  siteAnalysisProfileId: string;
 };
 
 export function readWorkflowClientHandoff(): WorkflowClientHandoff | null {
@@ -92,11 +95,12 @@ export function readWorkflowClientHandoff(): WorkflowClientHandoff | null {
     const raw = sessionStorage.getItem(WORKFLOW_CLIENT_HANDOFF_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<WorkflowClientHandoff>;
-    if (!parsed.clientId || !parsed.siteAnalysisId) return null;
+    if (!parsed.clientId || !parsed.siteAnalysisProfileId) return null;
     return {
       clientId: parsed.clientId,
       domain: parsed.domain || "",
-      siteAnalysisId: parsed.siteAnalysisId,
+      siteAnalysisId: parsed.siteAnalysisId || undefined,
+      siteAnalysisProfileId: parsed.siteAnalysisProfileId,
     };
   } catch {
     return null;

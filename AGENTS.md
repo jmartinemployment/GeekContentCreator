@@ -22,3 +22,14 @@ reuse any content-writer repo's (v2, v3, or unversioned) backend methods — it 
 generation code. When you call `src/services/content-writer-api.ts` endpoints, you're calling
 GeekAPI-owned code, never routed to content-writer repos. The contract is stable because GeekAPI
 is the owner; content-writer repos are treated as legacy/deprecated for GeekAPI's purposes.
+
+## site_analysis_profiles.Id (hierarchy grounding)
+
+Never call this a generic **“Profile Id”** — that collides with client profiles and unrelated SEO
+profile types. The durable crawl key is **`geek_seo.site_analysis_profiles.Id`**.
+
+- Handoff / project field: `siteAnalysisProfileId` → that column only.
+- Trees FK: `site_analysis_page_section_trees."SiteAnalysisProfileId"` = same GUID.
+- Optional `siteAnalysisId` = `content_creator.gcc_site_analyses.Id` (poll/report only), not the match key.
+- Hierarchy match: SQL on **page section trees** (`TreeJson`), never treat **page-contexts**
+  (`ContextJson` / legacy misnamed `page-section-trees` endpoint) as trees for match.

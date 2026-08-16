@@ -106,6 +106,10 @@ export default function WorkflowProjectPage() {
     );
   }
 
+  const siteAnalysisProfileId =
+    project.siteAnalysisProfileId ??
+    readWorkflowClientHandoff()?.siteAnalysisProfileId ??
+    null;
   const siteAnalysisId =
     project.siteAnalysisId ?? readWorkflowClientHandoff()?.siteAnalysisId ?? null;
 
@@ -127,6 +131,7 @@ export default function WorkflowProjectPage() {
         <HierarchyContextPanel
           projectId={project.id}
           targetKeyword={project.targetKeyword}
+          siteAnalysisProfileId={siteAnalysisProfileId}
           siteAnalysisId={siteAnalysisId}
           initialPath={project.hierarchyPath ?? null}
           initialChildren={project.hierarchyChildHeadings ?? []}

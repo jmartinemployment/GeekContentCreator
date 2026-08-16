@@ -4,20 +4,20 @@ import { apiConfig } from "@/lib/config";
 
 export async function GET(
   _request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ siteAnalysisProfileId: string }> },
 ) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await context.params;
-  if (!id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+  const { siteAnalysisProfileId } = await context.params;
+  if (!siteAnalysisProfileId) {
+    return NextResponse.json({ error: "siteAnalysisProfileId required" }, { status: 400 });
   }
 
   const res = await fetch(
-    `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/${encodeURIComponent(id)}/page-section-trees`,
+    `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/profiles/${encodeURIComponent(siteAnalysisProfileId)}/trees`,
     {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -27,13 +27,7 @@ export async function GET(
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(
-      {
-        error:
-          body.error ||
-          body.title ||
-          body.detail ||
-          "Failed to load page contexts (legacy route misnamed page-section-trees; not TreeJson)",
-      },
+      { error: body.error || body.title || body.detail || "Failed to load trees" },
       { status: res.status },
     );
   }

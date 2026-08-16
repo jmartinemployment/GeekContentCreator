@@ -11,6 +11,16 @@ import {
 } from "@/services/content-writer-api";
 import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
 
+function qsSiteAnalysisProfileId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = new URLSearchParams(window.location.search).get("siteAnalysisProfileId");
+    return v?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ProjectForm({
   clientId,
   onCreated,
@@ -28,16 +38,22 @@ export default function ProjectForm({
   const [useExactKeywordAsTitle, setUseExactKeywordAsTitle] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [siteAnalysisProfileId, setSiteAnalysisProfileId] = useState<string | null>(null);
+  const [siteAnalysisId, setSiteAnalysisId] = useState<string | null>(null);
 
   useEffect(() => {
+    const fromQs = qsSiteAnalysisProfileId();
     const handoff = readWorkflowClientHandoff();
+    const profileId = fromQs || handoff?.siteAnalysisProfileId || null;
+    setSiteAnalysisProfileId(profileId);
+    setSiteAnalysisId(handoff?.siteAnalysisId ?? null);
     if (handoff?.domain && !projectUrl) {
       const domain = handoff.domain.startsWith("http")
         ? handoff.domain
         : `https://${handoff.domain}`;
       setProjectUrl(domain);
     }
-    // only seed once from handoff
+    // only seed once from handoff / QS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -61,6 +77,11 @@ export default function ProjectForm({
     setIsSubmitting(true);
     try {
       const handoff = readWorkflowClientHandoff();
+      const profileId =
+        qsSiteAnalysisProfileId() ||
+        siteAnalysisProfileId ||
+        handoff?.siteAnalysisProfileId ||
+        null;
       const project = await createProject({
         clientId,
         name,
@@ -69,7 +90,8 @@ export default function ProjectForm({
         department,
         preferredProvider,
         useExactKeywordAsTitle,
-        siteAnalysisId: handoff?.siteAnalysisId ?? null,
+        siteAnalysisId: siteAnalysisId ?? handoff?.siteAnalysisId ?? null,
+        siteAnalysisProfileId: profileId,
       });
       onCreated(project);
       setName("");
@@ -86,9 +108,18 @@ export default function ProjectForm({
     <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">New Project</h2>
       <p className="mt-1 text-sm text-muted">
-        Enter the client site URL and the primary keyword. Site Analyzer hierarchy (from Workflow
-        handoff) replaces crawl for page/site context.
+        Enter the client site URL and the primary keyword. Hierarchy match uses
+        site_analysis_profiles.Id from Site Analyzer handoff (query string overrides storage).
       </p>
+      {siteAnalysisProfileId ? (
+        <p className="mt-2 break-all text-xs text-muted">
+          site_analysis_profiles.Id: {siteAnalysisProfileId}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-amber-800">
+          No site_analysis_profiles.Id yet — open Site Analyzer, select a crawl, then return here.
+        </p>
+      )}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">

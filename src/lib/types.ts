@@ -240,6 +240,8 @@ export interface ProjectSummary {
   useExactKeywordAsTitle: boolean;
   createdAtUtc: string;
   siteAnalysisId?: string | null;
+  /** geek_seo.site_analysis_profiles.Id — hierarchy SQL match key (not a generic "Profile Id"). */
+  siteAnalysisProfileId?: string | null;
 }
 
 export interface CrawlSummary {

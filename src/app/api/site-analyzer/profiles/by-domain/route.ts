@@ -2,22 +2,20 @@ import { NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/auth/session";
 import { apiConfig } from "@/lib/config";
 
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: Request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await context.params;
-  if (!id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+  const { searchParams } = new URL(request.url);
+  const domain = searchParams.get("domain");
+  if (!domain?.trim()) {
+    return NextResponse.json({ error: "domain required" }, { status: 400 });
   }
-
+  const limit = searchParams.get("limit") ?? "50";
   const res = await fetch(
-    `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/${encodeURIComponent(id)}/page-section-trees`,
+    `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/profiles/by-domain?domain=${encodeURIComponent(domain.trim())}&limit=${encodeURIComponent(limit)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -27,13 +25,7 @@ export async function GET(
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(
-      {
-        error:
-          body.error ||
-          body.title ||
-          body.detail ||
-          "Failed to load page contexts (legacy route misnamed page-section-trees; not TreeJson)",
-      },
+      { error: body.error || body.title || body.detail || "Failed to list site_analysis_profiles by domain" },
       { status: res.status },
     );
   }
