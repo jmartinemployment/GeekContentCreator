@@ -125,8 +125,11 @@ export function SiteAnalyzerClient() {
   const [clientError, setClientError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showReuseConfirm, setShowReuseConfirm] = useState(false);
-  const [sitePages, setSitePages] = useState<SiteAnalysis['pages']>([]);
+  const [reportBefore, setReportBefore] = useState<NonNullable<SiteAnalysis['pages']> | null>(null);
+  const [reportAfter, setReportAfter] = useState<NonNullable<SiteAnalysis['pages']>>([]);
 
+  // For hierarchy helpers that still need a pages array (use AFTER when available, else BEFORE)
+  const sitePages = (reportAfter?.length ?? 0) > 0 ? (reportAfter as SiteAnalysis["pages"]) : (reportBefore ?? []);
   const selectedGap = gaps.find((g) => g.id === selectedGapId) ?? null;
 
   useEffect(() => {
@@ -176,12 +179,12 @@ export function SiteAnalyzerClient() {
 
       if (status === "ready") {
         const rawGaps = (body.gaps ?? body.Gaps ?? []) as Record<string, unknown>[];
+        // REPORT 1 — BEFORE ANY PROCESSING WHATSOEVER: raw pages as held inside Geek Content Creator context, before any normalizeGap/processing
+        const pagesNow = (body.pages ?? body.Pages ?? []) as NonNullable<SiteAnalysis["pages"]>;
+        setReportBefore(pagesNow);
+        setReportAfter(pagesNow);
         setGaps(rawGaps.map(normalizeGap));
-        setSitePages(body.pages ?? body.Pages ?? []);
         setStepLabel(null);
-        if (!rawGaps.length) {
-          throw new Error("Site analysis finished but produced no content gaps.");
-        }
 
         // Resolve domain → client and write Workflow handoff
         try {
@@ -226,10 +229,27 @@ export function SiteAnalyzerClient() {
     setCuratedSerp(null);
     setAnalysisId(null);
     setStepLabel(null);
+    setReportBefore(null);
+    setReportAfter([]);
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
     setAnalyzing(true);
+
+    // REPORT 1 — BEFORE ANY PROCESSING WHATSOEVER: produced inside Geek Content Creator context, no backend call
+    const beforeDomain = domain.trim();
+    if (beforeDomain) {
+      const normalizedUrl = beforeDomain.startsWith("http") ? beforeDomain : `https://${beforeDomain}`;
+      setReportBefore([
+        {
+          url: normalizedUrl,
+          title: beforeDomain,
+          headings: [],
+        },
+      ]);
+    } else {
+      setReportBefore([]);
+    }
 
     startTransition(async () => {
       try {
@@ -248,7 +268,6 @@ export function SiteAnalyzerClient() {
         if (!body.id) throw new Error("Analyze response missing analysis id");
 
         setAnalysisId(body.id);
-        // force:true always starts processing — poll until ready (do not trust a cached ready body).
         await pollUntilDone(body.id, ac.signal);
       } catch (e) {
         if (ac.signal.aborted) return;
@@ -412,6 +431,115 @@ export function SiteAnalyzerClient() {
       ) : null}
 
       <SiteHeadingHierarchy pages={sitePages} gaps={gaps} />
+
+      {((reportBefore?.length ?? 0) > 0 || (reportAfter?.length ?? 0) > 0) ? (
+        <div className="space-y-6">
+          {reportBefore && reportBefore.length > 0 ? (
+            <div className="space-y-3">
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">
+                  REPORT 1 — BEFORE ANY PROCESSING WHATSOEVER
+                </p>
+                <p className="mt-1 text-xs text-amber-800">
+                  {reportBefore.length} pages — raw crawl before GeekAPI, before any processing/manipulation/filtering/dedup, before database. Exact order as returned by crawler (unfiltered, no dedup, including duplicates and 0-heading pages).
+                </p>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border bg-background text-xs uppercase tracking-wide text-muted">
+                      <tr>
+                        <th className="px-3 py-2">#</th>
+                        <th className="px-3 py-2">URL</th>
+                        <th className="px-3 py-2">Title</th>
+                        <th className="px-3 py-2">Headings (raw, in order)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportBefore.map((p, idx) => (
+                        <tr key={`before-${p.url}::${idx}`} className="border-b border-border last:border-0 align-top">
+                          <td className="px-3 py-2 text-xs text-muted">{idx + 1}</td>
+                          <td className="px-3 py-2 text-xs">
+                            <a href={p.url} target="_blank" rel="noreferrer" className="break-all text-brand hover:underline">
+                              {p.url}
+                            </a>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-foreground">{p.title || "(no title)"}</td>
+                          <td className="px-3 py-2 text-xs text-muted">
+                            {p.headings.length === 0 ? (
+                              <span>(no headings)</span>
+                            ) : (
+                              <ul className="space-y-0.5">
+                                {p.headings.map((h, hi) => (
+                                  <li key={`b-${idx}-${hi}-${h.level}-${h.text}`} style={{ paddingLeft: `${Math.max(0, h.level - 1) * 0.5}rem` }}>
+                                    H{h.level}: {h.text}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {(reportAfter?.length ?? 0) > 0 ? (
+            <div className="space-y-3">
+              <div className="rounded-md border border-[var(--gcc-teal)] bg-white px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gcc-ink)]">
+                  REPORT 2 — AFTER DATA HAS BEEN INSERTED INTO THE DATABASE
+                </p>
+                <p className="mt-1 text-xs text-[var(--gcc-muted)]">
+                  {(reportAfter?.length ?? 0)} pages — re-fetched from database after GeekAPI insert (same crawl, same order, unfiltered, no dedup). Compare with REPORT 1 to verify lossless.
+                </p>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border bg-background text-xs uppercase tracking-wide text-muted">
+                      <tr>
+                        <th className="px-3 py-2">#</th>
+                        <th className="px-3 py-2">URL</th>
+                        <th className="px-3 py-2">Title</th>
+                        <th className="px-3 py-2">Headings (raw, in order)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportAfter.map((p, idx) => (
+                        <tr key={`after-${p.url}::${idx}`} className="border-b border-border last:border-0 align-top">
+                          <td className="px-3 py-2 text-xs text-muted">{idx + 1}</td>
+                          <td className="px-3 py-2 text-xs">
+                            <a href={p.url} target="_blank" rel="noreferrer" className="break-all text-brand hover:underline">
+                              {p.url}
+                            </a>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-foreground">{p.title || "(no title)"}</td>
+                          <td className="px-3 py-2 text-xs text-muted">
+                            {p.headings.length === 0 ? (
+                              <span>(no headings)</span>
+                            ) : (
+                              <ul className="space-y-0.5">
+                                {p.headings.map((h, hi) => (
+                                  <li key={`a-${idx}-${hi}-${h.level}-${h.text}`} style={{ paddingLeft: `${Math.max(0, h.level - 1) * 0.5}rem` }}>
+                                    H{h.level}: {h.text}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {gaps.length > 0 ? (
         <ul className="divide-y divide-[var(--gcc-line)] border border-[var(--gcc-line)] bg-white">

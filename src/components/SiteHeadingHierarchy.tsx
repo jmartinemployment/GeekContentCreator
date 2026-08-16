@@ -6,9 +6,7 @@ export function SiteHeadingHierarchy({
   gaps?: Array<{ topic: string }>;
 }) {
   if (!pages || pages.length === 0) return null;
-  const pagesWithHeadings = pages.filter((p) => p.headings.length > 0);
-  if (pagesWithHeadings.length === 0) return null;
-
+  // Reports are unfiltered — no filter on headings, no dedup on URL
   const gapTopics = new Set((gaps ?? []).map((g) => g.topic.toLowerCase()));
   const isGap = (headingText: string) => gapTopics.has(headingText.toLowerCase());
 
@@ -23,24 +21,30 @@ export function SiteHeadingHierarchy({
           Expand to view headings
         </summary>
         <ul className="mt-2 space-y-2 pl-2">
-          {pagesWithHeadings.map((p) => (
-            <li key={p.url} className="text-xs">
-              <p className="font-medium text-[var(--gcc-ink)]">{p.title}</p>
-              <ul className="mt-0.5">
-                {p.headings.map((h, i) => {
-                  const isMissingPage = isGap(h.text);
-                  return (
-                    <li
-                      key={i}
-                      className={isMissingPage ? "text-red-600" : "text-[var(--gcc-muted)]"}
-                      style={{ paddingLeft: `${Math.max(0, h.level - 1) * 0.75}rem` }}
-                    >
-                      H{h.level}: {h.text}
-                      {isMissingPage ? " — missing page" : ""}
-                    </li>
-                  );
-                })}
-              </ul>
+          {pages.map((p, pi) => (
+            <li key={`${p.url}::${pi}`} className="text-xs">
+              <p className="font-medium text-[var(--gcc-ink)]">
+                {p.title || "(no title)"} <span className="font-normal text-[var(--gcc-muted)]">— {p.url}</span>
+              </p>
+              {p.headings.length === 0 ? (
+                <p className="mt-0.5 text-[var(--gcc-muted)]">(no headings)</p>
+              ) : (
+                <ul className="mt-0.5">
+                  {p.headings.map((h, i) => {
+                    const isMissingPage = isGap(h.text);
+                    return (
+                      <li
+                        key={`${pi}-${i}-${h.level}-${h.text}`}
+                        className={isMissingPage ? "text-red-600" : "text-[var(--gcc-muted)]"}
+                        style={{ paddingLeft: `${Math.max(0, h.level - 1) * 0.75}rem` }}
+                      >
+                        H{h.level}: {h.text}
+                        {isMissingPage ? " — missing page" : ""}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
