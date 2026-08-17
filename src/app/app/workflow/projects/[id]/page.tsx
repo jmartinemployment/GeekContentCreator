@@ -9,9 +9,8 @@ import HierarchyContextPanel, {
 import ContentBriefPanel from "@/components/content-creator/ContentBriefPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
-import { useWorkflowGate } from "@/components/WorkflowGate";
+import { useWorkflowGate, workflowHref } from "@/components/WorkflowGate";
 import { getProject } from "@/services/content-writer-api";
-import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
 import { isContentBriefComplete, migrateBrief } from "@/lib/content-creator/brief-catalog";
 import type {
   GeneratedContentSet,
@@ -22,7 +21,7 @@ import type {
 export default function WorkflowProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
-  const { workflowUnlocked } = useWorkflowGate();
+  const { workflowUnlocked, siteAnalysisProfileId: gateProfileId } = useWorkflowGate();
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [keywordSources, setKeywordSources] = useState<KeywordSourceResponse[]>([]);
@@ -107,13 +106,11 @@ export default function WorkflowProjectPage() {
   }
 
   const siteAnalysisProfileId =
-    project.siteAnalysisProfileId ??
-    readWorkflowClientHandoff()?.siteAnalysisProfileId ??
-    null;
+    project.siteAnalysisProfileId ?? gateProfileId ?? null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-      <Link href="/app/workflow" className="text-sm text-brand hover:underline">
+      <Link href={workflowHref(siteAnalysisProfileId)} className="text-sm text-brand hover:underline">
         &larr; Back to Workflow
       </Link>
 

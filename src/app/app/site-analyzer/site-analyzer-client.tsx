@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { clearSiteSectionHandoff, writeWorkflowClientHandoff } from "@/lib/site-section-storage";
-import { useWorkflowGate } from "@/components/WorkflowGate";
+import { clearSiteSectionHandoff } from "@/lib/site-section-storage";
+import { useWorkflowGate, workflowHref } from "@/components/WorkflowGate";
 import type { ContentGap, SiteSectionContext, SiteAnalysis } from "@/lib/types";
 import type { CuratedSerpSeed } from "@/lib/content-creator/serp-lens";
 import { SerpIngestPanel } from "@/components/content-creator/SerpIngestPanel";
@@ -293,17 +293,14 @@ export function SiteAnalyzerClient() {
         const created = await createGccClient({ name: domainTrimmed });
         resolvedClientId = created.id;
       }
-      if (resolvedClientId) {
-        writeWorkflowClientHandoff({
-          clientId: resolvedClientId,
-          domain: domainTrimmed,
-          siteAnalysisProfileId: profileId,
-        });
-      }
     } catch (e) {
       console.error("Failed to resolve Workflow client:", e);
     }
-    unlockWorkflow();
+    unlockWorkflow({
+      siteAnalysisProfileId: profileId,
+      domain: domainTrimmed,
+      clientId: resolvedClientId,
+    });
   }
 
   function analyze() {
@@ -419,14 +416,11 @@ export function SiteAnalyzerClient() {
         console.error("Failed to resolve Workflow client for selected crawl:", e);
       }
 
-      if (resolvedClientId) {
-        writeWorkflowClientHandoff({
-          clientId: resolvedClientId,
-          domain: domainTrimmed,
-          siteAnalysisProfileId: id,
-        });
-      }
-      unlockWorkflow();
+      unlockWorkflow({
+        siteAnalysisProfileId: id,
+        domain: domainTrimmed,
+        clientId: resolvedClientId,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load crawl trees");
     } finally {
@@ -596,9 +590,7 @@ export function SiteAnalyzerClient() {
             <button
               type="button"
               onClick={() => {
-                router.push(
-                  `/app/workflow?siteAnalysisProfileId=${encodeURIComponent(siteAnalysisProfileId)}`,
-                );
+                router.push(workflowHref(siteAnalysisProfileId));
               }}
               className="rounded-md border border-[var(--gcc-line)] px-3 py-1 text-xs font-semibold"
             >

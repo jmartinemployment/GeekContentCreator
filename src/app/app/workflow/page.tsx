@@ -7,13 +7,12 @@ import ClientsPanel from "@/components/content-writer/ClientsPanel";
 import ProjectForm from "@/components/content-writer/ProjectForm";
 import ProjectList from "@/components/content-writer/ProjectList";
 import { useWorkflowGate } from "@/components/WorkflowGate";
-import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
 import { getClients, getRecentProjects } from "@/services/content-writer-api";
 import type { Client, ProjectSummary } from "@/lib/types";
 
 export default function WorkflowPage() {
   const router = useRouter();
-  const { workflowUnlocked } = useWorkflowGate();
+  const { workflowUnlocked, clientId: gateClientId } = useWorkflowGate();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -27,9 +26,8 @@ export default function WorkflowPage() {
         if (cancelled) return;
         setClients(clientList);
         setProjects(projectList);
-        const handoff = readWorkflowClientHandoff();
-        if (handoff?.clientId && clientList.some((c) => c.id === handoff.clientId)) {
-          setSelectedClientId(handoff.clientId);
+        if (gateClientId && clientList.some((c) => c.id === gateClientId)) {
+          setSelectedClientId(gateClientId);
         } else if (clientList.length > 0) {
           setSelectedClientId(clientList[0].id);
         }
@@ -45,7 +43,7 @@ export default function WorkflowPage() {
     return () => {
       cancelled = true;
     };
-  }, [workflowUnlocked]);
+  }, [workflowUnlocked, gateClientId]);
 
   if (!workflowUnlocked) {
     return (

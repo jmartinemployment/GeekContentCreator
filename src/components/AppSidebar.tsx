@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useWorkflowGate } from "@/components/WorkflowGate";
+import { useWorkflowGate, workflowHref } from "@/components/WorkflowGate";
 
 const nav: {
   href: string;
@@ -16,7 +16,8 @@ const nav: {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { workflowUnlocked } = useWorkflowGate();
+  const { workflowUnlocked, siteAnalysisProfileId } = useWorkflowGate();
+  const workflowLink = workflowHref(siteAnalysisProfileId);
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--gcc-line)] bg-[var(--gcc-slate)] px-3 py-5 text-white">
@@ -47,7 +48,11 @@ export function AppSidebar() {
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={
+                item.requiresWorkflow
+                  ? workflowLink
+                  : item.href
+              }
               className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-[var(--gcc-teal)] text-white"

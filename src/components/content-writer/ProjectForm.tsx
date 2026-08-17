@@ -9,7 +9,7 @@ import {
   defaultLlmProvider,
   isProductionContentWriterApi,
 } from "@/services/content-writer-api";
-import { readWorkflowClientHandoff } from "@/lib/site-section-storage";
+import { useWorkflowGate } from "@/components/WorkflowGate";
 
 function qsSiteAnalysisProfileId(): string | null {
   if (typeof window === "undefined") return null;
@@ -39,19 +39,19 @@ export default function ProjectForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [siteAnalysisProfileId, setSiteAnalysisProfileId] = useState<string | null>(null);
+  const { siteAnalysisProfileId: gateProfileId, domain: gateDomain } = useWorkflowGate();
 
   useEffect(() => {
     const fromQs = qsSiteAnalysisProfileId();
-    const handoff = readWorkflowClientHandoff();
-    const profileId = fromQs || handoff?.siteAnalysisProfileId || null;
+    const profileId = fromQs || gateProfileId || null;
     setSiteAnalysisProfileId(profileId);
-    if (handoff?.domain && !projectUrl) {
-      const domain = handoff.domain.startsWith("http")
-        ? handoff.domain
-        : `https://${handoff.domain}`;
+    if (gateDomain && !projectUrl) {
+      const domain = gateDomain.startsWith("http")
+        ? gateDomain
+        : `https://${gateDomain}`;
       setProjectUrl(domain);
     }
-    // only seed once from handoff / QS
+    // seed once from query string (sidebar) or in-memory gate
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,11 +74,10 @@ export default function ProjectForm({
     setError(null);
     setIsSubmitting(true);
     try {
-      const handoff = readWorkflowClientHandoff();
       const profileId =
         qsSiteAnalysisProfileId() ||
         siteAnalysisProfileId ||
-        handoff?.siteAnalysisProfileId ||
+        gateProfileId ||
         null;
       const project = await createProject({
         clientId,
