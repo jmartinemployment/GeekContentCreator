@@ -159,7 +159,7 @@ export default function ContentResults({
         <StepRow
           step={6}
           title="Tool documents"
-          description={`${CONTENT_LENGTH_TARGETS.tools.definition} Target ${CONTENT_LENGTH_TARGETS.tools.label} words — up to 5 pages from the pillar Tools section, each with SoftwareApplication JSON+LD.`}
+          description={`${CONTENT_LENGTH_TARGETS.tools.definition} Target ${CONTENT_LENGTH_TARGETS.tools.label} words — up to 5 pages from crawl tools for this hierarchy, each with SoftwareApplication JSON+LD.`}
           done={hasTools}
           disabled={!hasPillarBody || isGenerating}
           isRunning={generatingStep === "tools"}
