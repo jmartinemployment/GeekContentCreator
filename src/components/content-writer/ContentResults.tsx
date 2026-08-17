@@ -57,6 +57,12 @@ export default function ContentResults({
     setGeneratingStep(step);
     try {
       const next = await action();
+      if ((step === "tools" || step === "all") && (next.toolPosts?.length ?? 0) === 0) {
+        throw new ApiError(
+          "No tools in the crawl for this hierarchy match.",
+          502,
+        );
+      }
       onGenerated(next);
       if ((step === "cold-outreach" || step === "all") && next.coldOutreachEmail) {
         setActiveTab("cold-outreach");
