@@ -1,6 +1,12 @@
 # Fix: Workflow HierarchyContextPanel reports no match for "AI Content Creation Workflow" despite keyword present in Site Analyzer
 
-**Status:** Proposed — awaiting approval (no code changed).
+**Superseded (2026-08-17):** Hierarchy match is SQL on page-section trees by
+`siteAnalysisProfileId` (`?siteAnalysisProfileId=` on the Workflow URL). There is no
+`gcc_site_analyses` wrapper and no sessionStorage handoff. Generate Tools queries those same
+trees; it does not copy `toolsByHeading` onto the project. Do not follow the page-contexts /
+`siteAnalysisId` diagnosis below.
+
+**Status (original):** Proposed — awaiting approval (no code changed).
 **Reporter:** Project keyword "AI Content Creation Workflow" tested for weeks; Site Analyzer report shows the exact heading, but Workflow → HierarchyContextPanel shows `No hierarchy match for "AI Content Creation Workflow" — page/site hierarchy context will be omitted. Generate stays blocked until you acknowledge the keyword is outside site scope.`
 
 ---

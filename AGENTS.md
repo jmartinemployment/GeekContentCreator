@@ -35,3 +35,7 @@ profile types. The durable crawl key is **`geek_seo.site_analysis_profiles.Id`**
   `?siteAnalysisProfileId=`.
 - Hierarchy match: SQL on **page section trees** (`TreeJson`), never treat **page-contexts**
   (`ContextJson` / legacy misnamed `page-section-trees` endpoint) as trees for match.
+- **Generate Tools** queries that same crawl (`siteAnalysisProfileId` + chosen hierarchy path /
+  keyword) and takes tool names from `TreeJson` links on the matched node. Do not copy tools onto
+  the Workflow project. Do not use `extracted_tools` (dropped). `HierarchyToolsByHeading` on the
+  project is not the Generate list.
