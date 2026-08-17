@@ -5,7 +5,7 @@ import type { CuratedSerpSeed } from "@/lib/content-creator/serp-lens";
 export const SITE_SECTION_STORAGE_KEY = "gcc.siteSectionContext";
 
 export type SiteSectionHandoff = {
-  siteAnalysisId: string;
+  siteAnalysisProfileId: string;
   gapTopic: string;
   /** Gap reason from Site Analyzer (seeds brief notes). */
   gapReason?: string | null;
@@ -17,29 +17,43 @@ export type SiteSectionHandoff = {
   curatedSerp?: CuratedSerpSeed | null;
 };
 
+function crawlIdFromUnknown(parsed: {
+  siteAnalysisProfileId?: string;
+  siteAnalysisId?: string;
+  section?: { siteAnalysisProfileId?: string; siteAnalysisId?: string };
+}): string {
+  return (
+    parsed.siteAnalysisProfileId ||
+    parsed.section?.siteAnalysisProfileId ||
+    parsed.siteAnalysisId ||
+    parsed.section?.siteAnalysisId ||
+    ""
+  );
+}
+
 export function readSiteSectionHandoff(): SiteSectionHandoff | null {
   try {
     const raw = sessionStorage.getItem(SITE_SECTION_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SiteSectionHandoff> & {
-      section?: SiteSectionContext;
+      siteAnalysisId?: string;
+      section?: SiteSectionContext & { siteAnalysisId?: string };
     };
     const section = parsed.section;
-    const siteAnalysisId =
-      parsed.siteAnalysisId || section?.siteAnalysisId || "";
-    if (!section || !siteAnalysisId) return null;
+    const siteAnalysisProfileId = crawlIdFromUnknown(parsed);
+    if (!section || !siteAnalysisProfileId) return null;
     if (!section.relatedPages?.length) return null;
     const gapSectionPath =
       parsed.gapSectionPath ?? section.gapSectionPath ?? null;
     return {
-      siteAnalysisId,
+      siteAnalysisProfileId,
       gapTopic: parsed.gapTopic || section.gapTopic || "",
       gapReason: parsed.gapReason ?? null,
       gapSectionPath,
       projectUrl: parsed.projectUrl,
       section: {
         ...section,
-        siteAnalysisId: section.siteAnalysisId || siteAnalysisId,
+        siteAnalysisProfileId: section.siteAnalysisProfileId || siteAnalysisProfileId,
         gapSectionPath: section.gapSectionPath ?? gapSectionPath,
       },
       curatedSerp: parsed.curatedSerp ?? null,
@@ -64,7 +78,7 @@ export function clearSiteSectionHandoff(): void {
 /** Body shape GeekAPI CreateCreate expects for siteSection. */
 export function siteSectionForApi(section: SiteSectionContext) {
   return {
-    siteAnalysisId: section.siteAnalysisId,
+    siteAnalysisProfileId: section.siteAnalysisProfileId,
     gapTopic: section.gapTopic,
     gapSectionPath: section.gapSectionPath,
     relatedPages: section.relatedPages.map((p) => ({
@@ -84,8 +98,6 @@ export const WORKFLOW_CLIENT_HANDOFF_KEY = "gcc.workflowClientHandoff";
 export type WorkflowClientHandoff = {
   clientId: string;
   domain: string;
-  /** Optional GCC poll/report handle (content_creator.gcc_site_analyses.Id). */
-  siteAnalysisId?: string;
   /** Required for hierarchy grounding: geek_seo.site_analysis_profiles.Id */
   siteAnalysisProfileId: string;
 };
@@ -99,7 +111,6 @@ export function readWorkflowClientHandoff(): WorkflowClientHandoff | null {
     return {
       clientId: parsed.clientId,
       domain: parsed.domain || "",
-      siteAnalysisId: parsed.siteAnalysisId || undefined,
       siteAnalysisProfileId: parsed.siteAnalysisProfileId,
     };
   } catch {

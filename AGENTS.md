@@ -30,6 +30,8 @@ profile types. The durable crawl key is **`geek_seo.site_analysis_profiles.Id`**
 
 - Handoff / project field: `siteAnalysisProfileId` → that column only.
 - Trees FK: `site_analysis_page_section_trees."SiteAnalysisProfileId"` = same GUID.
-- Optional `siteAnalysisId` = `content_creator.gcc_site_analyses.Id` (poll/report only), not the match key.
+- Analyze does not use `gcc_site_analyses`. After persist, load pages/gaps by
+  `site_analysis_profiles.Id` (hub complete event or crawl list). Open Workflow with
+  `?siteAnalysisProfileId=`.
 - Hierarchy match: SQL on **page section trees** (`TreeJson`), never treat **page-contexts**
   (`ContextJson` / legacy misnamed `page-section-trees` endpoint) as trees for match.

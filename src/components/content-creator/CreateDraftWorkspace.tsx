@@ -26,6 +26,7 @@ import {
   type GccSeoReport,
   type GccStaleGroundingError,
 } from "@/services/gcc-api";
+import { connectThroughCoverageHub } from "@/services/site-analysis-hub";
 
 export default function CreateDraftWorkspace({ createId }: { createId: string }) {
   const [detail, setDetail] = useState<GccCreateDetail | null>(null);
@@ -142,7 +143,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
   const canGenerate = briefFormComplete && briefReady;
   // Site Analyzer handoff creates require relatedPages; domain-only grounding does not.
   const saMissingPages =
-    !!detail.siteAnalysisId &&
+    !!detail.siteAnalysisProfileId &&
     !!siteSection &&
     !siteSection.relatedPages.length;
 
@@ -189,27 +190,24 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
     if (!stalePrompt?.domain) return;
     setReanalyzing(true);
     setGenerateMsg(null);
+    const ac = new AbortController();
     try {
+      const hub = await connectThroughCoverageHub({
+        signal: ac.signal,
+        onProgress: () => {},
+      });
       const res = await fetch("/api/site-analyzer/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain: stalePrompt.domain, force: true }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || "Re-analyze failed");
-
-      let status = String(body.status || "").toLowerCase();
-      const deadline = Date.now() + 5 * 60_000;
-      while (status === "processing" && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 3000));
-        const pollRes = await fetch(`/api/site-analyzer/${body.id}`);
-        const pollBody = await pollRes.json().catch(() => ({}));
-        if (!pollRes.ok) throw new Error(pollBody.error || "Site analysis check failed");
-        status = String(pollBody.status || "").toLowerCase();
+      if (!res.ok) {
+        ac.abort();
+        await hub.done.catch(() => {});
+        throw new Error(body.error || "Re-analyze failed");
       }
-      if (status !== "ready") {
-        throw new Error(status === "failed" ? "Re-analyze failed" : "Re-analyze still running — try Generate again shortly");
-      }
+      await hub.done;
       setStalePrompt(null);
       await reload();
       await runGenerate(false);
@@ -235,7 +233,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
           Create {detail.id}
           {briefReady ? " · brief saved" : " · brief missing"}
           {researchReady ? " · research saved" : ""}
-          {detail.siteAnalysisId ? " · Site Analyzer" : ""}
+          {detail.siteAnalysisProfileId ? " · Site Analyzer" : ""}
         </p>
       </div>
 
@@ -250,6 +248,7 @@ export default function CreateDraftWorkspace({ createId }: { createId: string })
 
         <ContentBriefPanel
           clientId={detail.clientId}
+          siteAnalysisProfileId={detail.siteAnalysisProfileId ?? undefined}
           targetKeyword={detail.topic}
           createId={createId}
           startingContentType={detail.startingContentType ?? undefined}

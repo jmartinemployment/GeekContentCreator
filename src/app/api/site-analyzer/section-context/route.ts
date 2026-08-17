@@ -9,17 +9,17 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const analysisId = searchParams.get("analysisId");
+  const siteAnalysisProfileId = searchParams.get("siteAnalysisProfileId") ?? searchParams.get("analysisId");
   const gapTopic = searchParams.get("gapTopic");
-  if (!analysisId || !gapTopic) {
+  if (!siteAnalysisProfileId || !gapTopic) {
     return NextResponse.json(
-      { error: "analysisId and gapTopic required" },
+      { error: "siteAnalysisProfileId and gapTopic required" },
       { status: 400 },
     );
   }
 
   const res = await fetch(
-    `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/${analysisId}/section-context?gapTopic=${encodeURIComponent(gapTopic)}`,
+    `${apiConfig.baseUrl}/api/geek-content-creator/site-analyzer/${encodeURIComponent(siteAnalysisProfileId)}/section-context?gapTopic=${encodeURIComponent(gapTopic)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",

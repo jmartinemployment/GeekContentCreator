@@ -42,7 +42,6 @@ export default function HierarchyContextPanel({
   projectId,
   targetKeyword,
   siteAnalysisProfileId,
-  siteAnalysisId,
   initialPath,
   initialChildren: _initialChildren,
   initialSourcePageUrl,
@@ -54,8 +53,6 @@ export default function HierarchyContextPanel({
   targetKeyword: string;
   /** geek_seo.site_analysis_profiles.Id — required for SQL hierarchy match. */
   siteAnalysisProfileId: string | null;
-  /** Optional GCC poll/report id only. */
-  siteAnalysisId: string | null;
   initialPath: string | null;
   initialChildren: string[];
   initialSourcePageUrl: string | null;
@@ -94,7 +91,6 @@ export default function HierarchyContextPanel({
         hierarchyAssignmentMarkdown: next?.assignmentMarkdown ?? null,
         hierarchySourcePageUrl: next?.sourcePageUrl ?? null,
         allowOutsideSiteScope: next ? false : outside,
-        siteAnalysisId: siteAnalysisId ?? undefined,
         siteAnalysisProfileId: siteAnalysisProfileId ?? undefined,
       });
       if (next) setAllowOutside(false);

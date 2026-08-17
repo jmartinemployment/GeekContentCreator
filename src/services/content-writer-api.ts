@@ -103,7 +103,6 @@ export function createProject(input: {
   department: string;
   preferredProvider: LlmProviderType;
   useExactKeywordAsTitle?: boolean;
-  siteAnalysisId?: string | null;
   /** geek_seo.site_analysis_profiles.Id */
   siteAnalysisProfileId?: string | null;
 }): Promise<ProjectSummary> {
@@ -117,7 +116,6 @@ export function createProject(input: {
       department: input.department,
       preferredProvider: input.preferredProvider,
       useExactKeywordAsTitle: input.useExactKeywordAsTitle ?? false,
-      siteAnalysisId: input.siteAnalysisId ?? null,
       siteAnalysisProfileId: input.siteAnalysisProfileId ?? null,
     }),
   });
@@ -148,7 +146,6 @@ export function updateProjectHierarchyContext(
     hierarchyChildHeadings: string[];
     hierarchySourcePageUrl: string | null;
     allowOutsideSiteScope: boolean;
-    siteAnalysisId?: string | null;
     siteAnalysisProfileId?: string | null;
     hierarchyToolsByHeading?: Array<{ heading: string; tools: Array<{ name: string; href?: string }> }>;
     hierarchyAssignmentMarkdown?: string | null;
@@ -161,7 +158,6 @@ export function updateProjectHierarchyContext(
       hierarchyChildHeadings: input.hierarchyChildHeadings,
       hierarchySourcePageUrl: input.hierarchySourcePageUrl,
       allowOutsideSiteScope: input.allowOutsideSiteScope,
-      siteAnalysisId: input.siteAnalysisId ?? null,
       siteAnalysisProfileId: input.siteAnalysisProfileId ?? null,
       hierarchyToolsByHeading: input.hierarchyToolsByHeading ?? [],
       hierarchyAssignmentMarkdown: input.hierarchyAssignmentMarkdown ?? null,

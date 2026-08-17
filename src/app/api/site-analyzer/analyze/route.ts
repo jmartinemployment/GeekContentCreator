@@ -35,12 +35,5 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!analysis?.id) {
-    return NextResponse.json(
-      { error: "Analyze response missing analysis id" },
-      { status: 502 },
-    );
-  }
-
   return NextResponse.json(analysis);
 }

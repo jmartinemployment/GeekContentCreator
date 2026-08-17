@@ -11,9 +11,7 @@ import { SiteHeadingHierarchy } from "@/components/SiteHeadingHierarchy";
 import { createGccCreate, createGccClient, getGccClientByName, ApiError } from "@/services/gcc-api";
 import { getClients } from "@/services/content-writer-api";
 import type { Client } from "@/lib/types";
-
-const POLL_MS = 2500;
-const MAX_WAIT_MS = 15 * 60 * 1000;
+import { connectThroughCoverageHub } from "@/services/site-analysis-hub";
 const SHOW_GAP_GENERATE_BUTTON = false; // Site Analyzer currently only returns headings without matching pages (missing-page gaps). Generate is disabled pending Workflow rebuild. Flip this line if gap types expand to include real content gaps.
 
 type SiteAnalysisProfileListItem = {
@@ -74,9 +72,9 @@ function treesToSitePages(
   return pages;
 }
 
-async function downloadSitemap(analysisId: string): Promise<void> {
+async function downloadSitemap(siteAnalysisProfileId: string): Promise<void> {
   const response = await fetch(
-    `/api/site-analyzer/${encodeURIComponent(analysisId)}/sitemap`,
+    `/api/site-analyzer/${encodeURIComponent(siteAnalysisProfileId)}/sitemap`,
   );
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -168,7 +166,7 @@ export function SiteAnalyzerClient() {
   const router = useRouter();
   const { unlockWorkflow } = useWorkflowGate();
   const [domain, setDomain] = useState("");
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [siteAnalysisProfileId, setSiteAnalysisProfileId] = useState<string | null>(null);
   const [gaps, setGaps] = useState<ContentGap[]>([]);
   const [selectedGapId, setSelectedGapId] = useState<string | null>(null);
   const [section, setSection] = useState<SiteSectionContext | null>(null);
@@ -188,7 +186,6 @@ export function SiteAnalyzerClient() {
   const [profiles, setProfiles] = useState<SiteAnalysisProfileListItem[]>([]);
   const [profilesError, setProfilesError] = useState<string | null>(null);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
-  const [siteAnalysisProfileId, setSiteAnalysisProfileId] = useState<string | null>(null);
   const [loadingTrees, setLoadingTrees] = useState(false);
 
   // For hierarchy helpers that still need a pages array (use AFTER when available, else BEFORE)
@@ -269,83 +266,44 @@ export function SiteAnalyzerClient() {
     };
   }, [domain]);
 
-  async function pollUntilDone(id: string, signal: AbortSignal) {
-    const started = Date.now();
-    while (!signal.aborted) {
-      if (Date.now() - started > MAX_WAIT_MS) {
-        throw new Error("Site analysis timed out after 15 minutes.");
-      }
-      const res = await fetch(`/api/site-analyzer/${encodeURIComponent(id)}`, {
-        signal,
-        cache: "no-store",
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body.error || "Could not poll site analysis");
-      }
-
-      const status = String(body.status || body.Status || "").toLowerCase();
-      if (body.step || body.stepNumber) {
-        const n = body.stepNumber ?? "";
-        const total = body.totalSteps ?? "";
-        setStepLabel(
-          body.step
-            ? `Step ${n}${total ? `/${total}` : ""}: ${body.step}`
-            : `Step ${n}${total ? `/${total}` : ""}`,
-        );
-      }
-
-      if (status === "ready") {
-        const rawGaps = (body.gaps ?? body.Gaps ?? []) as Record<string, unknown>[];
-        // REPORT 1 — BEFORE ANY PROCESSING WHATSOEVER: raw pages as held inside Geek Content Creator context, before any normalizeGap/processing
-        const pagesNow = (body.pages ?? body.Pages ?? []) as NonNullable<SiteAnalysis["pages"]>;
-        setReportBefore(pagesNow);
-        setReportAfter(pagesNow);
-        setGaps(rawGaps.map(normalizeGap));
-        setStepLabel(null);
-
-        const seoProfileId = String(
-          body.seoProfileId ?? body.SeoProfileId ?? body.siteAnalysisProfileId ?? "",
-        ).trim();
-        if (seoProfileId) setSiteAnalysisProfileId(seoProfileId);
-
-        // Resolve domain → client and write Workflow handoff (site_analysis_profiles.Id required)
-        try {
-          const domainTrimmed = domain.trim();
-          let resolvedClientId: string | null = null;
-
-          const existing = await getGccClientByName(domainTrimmed);
-          if (existing) {
-            resolvedClientId = existing.id;
-          } else {
-            const created = await createGccClient({ name: domainTrimmed });
-            resolvedClientId = created.id;
-          }
-
-          if (resolvedClientId && seoProfileId) {
-            writeWorkflowClientHandoff({
-              clientId: resolvedClientId,
-              domain: domainTrimmed,
-              siteAnalysisId: id,
-              siteAnalysisProfileId: seoProfileId,
-            });
-          } else if (!seoProfileId) {
-            console.error("Ready analysis missing seoProfileId (site_analysis_profiles.Id)");
-          }
-        } catch (e) {
-          console.error("Failed to resolve Workflow client:", e);
-        }
-
-        unlockWorkflow();
-        return;
-      }
-      if (status === "failed") {
-        throw new Error(body.error || "Site analysis failed.");
-      }
-
-      await new Promise((r) => setTimeout(r, POLL_MS));
+  async function applyFinishedCrawl(profileId: string) {
+    const res = await fetch(`/api/site-analyzer/${encodeURIComponent(profileId)}`, {
+      cache: "no-store",
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error || "Could not load crawl");
     }
-    throw new Error("Analysis cancelled.");
+
+    const rawGaps = (body.gaps ?? body.Gaps ?? []) as Record<string, unknown>[];
+    const pagesNow = (body.pages ?? body.Pages ?? []) as NonNullable<SiteAnalysis["pages"]>;
+    setReportBefore(pagesNow);
+    setReportAfter(pagesNow);
+    setGaps(rawGaps.map(normalizeGap));
+    setStepLabel(null);
+    setSiteAnalysisProfileId(profileId);
+
+    const domainTrimmed = domain.trim();
+    let resolvedClientId: string | null = null;
+    try {
+      const existing = await getGccClientByName(domainTrimmed);
+      if (existing) {
+        resolvedClientId = existing.id;
+      } else {
+        const created = await createGccClient({ name: domainTrimmed });
+        resolvedClientId = created.id;
+      }
+      if (resolvedClientId) {
+        writeWorkflowClientHandoff({
+          clientId: resolvedClientId,
+          domain: domainTrimmed,
+          siteAnalysisProfileId: profileId,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to resolve Workflow client:", e);
+    }
+    unlockWorkflow();
   }
 
   function analyze() {
@@ -354,7 +312,7 @@ export function SiteAnalyzerClient() {
     setSelectedGapId(null);
     setSection(null);
     setCuratedSerp(null);
-    setAnalysisId(null);
+    setSiteAnalysisProfileId(null);
     setStepLabel(null);
     setReportBefore(null);
     setReportAfter([]);
@@ -363,7 +321,6 @@ export function SiteAnalyzerClient() {
     abortRef.current = ac;
     setAnalyzing(true);
 
-    // REPORT 1 — BEFORE ANY PROCESSING WHATSOEVER: produced inside Geek Content Creator context, no backend call
     const beforeDomain = domain.trim();
     if (beforeDomain) {
       const normalizedUrl = beforeDomain.startsWith("http") ? beforeDomain : `https://${beforeDomain}`;
@@ -380,26 +337,31 @@ export function SiteAnalyzerClient() {
 
     startTransition(async () => {
       try {
+        const hub = await connectThroughCoverageHub({
+          signal: ac.signal,
+          onProgress: (p) => {
+            if (p.stepNumber || p.step) {
+              setStepLabel(
+                p.step
+                  ? `Step ${p.stepNumber}${p.totalSteps ? `/${p.totalSteps}` : ""}: ${p.step}`
+                  : `Step ${p.stepNumber}${p.totalSteps ? `/${p.totalSteps}` : ""}`,
+              );
+            }
+          },
+        });
         const res = await fetch("/api/site-analyzer/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             domain,
-            // Content Creator always starts a new crawl — never reuse a ready/cached analysis.
             force: true,
           }),
           signal: ac.signal,
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Could not start site analysis");
-        if (!body.id) throw new Error("Analyze response missing analysis id");
-
-        setAnalysisId(body.id);
-        const startProfileId = String(
-          body.seoProfileId ?? body.SeoProfileId ?? body.siteAnalysisProfileId ?? "",
-        ).trim();
-        if (startProfileId) setSiteAnalysisProfileId(startProfileId);
-        await pollUntilDone(body.id, ac.signal);
+        const profileId = await hub.done;
+        await applyFinishedCrawl(profileId);
       } catch (e) {
         if (ac.signal.aborted) return;
         setError(e instanceof Error ? e.message : "Site analysis failed");
@@ -461,7 +423,6 @@ export function SiteAnalyzerClient() {
         writeWorkflowClientHandoff({
           clientId: resolvedClientId,
           domain: domainTrimmed,
-          siteAnalysisId: analysisId || undefined,
           siteAnalysisProfileId: id,
         });
       }
@@ -478,11 +439,11 @@ export function SiteAnalyzerClient() {
     setSelectedGapId(gap.id);
     setSection(null);
     setCuratedSerp(null);
-    if (!analysisId) return;
+    if (!siteAnalysisProfileId) return;
     startTransition(async () => {
       try {
         const res = await fetch(
-          `/api/site-analyzer/section-context?analysisId=${encodeURIComponent(analysisId)}&gapTopic=${encodeURIComponent(gap.topic)}`,
+          `/api/site-analyzer/section-context?siteAnalysisProfileId=${encodeURIComponent(siteAnalysisProfileId)}&gapTopic=${encodeURIComponent(gap.topic)}`,
         );
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Section context failed");
@@ -498,7 +459,7 @@ export function SiteAnalyzerClient() {
   }
 
   async function doCreate() {
-    if (!analysisId || !selectedGap || !section) return;
+    if (!siteAnalysisProfileId || !selectedGap || !section) return;
     if (!clientId) {
       setError("Select a client before starting a create.");
       return;
@@ -514,7 +475,7 @@ export function SiteAnalyzerClient() {
       const gapReason = selectedGap.reason?.trim() || null;
       const normalizedSection: SiteSectionContext = {
         ...section,
-        siteAnalysisId: section.siteAnalysisId || analysisId,
+        siteAnalysisProfileId: section.siteAnalysisProfileId || siteAnalysisProfileId,
         gapTopic: section.gapTopic || selectedGap.topic,
         gapSectionPath: section.gapSectionPath ?? gapSectionPath,
       };
@@ -522,7 +483,7 @@ export function SiteAnalyzerClient() {
         clientId,
         topic: selectedGap.topic,
         notes: gapReason,
-        siteAnalysisId: analysisId,
+        siteAnalysisProfileId: siteAnalysisProfileId,
         siteSection: normalizedSection,
         department,
       });
@@ -546,13 +507,13 @@ export function SiteAnalyzerClient() {
   const busy = pending || analyzing || creating;
 
   function startCreate() {
-    if (!analysisId || !selectedGap || !section) return;
+    if (!siteAnalysisProfileId || !selectedGap || !section) return;
     if (!clientId) {
       setError("Select a client before starting a create.");
       return;
     }
-    // Disabled until Site Analyzer run — now a run exists (analysisId+gap+section), ask if new run needed.
-    if (analysisId && selectedGap && section && clients.length > 0) {
+    // Disabled until Site Analyzer run — now a run exists (siteAnalysisProfileId+gap+section), ask if new run needed.
+    if (siteAnalysisProfileId && selectedGap && section && clients.length > 0) {
       setShowReuseConfirm(true);
       return;
     }
@@ -652,13 +613,13 @@ export function SiteAnalyzerClient() {
 
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
-      {analysisId ? (
+      {siteAnalysisProfileId ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs text-[var(--gcc-muted)]">Analysis {analysisId}</p>
+          <p className="text-xs text-[var(--gcc-muted)]">Analysis {siteAnalysisProfileId}</p>
           <button
             type="button"
             onClick={() => {
-              downloadSitemap(analysisId).catch((err) => {
+              downloadSitemap(siteAnalysisProfileId).catch((err) => {
                 setError(err instanceof Error ? err.message : "Sitemap download failed.");
               });
             }}
@@ -893,11 +854,11 @@ export function SiteAnalyzerClient() {
                         <>
                           <button
                             type="button"
-                            disabled={busy || !clientId || !analysisId || !selectedGap || !section || creating}
+                            disabled={busy || !clientId || !siteAnalysisProfileId || !selectedGap || !section || creating}
                             onClick={() => void startCreate()}
                             className="mt-3 rounded-md bg-[var(--gcc-teal)] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                             title={
-                              !analysisId || !selectedGap || !section
+                              !siteAnalysisProfileId || !selectedGap || !section
                                 ? "Run Site Analyzer and select a gap to enable"
                                 : !clientId
                                   ? "Select a client"
@@ -956,7 +917,7 @@ export function SiteAnalyzerClient() {
             );
           })}
         </ul>
-      ) : !analysisId ? (
+      ) : !siteAnalysisProfileId ? (
         <div className="rounded-md border border-dashed border-[var(--gcc-line)] bg-white px-4 py-6 text-center">
           <p className="text-sm text-[var(--gcc-muted)]">No Site Analyzer run yet — run Analyze to enable Create.</p>
           <button
@@ -969,7 +930,7 @@ export function SiteAnalyzerClient() {
           </button>
         </div>
       ) : null}
-      {gaps.length === 0 && analysisId && !busy && !error ? (
+      {gaps.length === 0 && siteAnalysisProfileId && !busy && !error ? (
         <p className="text-xs text-amber-700">Site Analyzer ran but produced no gaps — try a different domain or seed topic.</p>
       ) : null}
     </div>

@@ -27,6 +27,11 @@ export const authConfig = {
 
 export const apiConfig = {
   baseUrl: geekApiUrl,
+  seoHubUrl:
+    (process.env.NEXT_PUBLIC_SEO_HUB_URL ?? "https://seo-api.geekatyourspot.com/hubs/seo-realtime").replace(
+      /\/$/,
+      "",
+    ),
 };
 
 export const LLM_PROVIDERS = ["OpenAi", "Anthropic"] as const;

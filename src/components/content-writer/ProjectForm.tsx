@@ -39,14 +39,12 @@ export default function ProjectForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [siteAnalysisProfileId, setSiteAnalysisProfileId] = useState<string | null>(null);
-  const [siteAnalysisId, setSiteAnalysisId] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQs = qsSiteAnalysisProfileId();
     const handoff = readWorkflowClientHandoff();
     const profileId = fromQs || handoff?.siteAnalysisProfileId || null;
     setSiteAnalysisProfileId(profileId);
-    setSiteAnalysisId(handoff?.siteAnalysisId ?? null);
     if (handoff?.domain && !projectUrl) {
       const domain = handoff.domain.startsWith("http")
         ? handoff.domain
@@ -90,7 +88,6 @@ export default function ProjectForm({
         department,
         preferredProvider,
         useExactKeywordAsTitle,
-        siteAnalysisId: siteAnalysisId ?? handoff?.siteAnalysisId ?? null,
         siteAnalysisProfileId: profileId,
       });
       onCreated(project);
@@ -109,7 +106,7 @@ export default function ProjectForm({
       <h2 className="text-lg font-semibold text-foreground">New Project</h2>
       <p className="mt-1 text-sm text-muted">
         Enter the client site URL and the primary keyword. Hierarchy match uses
-        site_analysis_profiles.Id from Site Analyzer handoff (query string overrides storage).
+        site_analysis_profiles.Id from the query string (Site Analyzer Open Workflow).
       </p>
       {siteAnalysisProfileId ? (
         <p className="mt-2 break-all text-xs text-muted">

@@ -14,7 +14,7 @@ export type RelatedPage = {
 };
 
 export type SiteSectionContext = {
-  siteAnalysisId: string;
+  siteAnalysisProfileId: string;
   gapTopic: string;
   gapSectionPath: string | null;
   relatedPages: RelatedPage[];
@@ -35,7 +35,7 @@ export type GccCreate = {
   startingContentType: string | null;
   topic: string;
   notes: string | null;
-  siteAnalysisId: string | null;
+  siteAnalysisProfileId: string | null;
   siteSectionJson: string | null;
   briefJson: string | null;
   researchJson: string | null;
@@ -129,7 +129,6 @@ export type SiteAnalysis = {
   gaps?: ContentGap[];
   error?: string;
   seoProjectId?: string;
-  seoProfileId?: string;
   step?: string;
   stepNumber?: number;
   totalSteps?: number;
@@ -239,7 +238,6 @@ export interface ProjectSummary {
   preferredProvider: LlmProviderType;
   useExactKeywordAsTitle: boolean;
   createdAtUtc: string;
-  siteAnalysisId?: string | null;
   /** geek_seo.site_analysis_profiles.Id — hierarchy SQL match key (not a generic "Profile Id"). */
   siteAnalysisProfileId?: string | null;
 }

@@ -110,8 +110,6 @@ export default function WorkflowProjectPage() {
     project.siteAnalysisProfileId ??
     readWorkflowClientHandoff()?.siteAnalysisProfileId ??
     null;
-  const siteAnalysisId =
-    project.siteAnalysisId ?? readWorkflowClientHandoff()?.siteAnalysisId ?? null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -132,7 +130,6 @@ export default function WorkflowProjectPage() {
           projectId={project.id}
           targetKeyword={project.targetKeyword}
           siteAnalysisProfileId={siteAnalysisProfileId}
-          siteAnalysisId={siteAnalysisId}
           initialPath={project.hierarchyPath ?? null}
           initialChildren={project.hierarchyChildHeadings ?? []}
           initialSourcePageUrl={project.hierarchySourcePageUrl ?? null}
@@ -143,7 +140,7 @@ export default function WorkflowProjectPage() {
 
         <ContentBriefPanel
           clientId={project.clientId}
-          siteAnalysisId={siteAnalysisId ?? undefined}
+          siteAnalysisProfileId={siteAnalysisProfileId ?? undefined}
           targetKeyword={project.targetKeyword}
           createId={project.linkedCreateId ?? undefined}
           projectId={project.id}

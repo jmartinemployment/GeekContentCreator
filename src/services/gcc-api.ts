@@ -25,7 +25,7 @@ export interface GccCreate {
   topic: string;
   notes: string | null;
   department?: string;
-  siteAnalysisId: string | null;
+  siteAnalysisProfileId: string | null;
   siteSectionJson: string | null;
   briefJson: string | null;
   researchJson: string | null;
@@ -69,13 +69,13 @@ export function createGccCreate(input: {
   startingContentType?: string | null;
   topic: string;
   notes?: string | null;
-  siteAnalysisId?: string | null;
+  siteAnalysisProfileId?: string | null;
   siteSection?: SiteSectionContext | null;
   department?: string | null;
 }): Promise<GccCreate> {
-  const siteAnalysisId = input.siteAnalysisId ?? null;
+  const siteAnalysisProfileId = input.siteAnalysisProfileId ?? null;
   const siteSection = input.siteSection ?? null;
-  // Site Analyzer handoff path requires relatedPages; domain-only grounding (analysis id,
+  // Site Analyzer handoff path requires relatedPages; domain-only grounding (crawl id,
   // no section) is allowed — Generate uses trees for "must mention", not relatedPages.
   if (siteSection && (!siteSection.relatedPages || siteSection.relatedPages.length === 0)) {
     throw new ApiError(
@@ -90,7 +90,7 @@ export function createGccCreate(input: {
       startingContentType: input.startingContentType ?? null,
       topic: input.topic,
       notes: input.notes ?? null,
-      siteAnalysisId,
+      siteAnalysisProfileId,
       siteSection: siteSection ? siteSectionForApi(siteSection) : null,
       department: input.department?.trim() || "marketing",
     }),
@@ -113,9 +113,15 @@ export function parseSiteSectionJson(
 ): SiteSectionContext | null {
   if (!json?.trim()) return null;
   try {
-    const parsed = JSON.parse(json) as SiteSectionContext;
+    const parsed = JSON.parse(json) as SiteSectionContext & {
+      siteAnalysisId?: string;
+    };
     if (!parsed.relatedPages?.length) return null;
-    return parsed;
+    return {
+      ...parsed,
+      siteAnalysisProfileId:
+        parsed.siteAnalysisProfileId || parsed.siteAnalysisId || "",
+    };
   } catch {
     return null;
   }
@@ -171,7 +177,7 @@ export interface GccStaleGroundingError {
   analysisAgeDays: number;
   staleAfterDays: number;
   domain: string;
-  siteAnalysisId: string;
+  siteAnalysisProfileId?: string;
 }
 
 export interface GccGenerateResult {
