@@ -8,6 +8,7 @@ import HierarchyContextPanel, {
 } from "@/components/content-writer/HierarchyContextPanel";
 import ContentBriefPanel from "@/components/content-creator/ContentBriefPanel";
 import ContentResults from "@/components/content-writer/ContentResults";
+import ToolsFromNamesPanel from "@/components/content-writer/ToolsFromNamesPanel";
 import ReviewPublishPanel from "@/components/content-writer/ReviewPublishPanel";
 import { useWorkflowGate, workflowHref } from "@/components/WorkflowGate";
 import { getProject } from "@/services/content-writer-api";
@@ -150,6 +151,8 @@ export default function WorkflowProjectPage() {
         {briefComplete ? null : (
           <p className="text-sm text-amber-700">Content Brief incomplete — Generate will use the saved brief on the linked create; complete the brief to ensure lede + body honor audience/angle/intent.</p>
         )}
+
+        <ToolsFromNamesPanel projectId={project.id} onGenerated={setGenerated} />
 
         <ContentResults
           projectId={project.id}

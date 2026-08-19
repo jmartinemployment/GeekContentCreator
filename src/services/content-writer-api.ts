@@ -263,16 +263,15 @@ export function generateToolsContent(
  */
 export function generateToolsFromNames(
   projectId: string,
-  input: { toolNames: string[]; brief: string; provider?: string },
+  input: { toolNames: string[]; brief?: string },
 ): Promise<GeneratedContentSet> {
   return request<GeneratedContentSet>(
-    `/api/geek-content-creator/projects/${projectId}/tools-from-names`,
+    `/api/projects/${projectId}/generate/tools-from-names`,
     {
       method: "POST",
       body: JSON.stringify({
         toolNames: input.toolNames,
         brief: input.brief,
-        provider: input.provider ?? "OpenAi",
       }),
     },
   );
