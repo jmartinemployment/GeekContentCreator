@@ -11,6 +11,7 @@ import type {
   ProjectDetail,
   ProjectSummary,
   ReviewVerdict,
+  ToolsGenerationJob,
 } from "@/lib/types";
 import { ApiError } from "./gcc-api";
 
@@ -248,24 +249,20 @@ export function generatePillarBodyContent(
   );
 }
 
-export function generateToolsContent(
+export function startToolsGeneration(
   projectId: string,
-): Promise<GeneratedContentSet> {
-  return request<GeneratedContentSet>(
+): Promise<ToolsGenerationJob> {
+  return request<ToolsGenerationJob>(
     `/api/projects/${projectId}/generate/tools`,
     { method: "POST" },
   );
 }
 
-/**
- * Content Creator addition: human tool names + brief → CWV2 tool prompts.
- * Does not require a pillar Tools section (POST …/generate/tools).
- */
-export function generateToolsFromNames(
+export function startToolsFromNamesGeneration(
   projectId: string,
   input: { toolNames: string[]; brief?: string },
-): Promise<GeneratedContentSet> {
-  return request<GeneratedContentSet>(
+): Promise<ToolsGenerationJob> {
+  return request<ToolsGenerationJob>(
     `/api/projects/${projectId}/generate/tools-from-names`,
     {
       method: "POST",
@@ -275,6 +272,66 @@ export function generateToolsFromNames(
       }),
     },
   );
+}
+
+export function getToolsGenerationJob(
+  projectId: string,
+  jobId: string,
+): Promise<ToolsGenerationJob> {
+  return request<ToolsGenerationJob>(
+    `/api/projects/${projectId}/generate/tools/jobs/${jobId}`,
+  );
+}
+
+async function waitForToolsJob(
+  projectId: string,
+  jobId: string,
+  onProgress?: (job: ToolsGenerationJob) => void,
+): Promise<GeneratedContentSet> {
+  const started = Date.now();
+  const maxMs = 60 * 60 * 1000;
+  for (;;) {
+    const job = await getToolsGenerationJob(projectId, jobId);
+    onProgress?.(job);
+    if (job.status === "ready") {
+      if (!job.contentSet) {
+        throw new ApiError("Tools job finished with no content set.", 502);
+      }
+      return job.contentSet;
+    }
+    if (job.status === "failed") {
+      throw new ApiError(job.error || "Tools generation failed.", 502);
+    }
+    if (Date.now() - started > maxMs) {
+      throw new ApiError(
+        "Tools generation is still running after an hour. Reload the project — finished pages may already be saved.",
+        504,
+      );
+    }
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+}
+
+/** Crawl tools: enqueue job, poll until ready (avoids Vercel proxy timeout). */
+export async function generateToolsContent(
+  projectId: string,
+  onProgress?: (job: ToolsGenerationJob) => void,
+): Promise<GeneratedContentSet> {
+  const started = await startToolsGeneration(projectId);
+  return waitForToolsJob(projectId, started.jobId, onProgress);
+}
+
+/**
+ * Names-only tools: enqueue job, poll until ready.
+ * Does not require a pillar Tools section.
+ */
+export async function generateToolsFromNames(
+  projectId: string,
+  input: { toolNames: string[]; brief?: string },
+  onProgress?: (job: ToolsGenerationJob) => void,
+): Promise<GeneratedContentSet> {
+  const started = await startToolsFromNamesGeneration(projectId, input);
+  return waitForToolsJob(projectId, started.jobId, onProgress);
 }
 
 /** Candidate tool names from pillar Tools section, existing tool drafts, and Desired Headings. */

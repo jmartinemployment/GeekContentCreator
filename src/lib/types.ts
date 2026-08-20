@@ -364,6 +364,17 @@ export interface CommitHtmlExportResult {
   filePaths: string[];
 }
 
+export interface ToolsGenerationJob {
+  jobId: string;
+  projectId: string;
+  kind: string;
+  status: "running" | "ready" | "failed" | string;
+  completed: number;
+  total: number;
+  error: string | null;
+  contentSet: GeneratedContentSet | null;
+}
+
 export interface GeneratedContentSet {
   article: ArticleDraft | null;
   articleSlug: string | null;

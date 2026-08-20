@@ -43,6 +43,7 @@ export default function ContentResults({
   const [activeTab, setActiveTab] = useState<Tab>("article");
   const [generatingStep, setGeneratingStep] = useState<GeneratingStep>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toolsProgress, setToolsProgress] = useState<string | null>(null);
 
   const hasPillarPlan = result?.article != null;
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
@@ -60,6 +61,7 @@ export default function ContentResults({
 
   async function runStep(step: GeneratingStep, action: () => Promise<GeneratedContentSet>) {
     setError(null);
+    setToolsProgress(null);
     setGeneratingStep(step);
     try {
       const next = await action();
@@ -84,6 +86,7 @@ export default function ContentResults({
       setError(message);
     } finally {
       setGeneratingStep(null);
+      setToolsProgress(null);
     }
   }
 
@@ -170,8 +173,21 @@ export default function ContentResults({
           disabled={!canGenerate || isGenerating}
           isRunning={generatingStep === "tools"}
           buttonLabel={hasTools ? "Regenerate tools" : "Generate tools"}
-          onClick={() => runStep("tools", () => generateToolsContent(projectId))}
+          onClick={() =>
+            runStep("tools", () =>
+              generateToolsContent(projectId, (job) => {
+                if (job.total > 0) {
+                  setToolsProgress(`${job.completed}/${job.total} tool pages`);
+                } else {
+                  setToolsProgress("Starting…");
+                }
+              }),
+            )
+          }
         />
+        {generatingStep === "tools" && toolsProgress ? (
+          <p className="text-xs text-muted">{toolsProgress}</p>
+        ) : null}
 
         <StepRow
           step={7}
