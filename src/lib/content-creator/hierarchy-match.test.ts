@@ -1,5 +1,6 @@
 import {
   findHierarchyMatches,
+  findDuplicateMatches,
   matchKeywordToHierarchy,
   normalizeHierarchyMatchesFromApi,
   parseHierarchyTools,
@@ -168,15 +169,23 @@ const adSpendPages = [
 ];
 
 const adSpend = findHierarchyMatches(adSpendPages, "Ad Spend Optimization");
-assertEqual(adSpend.length, 2, "www/bare-host duplicates collapse to 2 distinct sections");
+assertEqual(adSpend.length, 4, "duplicates are NOT collapsed - all matches are returned");
+assertEqual(
+  findDuplicateMatches(adSpend).length,
+  2,
+  "both duplicated sections are reported as crawl defects",
+);
 assertEqual(
   adSpend[0]?.matchedHeading,
   "Automated Ad Spend Optimization",
   "richest section ranks first, not the barren exact-slug heading",
 );
 assertEqual(adSpend[0]?.childHeadings.length, 5, "winning section keeps its child headings");
-assertEqual(adSpend[1]?.childHeadings.length, 1, "barren exact-slug section ranks last");
-assertEqual(adSpend[1]?.matchedHeading, "Ad Spend Optimization", "barren exact match is the loser");
+assertEqual(
+  adSpend[adSpend.length - 1]?.matchedHeading,
+  "Ad Spend Optimization",
+  "barren exact match ranks last",
+);
 
 // Regression: the exact API payload behind the "6 matches" screen. This is the path the
 // HierarchyContextPanel actually uses (normalizeHierarchyMatchesFromApi), which had no dedupe
@@ -226,13 +235,24 @@ const apiSix = normalizeHierarchyMatchesFromApi([
   ),
 ]);
 
-assertEqual(apiSix.length, 2, "6 API matches collapse to 2 distinct sections");
+assertEqual(apiSix.length, 6, "all 6 API matches are returned - nothing is hidden");
+const apiDupes = findDuplicateMatches(apiSix);
+assertEqual(apiDupes.length, 2, "two duplicated sections reported");
+assertEqual(
+  apiDupes.reduce((n, d) => n + d.count, 0),
+  6,
+  "every duplicate row is accounted for in the report",
+);
 assertEqual(
   apiSix[0]?.matchedHeading,
   "Automated Ad Spend Optimization",
   "4-child section outranks the 1-child exact-slug match",
 );
 assertEqual(apiSix[0]?.childHeadings.length, 4, "winner keeps its 4 child headings");
-assertEqual(apiSix[1]?.matchedHeading, "Ad Spend Optimization", "barren exact match ranks last");
+assertEqual(
+  apiSix[apiSix.length - 1]?.matchedHeading,
+  "Ad Spend Optimization",
+  "barren exact match ranks last",
+);
 
 console.log("hierarchy-match tests passed");

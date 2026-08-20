@@ -5,6 +5,8 @@ import {
   hierarchyMatchId,
   hierarchyMatchKindLabel,
   normalizeHierarchyMatchesFromApi,
+  findDuplicateMatches,
+  type DuplicateMatchGroup,
   type HierarchyMatch,
 } from "@/lib/content-creator/hierarchy-match";
 import { updateProjectHierarchyContext, ApiError } from "@/services/content-writer-api";
@@ -65,6 +67,7 @@ export default function HierarchyContextPanel({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [matches, setMatches] = useState<HierarchyMatch[]>([]);
+  const [duplicates, setDuplicates] = useState<DuplicateMatchGroup[]>([]);
   const [selected, setSelected] = useState<HierarchyMatch | null>(null);
   const [allowOutside, setAllowOutside] = useState(initialAllowOutside);
   const [persistError, setPersistError] = useState<string | null>(null);
@@ -147,6 +150,8 @@ export default function HierarchyContextPanel({
         const nextMatches = normalizeHierarchyMatchesFromApi(body);
         if (cancelled) return;
         setMatches(nextMatches);
+        // Duplicates are a crawl defect, not something to collapse quietly.
+        setDuplicates(findDuplicateMatches(nextMatches));
         const nextSelected = pickInitial(nextMatches, initialPath, initialSourcePageUrl);
         setSelected(nextSelected);
 
@@ -211,6 +216,27 @@ export default function HierarchyContextPanel({
       {loading ? <p className="mt-4 text-sm text-muted">Loading hierarchy…</p> : null}
 
       {loadError ? <p className="mt-4 text-sm text-red-600">{loadError}</p> : null}
+
+      {duplicates.length > 0 ? (
+        <div className="mt-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          <p className="font-semibold">
+            Duplicate hierarchy matches — the crawl for this site_analysis_profiles.Id is wrong.
+          </p>
+          <p className="mt-1">
+            One section must produce one match. Duplicates mean the same page was stored under more
+            than one URL (rel=canonical not honoured), or more than one copy of the markup was
+            indexed. Re-crawl after the fix rather than picking one of these.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {duplicates.map((d) => (
+              <li key={d.path}>
+                <span className="font-medium">{d.path}</span> — {d.count} matches across{" "}
+                {d.sourcePageUrls.join(", ")}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {!loading && matches.length > 0 ? (
         <div className="mt-4 space-y-4 text-sm">
