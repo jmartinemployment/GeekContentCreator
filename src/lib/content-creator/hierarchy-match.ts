@@ -367,7 +367,9 @@ export function normalizeHierarchyMatchFromApi(raw: unknown): HierarchyMatch | n
   return {
     path: path.length > 0 ? path : matchedHeading ? [matchedHeading] : [],
     childHeadings,
-    toolsByHeading: [],
+    toolsByHeading: assignmentMarkdown
+      ? toolsInSlice(assignmentMarkdown, matchedHeading || path[path.length - 1] || "")
+      : [],
     assignmentMarkdown,
     sourcePageUrl,
     matchedHeading: matchedHeading || path[path.length - 1] || "",
