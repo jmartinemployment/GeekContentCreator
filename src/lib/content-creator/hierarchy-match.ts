@@ -242,8 +242,64 @@ function toMatch(
   };
 }
 
+/**
+ * Same page under `www.` and bare host, and the twin responsive copies of one section, are the
+ * same match. Normalize both axes so the list shows distinct sections, not crawl artefacts.
+ */
+function dedupeUrl(url: string): string {
+  const trimmed = (url || "").trim();
+  try {
+    const u = new URL(trimmed);
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = u.pathname.replace(/\/+$/, "");
+    return `${host}${path}`;
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, "")
+      .replace(/^www\./i, "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
+  }
+}
+
+function dedupePath(path: readonly string[]): string {
+  return path.map((p) => p.replace(/\s+/g, " ").trim().toLowerCase()).join("\0");
+}
+
 function matchKey(m: HierarchyMatch): string {
-  return `${m.sourcePageUrl}\0${m.path.join("\0")}\0${m.kind.startsWith("exact") ? "exact" : "contains"}`;
+  return `${dedupeUrl(m.sourcePageUrl)}\0${dedupePath(m.path)}\0${m.kind.startsWith("exact") ? "exact" : "contains"}`;
+}
+
+/**
+ * Collapse crawl artefacts and rank by substance.
+ *
+ * The same section arrives multiple times: once per hostname the crawl saw (`www.` and bare), and
+ * once per responsive copy of the markup. Those are one section, not six matches.
+ *
+ * Ranking puts child-heading count ahead of slug precision. An exact-slug heading with 1 child and
+ * no tools is not a better answer than a contains-slug heading with 4 children and 17 tools.
+ */
+export function dedupeAndRankMatches(matches: readonly HierarchyMatch[]): HierarchyMatch[] {
+  const byKey = new Map<string, HierarchyMatch>();
+  for (const m of matches) {
+    const key = `${dedupeUrl(m.sourcePageUrl)}\0${dedupePath(m.path)}`;
+    const prev = byKey.get(key);
+    if (
+      !prev ||
+      m.childHeadings.length > prev.childHeadings.length ||
+      (m.childHeadings.length === prev.childHeadings.length && KIND_RANK[m.kind] < KIND_RANK[prev.kind])
+    ) {
+      byKey.set(key, m);
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => {
+    const childDiff = b.childHeadings.length - a.childHeadings.length;
+    if (childDiff !== 0) return childDiff;
+    const rank = KIND_RANK[a.kind] - KIND_RANK[b.kind];
+    if (rank !== 0) return rank;
+    return a.path.join(" › ").localeCompare(b.path.join(" › "));
+  });
 }
 
 export function findHierarchyMatches(
@@ -259,12 +315,13 @@ export function findHierarchyMatches(
   const byKey = new Map<string, HierarchyMatch>();
 
   function consider(m: HierarchyMatch) {
-    const key = `${m.sourcePageUrl}\0${m.path.join("\0")}`;
+    const key = `${dedupeUrl(m.sourcePageUrl)}\0${dedupePath(m.path)}`;
     const prev = byKey.get(key);
     if (
       !prev ||
-      KIND_RANK[m.kind] < KIND_RANK[prev.kind] ||
-      (KIND_RANK[m.kind] === KIND_RANK[prev.kind] && m.childHeadings.length > prev.childHeadings.length)
+      // Richest copy wins first: a barren twin must never represent the section.
+      m.childHeadings.length > prev.childHeadings.length ||
+      (m.childHeadings.length === prev.childHeadings.length && KIND_RANK[m.kind] < KIND_RANK[prev.kind])
     ) {
       byKey.set(key, m);
     }
@@ -307,13 +364,7 @@ export function findHierarchyMatches(
     }
   }
 
-  return [...byKey.values()].sort((a, b) => {
-    const rank = KIND_RANK[a.kind] - KIND_RANK[b.kind];
-    if (rank !== 0) return rank;
-    const childDiff = b.childHeadings.length - a.childHeadings.length;
-    if (childDiff !== 0) return childDiff;
-    return a.path.join(" › ").localeCompare(b.path.join(" › "));
-  });
+  return dedupeAndRankMatches([...byKey.values()]);
 }
 
 export function matchKeywordToHierarchy(
@@ -379,7 +430,7 @@ export function normalizeHierarchyMatchFromApi(raw: unknown): HierarchyMatch | n
 
 export function normalizeHierarchyMatchesFromApi(body: unknown): HierarchyMatch[] {
   const arr = Array.isArray(body) ? body : [];
-  return arr
-    .map(normalizeHierarchyMatchFromApi)
-    .filter((m): m is HierarchyMatch => m !== null);
+  return dedupeAndRankMatches(
+    arr.map(normalizeHierarchyMatchFromApi).filter((m): m is HierarchyMatch => m !== null),
+  );
 }

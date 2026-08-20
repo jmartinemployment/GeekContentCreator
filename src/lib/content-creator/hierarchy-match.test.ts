@@ -93,4 +93,146 @@ assertEqual(
   "markdown matcher does not invent AI workflow on unrelated pages",
 );
 
+// Regression: the "6 matches" report for Ad Spend Optimization.
+// Same section crawled under www + bare host, and twin responsive copies, must collapse to one
+// entry per distinct section — and the richer section must outrank the barren exact-slug one.
+const adSpendPages = [
+  {
+    pageUrl: "https://www.geekatyourspot.com/use-cases/marketing/ai-marketing-systems",
+    markdown: `# AI Marketing Systems
+
+## Introduction to AI Marketing Systems
+
+### Ad Spend Optimization
+
+#### Predictive Analytics for Advertising
+`,
+  },
+  {
+    pageUrl: "https://geekatyourspot.com/use-cases/marketing/ai-marketing-systems",
+    markdown: `# AI Marketing Systems
+
+## Introduction to AI Marketing Systems
+
+### Ad Spend Optimization
+
+#### Predictive Analytics for Advertising
+`,
+  },
+  {
+    pageUrl: "https://www.geekatyourspot.com/",
+    markdown: `# Redefine Your Business
+
+## Artificial Intelligence Use Cases
+
+### Marketing
+
+#### Automated Ad Spend Optimization
+
+##### Dynamic Creative Optimization:
+
+###### Top AI Dynamic Optimization Tools:
+
+- [Omneky](/tools/marketing/omneky)
+
+##### Automated Rules & Bidding:
+
+##### Real-Time Budget Reallocation:
+
+##### Data Quality Assessments:
+`,
+  },
+  {
+    pageUrl: "https://geekatyourspot.com/",
+    markdown: `# Redefine Your Business
+
+## Artificial Intelligence Use Cases
+
+### Marketing
+
+#### Automated Ad Spend Optimization
+
+##### Dynamic Creative Optimization:
+
+###### Top AI Dynamic Optimization Tools:
+
+- [Omneky](/tools/marketing/omneky)
+
+##### Automated Rules & Bidding:
+
+##### Real-Time Budget Reallocation:
+
+##### Data Quality Assessments:
+`,
+  },
+];
+
+const adSpend = findHierarchyMatches(adSpendPages, "Ad Spend Optimization");
+assertEqual(adSpend.length, 2, "www/bare-host duplicates collapse to 2 distinct sections");
+assertEqual(
+  adSpend[0]?.matchedHeading,
+  "Automated Ad Spend Optimization",
+  "richest section ranks first, not the barren exact-slug heading",
+);
+assertEqual(adSpend[0]?.childHeadings.length, 5, "winning section keeps its child headings");
+assertEqual(adSpend[1]?.childHeadings.length, 1, "barren exact-slug section ranks last");
+assertEqual(adSpend[1]?.matchedHeading, "Ad Spend Optimization", "barren exact match is the loser");
+
+// Regression: the exact API payload behind the "6 matches" screen. This is the path the
+// HierarchyContextPanel actually uses (normalizeHierarchyMatchesFromApi), which had no dedupe
+// or ranking at all — it rendered whatever the API returned.
+const homePath = [
+  "Redefine Your Business",
+  "Artificial Intelligence Use Cases",
+  "Marketing",
+  "Automated Ad Spend Optimization",
+];
+const barrenPath = [
+  "AI Marketing Systems",
+  "Introduction to AI Marketing Systems",
+  "Ad Spend Optimization",
+];
+const apiSix = normalizeHierarchyMatchesFromApi([
+  {
+    path: barrenPath,
+    childHeadings: ["Predictive Analytics for Advertising"],
+    sourcePageUrl: "https://www.geekatyourspot.com/use-cases/marketing/ai-marketing-systems",
+    matchedHeading: "Ad Spend Optimization",
+    kind: "exact-heading",
+    assignmentMarkdown: "### Ad Spend Optimization\n",
+  },
+  {
+    path: barrenPath,
+    childHeadings: ["Predictive Analytics for Advertising"],
+    sourcePageUrl: "https://geekatyourspot.com/use-cases/marketing/ai-marketing-systems",
+    matchedHeading: "Ad Spend Optimization",
+    kind: "exact-heading",
+    assignmentMarkdown: "### Ad Spend Optimization\n",
+  },
+  ...["https://www.geekatyourspot.com/", "https://www.geekatyourspot.com/", "https://geekatyourspot.com/", "https://geekatyourspot.com/"].map(
+    (url) => ({
+      path: homePath,
+      childHeadings: [
+        "Dynamic Creative Optimization:",
+        "Automated Rules & Bidding:",
+        "Real-Time Budget Reallocation:",
+        "Data Quality Assessments:",
+      ],
+      sourcePageUrl: url,
+      matchedHeading: "Automated Ad Spend Optimization",
+      kind: "contains-heading" as const,
+      assignmentMarkdown: "#### Automated Ad Spend Optimization\n",
+    }),
+  ),
+]);
+
+assertEqual(apiSix.length, 2, "6 API matches collapse to 2 distinct sections");
+assertEqual(
+  apiSix[0]?.matchedHeading,
+  "Automated Ad Spend Optimization",
+  "4-child section outranks the 1-child exact-slug match",
+);
+assertEqual(apiSix[0]?.childHeadings.length, 4, "winner keeps its 4 child headings");
+assertEqual(apiSix[1]?.matchedHeading, "Ad Spend Optimization", "barren exact match ranks last");
+
 console.log("hierarchy-match tests passed");

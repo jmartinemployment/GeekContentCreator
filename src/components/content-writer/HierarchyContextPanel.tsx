@@ -35,7 +35,9 @@ function pickInitial(
     );
     if (saved) return saved;
   }
-  return matches[0] ?? null;
+  // No default selection: restoring a saved choice is fine, guessing one is not. Auto-picking
+  // matches[0] silently grounded writes on whichever node happened to sort first.
+  return null;
 }
 
 export default function HierarchyContextPanel({
