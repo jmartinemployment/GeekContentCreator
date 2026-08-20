@@ -67,7 +67,7 @@ export default function ContentResults({
       const next = await action();
       if ((step === "tools" || step === "all") && (next.toolPosts?.length ?? 0) === 0) {
         throw new ApiError(
-          "No tools in the crawl for this hierarchy match.",
+          "No tool links under this hierarchy match (or its parent headings). Pick a section that lists tools as links, or use Tool pages from names.",
           502,
         );
       }
