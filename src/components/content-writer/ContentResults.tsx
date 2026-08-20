@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   generateBlogContent,
   generateColdOutreachContent,
@@ -51,6 +51,12 @@ export default function ContentResults({
   const hasTools = (result?.toolPosts?.length ?? 0) > 0;
   const hasImagePrompts = (result?.imagePrompts?.sections?.length ?? 0) > 0;
   const isGenerating = generatingStep !== null;
+
+  useEffect(() => {
+    if (!result?.article && hasTools) {
+      setActiveTab("tools");
+    }
+  }, [result?.article, hasTools]);
 
   async function runStep(step: GeneratingStep, action: () => Promise<GeneratedContentSet>) {
     setError(null);
@@ -159,13 +165,12 @@ export default function ContentResults({
         <StepRow
           step={6}
           title="Tool documents"
-          description={`${CONTENT_LENGTH_TARGETS.tools.definition} Target ${CONTENT_LENGTH_TARGETS.tools.label} words — up to 5 pages from crawl tools for this hierarchy, each with SoftwareApplication JSON+LD.`}
+          description={`${CONTENT_LENGTH_TARGETS.tools.definition} Target ${CONTENT_LENGTH_TARGETS.tools.label} words — one page per unique crawl tool for this hierarchy (no cap of 5), plus a Top AI Tools hub. Pillar not required.`}
           done={hasTools}
-          disabled={!hasPillarBody || isGenerating}
+          disabled={!canGenerate || isGenerating}
           isRunning={generatingStep === "tools"}
           buttonLabel={hasTools ? "Regenerate tools" : "Generate tools"}
           onClick={() => runStep("tools", () => generateToolsContent(projectId))}
-          lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
         />
 
         <StepRow
@@ -235,11 +240,12 @@ export default function ContentResults({
         </p>
       )}
 
-      {result?.article && (
+      {result && (result.article || (result.toolPosts?.length ?? 0) > 0) && (
         <div className="mt-6">
           <div className="flex gap-1 border-b border-border">
             {TABS.map((tab) => {
               const unavailable =
+                (tab.id === "article" && !result.article) ||
                 (tab.id === "blog" && !result.blog) ||
                 ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
                 (tab.id === "cold-outreach" && !result.coldOutreachEmail) ||
@@ -249,7 +255,9 @@ export default function ContentResults({
                 tab.id === "image-prompts" && (result.imagePrompts?.sections?.length ?? 0) === 0
                   ? "Run Step 7 (Generate prompts) first"
                   : tab.id === "tools" && (result.toolPosts?.length ?? 0) === 0
-                  ? "Run Step 6 (Generate tools) first"
+                  ? "Run Step 6 or Tool pages from names first"
+                  : tab.id === "article" && !result.article
+                  ? "Run Step 1–2, or generate tools only"
                   : tab.id === "cold-outreach" && !result.coldOutreachEmail
                   ? "Run Step 5 (Generate email) first"
                   : tab.id === "blog" && !result.blog
@@ -279,7 +287,8 @@ export default function ContentResults({
           </div>
 
           <div className="pt-5">
-            {activeTab === "article" && result.article && (
+            {activeTab === "article" &&
+              (result.article ? (
               <ArticleView
                 title={result.article.title}
                 metaDescription={result.article.metaDescription}
@@ -294,7 +303,9 @@ export default function ContentResults({
                 minWords={CONTENT_LENGTH_TARGETS.pillar.min}
                 maxWords={CONTENT_LENGTH_TARGETS.pillar.max}
               />
-            )}
+              ) : (
+                <EmptyTabHint message="No pillar yet — tools-only is fine. Run Steps 1–2 when you want the article." />
+              ))}
             {activeTab === "blog" &&
               (result.blog && result.blogUrl ? (
                 <ArticleView

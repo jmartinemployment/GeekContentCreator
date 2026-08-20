@@ -15,16 +15,17 @@ export default function ToolsFromNamesPanel({
   const [brief, setBrief] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const names = namesText
     .split(/[\n,]/)
     .map((s) => s.trim())
     .filter(Boolean)
-    .filter((name, i, all) => all.findIndex((n) => n.toLowerCase() === name.toLowerCase()) === i)
-    .slice(0, 5);
+    .filter((name, i, all) => all.findIndex((n) => n.toLowerCase() === name.toLowerCase()) === i);
 
   async function run() {
     setError(null);
+    setSuccess(null);
     if (names.length === 0) {
       setError("Add at least one tool name.");
       return;
@@ -35,6 +36,15 @@ export default function ToolsFromNamesPanel({
         toolNames: names,
         brief: brief.trim() || undefined,
       });
+      const n = next.toolPosts?.length ?? 0;
+      const hub = next.toolPosts?.some((t) =>
+        t.title.toLowerCase().startsWith("top ai tools"),
+      );
+      setSuccess(
+        hub
+          ? `Wrote ${n} tool document${n === 1 ? "" : "s"} (product pages + Top AI Tools hub). Use Export below.`
+          : `Wrote ${n} tool document${n === 1 ? "" : "s"}. Use Export below.`,
+      );
       onGenerated(next);
     } catch (err) {
       setError(
@@ -53,8 +63,9 @@ export default function ToolsFromNamesPanel({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">Tool pages from names</h2>
       <p className="mt-1 text-sm text-muted">
-        Writes one tool page per name (Overview, Key Capabilities, Implementation, When to Use). Does
-        not use crawl tools or Step 6. Replaces existing tool pages on this project.
+        Writes one tool page per name (four H2s) plus a Top AI Tools hub. No crawl, no pillar.
+        Then use Export / Commit in Editorial Review (same as pillar flow) for{" "}
+        <code className="text-xs">content-writer-output/tools/</code>.
       </p>
 
       <label className="mt-4 block text-sm font-medium text-foreground" htmlFor="tool-names">
@@ -90,6 +101,7 @@ export default function ToolsFromNamesPanel({
         {busy ? "Generating…" : `Generate ${names.length || ""} tool page${names.length === 1 ? "" : "s"}`}
       </button>
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+      {success ? <p className="mt-2 text-sm text-green-800">{success}</p> : null}
     </div>
   );
 }

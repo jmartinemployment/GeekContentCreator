@@ -42,7 +42,10 @@ export default function ReviewPublishPanel({
   const [commitError, setCommitError] = useState<string | null>(null);
   const [commitResult, setCommitResult] = useState<CommitHtmlExportResult | null>(null);
 
-  const hasPublishableContent = (result?.article?.wordCount ?? 0) > 0 || result?.blog != null;
+  const hasPublishableContent =
+    (result?.article?.wordCount ?? 0) > 0 ||
+    result?.blog != null ||
+    (result?.toolPosts?.length ?? 0) > 0;
 
   useEffect(() => {
     if (toolPosts.length === 0) {
@@ -281,8 +284,10 @@ export default function ReviewPublishPanel({
       <div className="mt-6 border-t border-border pt-5">
         <h3 className="text-sm font-semibold text-foreground">9. Export .html files</h3>
         <p className="mt-1 text-xs text-muted">
-          Downloads a .zip of the eligible content as standalone .html files. Review
-          is optional here — a never-reviewed row is included, only a row reviewed and NOT Approved is excluded.
+          Downloads a .zip of the eligible content as standalone .html files (use-cases, blog,{" "}
+          <span className="font-medium text-foreground">tools/</span>, social, email). Tools-only
+          projects export the same way — no pillar required. Review is optional here — a
+          never-reviewed row is included; only a row reviewed and NOT Approved is excluded.
         </p>
 
         <label className="mt-3 flex items-center gap-2 text-sm text-foreground">
