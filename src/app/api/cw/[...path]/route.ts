@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAccessToken } from "@/lib/auth/session";
+import { getAccessTokenWithRefresh } from "@/lib/auth/session";
 import { apiConfig } from "@/lib/config";
 
 /**
@@ -15,7 +15,7 @@ async function proxy(
   const targetUrl = new URL(`/${path.join("/")}`, apiConfig.baseUrl);
   targetUrl.search = request.nextUrl.search;
 
-  const token = await getAccessToken();
+  const token = await getAccessTokenWithRefresh();
   if (!token) {
     return Response.json(
       { error: "Unauthorized — sign in required" },

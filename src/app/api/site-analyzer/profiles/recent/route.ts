@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAccessToken } from "@/lib/auth/session";
+import { getAccessTokenWithRefresh } from "@/lib/auth/session";
 import { apiConfig } from "@/lib/config";
 
 export async function GET(request: Request) {
-  const token = await getAccessToken();
+  const token = await getAccessTokenWithRefresh();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
