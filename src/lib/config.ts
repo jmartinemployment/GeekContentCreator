@@ -19,8 +19,10 @@ export const authConfig = {
   authorizeUrl: `${authUrl}/connect/authorize`,
   tokenUrl: `${authUrl}/connect/token`,
   clientId: process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID?.trim() || "geek-content-creator",
-  redirectUri:
-    process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI?.trim() || `${appUrl}/auth/callback`,
+  // Always derived from appUrl. The callback lives at src/app/auth/callback, so the path is
+  // fixed — an override only creates a second host that can disagree with NEXT_PUBLIC_APP_URL,
+  // which is exactly what stranded the PKCE cookie and broke sign-in.
+  redirectUri: `${appUrl}/auth/callback`,
   scope: "openid profile email offline_access",
   appUrl,
 };
